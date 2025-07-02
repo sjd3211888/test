@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<dds>
+    <profiles>
+        <participant profile_name="pub_participant_profile" is_default_profile="true">
+            <rtps>
+                <builtin>
+                    <discovery_config>
+                        <discoveryProtocol>CLIENT</discoveryProtocol>
+                        <discoveryServersList>
+                            <locator>
+                                <uds>
+                                    <address>dserver</address>
+                                </uds>
+                            </locator>
+                        </discoveryServersList>
+                    </discovery_config>
+                </builtin>
+                <propertiesPolicy>
+                    <properties>
+                        <!-- Activate DDS:Auth:PKI-DH plugin -->
+                        <property>
+                            <name>dds.sec.auth.plugin</name>
+                            <value>builtin.PKI-DH</value>
+                        </property>
+                        <!-- Configure DDS:Auth:PKI-DH plugin -->
+                        <property>
+                            <name>dds.sec.auth.builtin.PKI-DH.identity_ca</name>
+                            <value>liddsauth://security/LiDDS_cacert.pem</value>
+                        </property>
+                        <property>
+                            <name>dds.sec.auth.builtin.PKI-DH.identity_certificate</name>
+                            <value>liddsauth://security/LiDDS_device_cert.pem</value>
+                        </property>
+                        <property>
+                            <name>dds.sec.auth.builtin.PKI-DH.private_key</name>
+                            <value>liddsauth://security/LiDDS_device_key.pem</value>
+                        </property>
+                    </properties>
+                </propertiesPolicy>
+            </rtps>
+        </participant>
+        <participant profile_name="sub_participant_profile" is_default_profile="true">
+            <rtps>
+                <builtin>
+                    <discovery_config>
+                        <discoveryProtocol>CLIENT</discoveryProtocol>
+                        <discoveryServersList>
+                            <locator>
+                                <uds>
+                                    <address>dserver</address>
+                                </uds>
+                            </locator>
+                        </discoveryServersList>
+                    </discovery_config>
+                </builtin>
+                <propertiesPolicy>
+                    <properties>
+                        <!-- Activate DDS:Auth:PKI-DH plugin -->
+                        <property>
+                            <name>dds.sec.auth.plugin</name>
+                            <value>builtin.PKI-DH</value>
+                        </property>
+                        <!-- Configure DDS:Auth:PKI-DH plugin -->
+                        <property>
+                            <name>dds.sec.auth.builtin.PKI-DH.identity_ca</name>
+                            <value>liddsauth://security/LiDDS_cacert.pem</value>
+                        </property>
+                        <property>
+                            <name>dds.sec.auth.builtin.PKI-DH.identity_certificate</name>
+                            <value>liddsauth://security/LiDDS_device_cert.pem</value>
+                        </property>
+                        <property>
+                            <name>dds.sec.auth.builtin.PKI-DH.private_key</name>
+                            <value>liddsauth://security/LiDDS_device_key.pem</value>
+                        </property>
+                    </properties>
+                </propertiesPolicy>
+            </rtps>
+        </participant>
+        <topic profile_name="HelloWorldTopic" is_default_profile="true">
+        </topic>
+        <data_writer profile_name="test_writer_prof" is_default_profile="true">
+        </data_writer>
+        <data_reader profile_name="test_reader_prof" is_default_profile="true">
+        </data_reader>
+    </profiles>
+</dds>

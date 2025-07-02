@@ -1,0 +1,38 @@
+<dds>
+    <log>
+    <level>Error</level>
+    </log>
+    <profiles>
+        <!-- Begin: Using loopback for DDS -->
+        <transport_descriptors>
+            <transport_descriptor>
+                <transport_id>Udp4LoTransport</transport_id>
+                <type>UDPv4</type>
+                <interfaceWhiteList>
+                    <address>lo</address>
+                    <address>10.248.25.13</address>
+                </interfaceWhiteList>
+            </transport_descriptor>
+        </transport_descriptors>
+        <!-- End: Using loopback for DDS -->
+
+        <participant profile_name="pub_participant_profile">
+            <domainId>10</domainId>
+            <rtps>
+                <useBuiltinTransports>false</useBuiltinTransports>
+                <!-- Begin: Using loopback for DDS -->
+                <userTransports>
+                    <transport_id>Udp4LoTransport</transport_id>
+                </userTransports>
+                <!-- End: Using loopback for DDS -->
+            </rtps>
+        </participant>
+        <topic profile_name="HelloWorldTopic" is_default_profile="true">
+        </topic>
+        <data_writer profile_name="test_writer_prof" is_default_profile="true">
+            <reliability>
+                <kind>RELIABLE</kind>
+            </reliability>
+        </data_writer>
+    </profiles>
+</dds>

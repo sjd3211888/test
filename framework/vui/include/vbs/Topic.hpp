@@ -1,0 +1,241 @@
+// Copyright 2020 Proyectos y Sistemas de Mantenimiento SL (eProsima).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ------------------------------------------------------------------
+// Modification history:
+// feature: framework fit QosManager 1. create topic、reader、writer with profile use QosManager API
+// 2. QosManager add clear xml file API 3. UT fit QosManager
+// feature: Add to_string mode for enum type
+// feature: private constructor
+// feature: separating interface and implementation about Topic
+// feature: set get_qos is private
+// feature: use Listeners and NexusUnits as singleton
+// feature: Support Topic throughput collection
+// feature: VBS framework add performance test
+// feature: Static type to dynamic type
+// feature: fwk provides a topic initialization interface without profilename
+// ------------------------------------------------------------------
+
+#ifndef VBS_TOPIC_HPP_
+#define VBS_TOPIC_HPP_
+
+#include <map>
+#include <string>
+
+#include "vbs/Global.hpp"
+#include "vbs/DomainParticipant.hpp"
+#include "vbs/TopicQos.hpp"
+#include "vbs/types/VBSDynamicType.h"
+
+namespace vbs {
+class DomainParticipantImpl;
+class TopicImpl;
+class DomainParticipant;
+class ReturnCode_t;
+class NexusUnits;
+class VBSDynamicData;
+
+class Topic {
+    friend class DomainParticipant;
+
+ public:
+    /**
+     * Topic constructor.
+     * 
+     * @note @li Thread-Safe: No
+     * @note @li Lock-Free: No
+     */
+    virtual ~Topic();
+
+    /**
+     * get topic name
+     * 
+     * @note @li Thread-Safe: No
+     * @note @li Lock-Free: No
+     *
+     * @return topic name
+     */
+    std::string get_topic_name() const;
+
+    /**
+     * create DynamicData data.
+     * 
+     * @note @li Thread-Safe: Yes
+     *
+     * @return DynamicData* if correct, nullptr otherwise
+     */
+    VBSDynamicData* create_data();
+
+    /**
+     * delete DynamicData data.
+     * 
+     * @note @li Thread-Safe: Yes
+     *
+     * @param data pointer to the DynamicData
+     * @return DynamicData* if correct, nullptr otherwise
+     */
+    ReturnCode_t delete_data(VBSDynamicData* data);
+
+    /**
+     * Retrieve the instance of the topic.
+     * 
+     * @note @li Thread-Safe: No
+     * @note @li Lock-Free: No
+     *
+     * This member function provides access to the internal topic instance represented by the topic_ptr_ member.
+     *
+     * @return vbs::Topic* Pointer to the internal topic instance. 
+     */
+    vbs::TopicImpl* get_instance() { return topic_ptr_; }
+
+    /**
+     * @brief Check if initialization was successful.
+     * 
+     * @note @li Thread-Safe: No
+     * @note @li Lock-Free: No
+     *
+     * This function verifies whether the previous initialization process
+     * completed successfully. It should be called after the initialization
+     * routine to ensure that the system or object is ready for use.
+     *
+     * @return true if the initialization was successful, false otherwise.
+     */
+    bool init_verify();
+
+    /**
+     * @brief print DynamicData to string in json format
+     * 
+     * @note @li Thread-Safe: Yes
+     *
+     * @param data DynamicData ptr
+     * @param enum_mode enum type print mode
+     *
+     * If enum_mode is 0, it can print like TK_NONE.
+     * If enum_mode is 1, it can print true value, like 0.
+     * If enum_mode is 2, it can print true value and name, like TK_NONE(0).
+     *
+     * @return data content string with json format
+     */
+    static std::string to_string(const VBSDynamicData* data, int enum_mode = 0);
+
+    /**
+     * @brief print DynamicData to ostream
+     * 
+     * @note @li Thread-Safe: No
+     * @note @li Lock-Free: No
+     *
+     * @param out ostream object
+     * @param data DynamicData ptr
+     * @param enum_mode enum type print mode
+     *
+     * If enum_mode is 0, it can print like TK_NONE.
+     * If enum_mode is 1, it can print true value, like 0.
+     * If enum_mode is 2, it can print true value and name, like TK_NONE(0).
+     *
+     * @return data content ostream with json format
+     */
+    static std::ostream& to_string(std::ostream& out, const VBSDynamicData* data, int enum_mode = 0);
+#ifndef _WIN32
+    /**
+     * get dynamic dynamic type by static type
+     *
+     * @return dynamic type
+     */
+    template <typename T>
+    class dynamic_type {
+     public:
+        static VBSDynamicType get() {
+            static_assert(isVBSType<T>(), "Type must be generated by vbs-idlgen!");
+            T data;
+            return get_dynamic_type_inner(data.get_type_name());
+        }
+    };
+#endif
+
+    /**
+     * @brief Get Topic VBS throughput in the given time, this function will block.
+     *
+     * @note @li Thread-Safe: No
+     * @note @li Lock-Free: No
+     *
+     * @param info NetTrafficInfo array, info[0] is send traffic info, info[1] is recv traffic info.
+     * @param interval Interval for collecting throughput.
+     *
+     * @return True on success.
+     */
+    bool get_topic_throughput(NetTrafficInfo (&info)[2], int interval = 10);
+
+ private:
+    /**
+     * Topic static constructor
+     * 
+     * @note @li Thread-Safe: No
+     * @note @li Lock-Free: No
+     *
+     * @param local_participant DomainParticipant pointer.
+     * @param topic_name Topic name.
+     * @param type_name type name.
+     * @param local_type TypeSupport.
+     * @param profile_name topic profile name.
+     */
+    Topic(DomainParticipant* const local_participant, const std::string& topic_name, const std::string& type_name,
+          const TypeSupport& local_type, const std::string& profile_name = "");
+
+    /**
+     * Topic constructor
+     * 
+     * @note @li Thread-Safe: No
+     * @note @li Lock-Free: No
+     *
+     * @param local_participant DomainParticipant pointer.
+     * @param topic_name Topic name.
+     * @param type_name type name.
+     * @param dyn_type DynamicType_ptr.
+     * @param profile_name topic profile name.
+     */
+    Topic(DomainParticipant* const local_participant, const std::string& topic_name, const std::string& type_name,
+          VBSDynamicType& dyn_type, const std::string& profile_name = "");
+
+    /**
+     * Topic static constructor
+     * 
+     * @note @li Thread-Safe: No
+     * @note @li Lock-Free: No
+     *
+     * @param local_participant DomainParticipant pointer.
+     * @param topic_name Topic name.
+     * @param type_name type name.
+     * @param local_type TypeSupport.
+     * @param topic_qos Qos for the Topic.
+     */
+    Topic(DomainParticipant* const local_participant, const std::string& topic_name, const std::string& type_name,
+          const TypeSupport& local_type, const TopicQos& topic_qos);
+
+    /**
+     * Allows accessing the Topic Qos.
+     * 
+     * @note @li Thread-Safe: No
+     * @note @li Lock-Free: No
+     *
+     * @return reference to TopicQos
+     */
+    const TopicQos get_qos() const;
+
+    static VBSDynamicType get_dynamic_type_inner(const std::string& type_name);
+
+    vbs::TopicImpl* topic_ptr_;
+};
+
+}  // namespace vbs
+
+#endif  // VBS_TOPIC_HPP_

@@ -1,0 +1,17 @@
+struct req_type
+{
+    long add1;
+    long add2;
+};
+
+struct res_type
+{
+    long sum;
+};
+
+interface RpcDemo {
+    @method void SyncDemo(in req_type req, out res_type res);
+    @method void AsyncDemo(in req_type req, out res_type res);
+    @method void AsyncStreamDemo(in req_type req, out res_type res);
+    @method void FireForgetDemo(in req_type req);
+};

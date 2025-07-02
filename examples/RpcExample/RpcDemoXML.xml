@@ -1,0 +1,24 @@
+<vbs>
+    <rpc>
+        <rpc_service profile_name="RpcServiceLo">
+            <ip>127.0.0.1:7410</ip>
+            <threadpool_size>5</threadpool_size>
+            <service_name>IDL</service_name>
+        </rpc_service>
+        <rpc_server profile_name="RpcDemo">
+            <rpc_service>RpcServiceLo</rpc_service>
+            <interface_name>RpcDemo</interface_name>
+        </rpc_server>
+        <rpc_service_proxy profile_name="RpcProxyLo">
+            <server_ip>127.0.0.1:7410</server_ip>
+            <proxy_name>IDL</proxy_name>
+        </rpc_service_proxy>
+        <rpc_client profile_name="RpcDemo">
+            <rpc_service_proxy>RpcProxyLo</rpc_service_proxy>
+            <interface_name>RpcDemo</interface_name>
+        </rpc_client>
+        <rpc_log>
+            <level>Error</level>
+        </rpc_log>
+    </rpc>
+</vbs>
