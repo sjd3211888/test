@@ -1,0 +1,284 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group ContainerPrintHelpers;
+
+main(ctx, definitions) ::= <<
+$fileHeader(file=[ctx.filename, ".h"], description=["This header file contains the declaration of the described types in the IDL file."])$
+
+#ifndef _EDDS_GENERATED_ContainerPrintHelpers_H_
+#define _EDDS_GENERATED_ContainerPrintHelpers_H_
+
+//$if(ctx.printexception)$
+//#include <$ctx.product$/exceptions/UserException.h>
+//$endif$
+
+#include <stdint.h>
+#include <array>
+#include <string>
+#include <vector>
+#include <map>
+#include <bitset>
+#include <ostream>
+#include <sstream>
+
+$if(ctx.PureStructure)$
+#include "FixedString.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+namespace vbs {
+template<size_t MAX_CHARS>
+using fixed_string = vbsutil::ecdr::fixed_string<MAX_CHARS>;
+}
+
+$else$
+$if(ctx.NotUseVbsFramework)$
+#include <ertps/utils/fixed_size_string.hpp>
+#include <ecdr/cdr/fixed_size_string.hpp>
+$else$
+$if(ctx.GenBoth)$
+#include <vbs/RpcHeader.hpp>
+#include <vbs/Global.hpp>
+$else$
+$if(ctx.Rpc)$
+#include <vbs/RpcHeader.hpp>
+$else$
+#include <vbs/Global.hpp>
+$endif$
+$endif$
+$endif$
+$endif$
+
+$if(ctx.UseStaticCapacity)$#include "StaticCapacityDynamicArray.$if(ctx.GenHpp)$hpp$else$h$endif$"$endif$
+
+template<typename>
+struct is_std_array : std::false_type {};
+
+template<typename T, std::size_t N>
+struct is_std_array<std::array<T, N> > : std::true_type {};
+
+template<typename T>
+void print(std::ostream& os, const T& t) {
+    os << t;
+}
+
+template<>
+void print(std::ostream& os, const std::wstring& str) {
+    os << std::string(str.begin(), str.end());
+}
+
+template<std::size_t N>
+void print(std::ostream& os, const $ertps_namespace_get(ctx=ctx)$fixed_string<N>& str) {
+    os << str.to_string();
+}
+
+template<typename T, std::size_t N>
+void print(std::ostream& os, const std::array<T, N>& arr) {
+    os << "[";
+    bool first = true;
+    for (const auto& elem : arr) {
+        if (!first) {
+            os << ", ";
+        }
+        print(os, elem);
+        first = false;
+    }
+    os << "]";
+}
+
+// Main template
+template<typename T, std::size_t N>
+std::ostream& operator<<(std::ostream& os, const std::array<T, N>& arr) {
+    os.write("[", 1);
+    auto it = arr.begin();
+    if (it != arr.end()) {
+        print(os, *it);
+        ++it;
+    }
+    while (it != arr.end()) {
+        os.write(", ", 2);
+        print(os, *it);
+        ++it;
+    }
+    os.write("]", 1);
+    return os;
+}
+
+template<typename T>
+void print(std::ostream& os, const std::vector<T>& vec) {
+    os << "[";
+    bool first = true;
+    for (const auto& elem : vec) {
+        if (!first) {
+            os << ", ";
+        }
+        print(os, elem);
+        first = false;
+    }
+    os << "]";
+}
+
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
+    os << "[";
+    if (!vec.empty()) {
+        auto it = vec.begin();
+        print(os, *it);
+        ++it;
+        while (it != vec.end()) {
+            os << ", ";
+            print(os, *it);
+            ++it;
+        }
+    }
+    os << "]";
+    return os;
+}
+
+template<typename K, typename V>
+std::ostream& operator<<(std::ostream& os, const std::map<K,V>& m) {
+    os << "{ ";
+    for (const auto& kv : m) {
+        print(os, kv.first);
+        os << ": ";
+        print(os, kv.second);
+        os << ", ";
+    }
+    os << "}";
+    return os;
+}
+
+$if(ctx.UseStaticCapacity)$
+template<typename T, size_t FixedCapacity>
+void print(std::ostream& os, const vbs::StaticCapacityDynamicArray<T, FixedCapacity>& arr) {
+    os << "[";
+    for (size_t i = 0; i < arr.size(); ++i) {
+        if (i != 0) {
+            os << ", ";
+        }
+        print(os, arr[i]);
+    }
+    os << "]";
+}
+
+template<typename T, size_t FixedCapacity>
+std::ostream& operator<<(std::ostream& os, const vbs::StaticCapacityDynamicArray<T, FixedCapacity>& arr) {
+    print(os, arr);
+    return os;
+}
+$endif$
+
+$if(ctx.TestExample)$
+//array fill
+template<typename T, std::size_t N>
+void fillArray(std::array<T, N>& arr, const T& value) {
+    std::fill(arr.begin(), arr.end(), value);
+}
+
+template<typename T, std::size_t N>
+void fillArray(std::array<std::array<T, N>, N>& arr, const T& value) {
+    for (auto& subArray : arr) {
+        fillArray(subArray, value);
+    }
+}
+
+template<typename T, std::size_t N, typename U>
+void fillArray(std::array<T, N>& arr, const U& value) {
+    for (auto& subArray : arr) {
+        fillArray(subArray, value);
+    }
+}
+$endif$
+
+std::wstring int_to_wstring(int index) {
+    std::wstringstream ss;
+    ss << index;
+    return ss.str();
+}
+
+std::string int_to_string(int index) {
+    std::stringstream ss;
+    ss << index;
+    return ss.str();
+}
+
+#endif // _EDDS_GENERATED_ContainerPrintHelpers_H_
+>>
+
+// TODO name -> module
+module(ctx, parent, module, definition_list) ::= <<>>
+
+definition_list(definitions) ::= <<>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list) ::= <<>>
+
+export_list(exports) ::= <<>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct, extensions) ::= <<>>
+
+union_type(ctx, parent, union, extensions) ::= <<>>
+
+bitset_type(ctx, parent, bitset, extensions) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+/***** Utils *****/
+
+public_struct_inheritances(parent) ::= <<>>
+
+public_bitset_inheritances(parent) ::= <<>>
+
+public_member_declaration(ctx, member) ::= <<>>
+
+public_member_primitive_declaration(ctx, member) ::= <<>>
+
+public_member_cstring_declaration(ctx, member) ::= <<>>
+
+public_bitfield_declaration(member) ::= <<>>
+
+private_member_declaration(member) ::= <<>>
+
+public_unionmember_declaration(ctx, member) ::= <<>>
+
+public_unionmember_primitive_declaration(ctx, member) ::= <<>>
+
+public_unionmember_cstring_declaration(ctx, member) ::= <<>>
+
+private_declaration(typecode, name) ::= <<>>
+
+size_functions(type) ::= << >>
+
+serialization_functions(type) ::= << >>
+
+sequences_definition(typecode) ::= <<>>
+
+/*UTILS*/
+ertps_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$$if(ctx.HasMutable)$vbsutil::ecdr::$else$$if(ctx.GenBoth)$evbs::ertps::$else$$if(ctx.Rpc)$vbsutil::ecdr::$else$evbs::ertps::$endif$$endif$$endif$$else$vbs::$endif$>>

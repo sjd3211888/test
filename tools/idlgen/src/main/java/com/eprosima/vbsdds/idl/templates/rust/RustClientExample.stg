@@ -1,0 +1,183 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group RustClientExample;
+
+main(ctx, definitions) ::= <<
+#![allow(non_upper_case_globals)]
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
+$if(ctx.package)$
+mod $ctx.OnlyPackage$;
+use $ctx.OnlyPackage$::*;
+$endif$
+
+use std::{
+    collections::BTreeMap,
+    error::Error,
+    rc::Rc,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
+use vbs::{
+    RpcServer,
+    RpcMessageType
+};
+use std::ffi::CString;
+use std::os::raw::{c_void, c_char, c_int};
+include!(concat!(env!("OUT_DIR"), "/typesbindings.rs"));
+$definitions; separator="\n"$
+//     //     head: Header {
+//     //         app_id: "app123".to_string(),
+//     //         device_type: "deviceA".to_string(),
+//     //         device_id: "device123".to_string(),
+//     //         domain: "domain1".to_string(),
+//     //         trace_id: "trace123".to_string(),
+//     //         attributes: {
+//     //             let mut map = std::collections::BTreeMap::new();
+//     //             map.insert("key1".to_string(), "value1".to_string());
+//     //             map.insert("key2".to_string(), "value2".to_string());
+//     //             map
+//     //         },
+//     //     },
+//     //     array_test_1: Array_test {
+//     //         var_long: Box::new([[0; 6]; 3]),
+//     //         var_ushort: Box::new([0; 3]),
+//     //         var_ulong: Box::new([0; 100]),
+//     //         var_float: Box::new([0.0; 2048]),
+//     //         var_double: Box::new([0.0; 6]),
+//     //         var_boolean: Box::new([false; 7]),
+//     //         var_char: Box::new([0; 3]),
+//     //         var_octet: Box::new([0; 3]),
+//     //         var_longlong: Box::new([0; 3]),
+//     //         var_ulonglong: Box::new([0; 3]),
+//     //         var_enum: Box::new(std::array::from_fn(|_| MyEnum::default())),
+//     //         var_basic_test: Box::new(std::array::from_fn(|_| basic_test {
+//     //             var_short: 0,
+//     //             var_long: 0,
+//     //             var_ushort: 0,
+//     //             var_ulong: 0,
+//     //             var_float: 0.0,
+//     //             var_double: 0.0,
+//     //             var_boolean: false,
+//     //             var_char: 0,
+//     //             var_octet: 0,
+//     //             var_longlong: 0,
+//     //             var_longdouble: 0.0,
+//     //             var_ulonglong: 0,
+//     //             var_string: String::new(),
+//     //         })),
+//     //     },
+//     //     payload: "Request pa\0yload\0222".as_bytes().to_vec(),
+//     //     seq_test_1: seq_test::default(),
+fn main() {
+
+     $ctx.Interfaces : { interface |
+let factory = $interface.Scopedname$Factory::new();
+let client = $interface.Scopedname$Client::new(&factory, "ServiceXML.xml", "$interface.CScopedname$");
+let mut result = true;
+        $interface.all_operations : { operation |
+            result &= $operation.name$_example(&client);}; separator="\n"$
+
+    println!("--- Done operations for interface $interface.name$ ---\n");
+    }; separator="\n"$
+    if result {
+        println!("内容一致，测试通过。");
+    } else {
+        println!("内容不一致或发生错误，测试失败。");
+    }
+    thread::sleep(Duration::from_secs(2));
+}
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list) ::= <<
+$interface.all_operations : {operation|
+fn  $operation.name$_example(client: &$interface.Scopedname$Client) -> bool {
+    let mut req = Box::new($operation.FirstInputparam.Typecode.scopednamenormal$::default());
+    let mut res = Box::new($operation.FirstOutputparam.Typecode.scopednamenormal$::default());
+    let result = client.$operation.name$_Sync_Send(&mut req, &mut res, -1);
+    match result {
+        Ok(_) => {
+            println!("rpc sync client success, the message is---- {:?}", res.member_string);
+
+            match serde_json::to_string(&res.basic_member) {
+                Ok(serialized_basic_member) => {
+                    if serialized_basic_member == res.member_string {
+                        println!("member_string 和 basic_member 的序列化内容一致。");
+                        true
+                    } else {
+                        println!("member_string 和 basic_member 的序列化内容不一致。");
+                        println!("序列化后的 basic_member: {:?}", serialized_basic_member);
+                        println!("res.member_string: {:?}", res.member_string);
+                        false
+                    }
+                }
+                Err(err) => {
+                    println!("序列化 basic_member 失败：{:?}", err);
+                    false
+                }
+            }
+        }
+        Err(ret) =>  {
+            println!("basic_test_Sync_Send fail: {}", ret);
+            false
+        }
+    }
+}
+}; separator="\n"$
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct) ::= <<>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+bitset_type(ctx, parent, bitset) ::= <<>>
+
+/*UTILS*/
+namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$evbs::edds::dds::$else$vbs::$endif$>>

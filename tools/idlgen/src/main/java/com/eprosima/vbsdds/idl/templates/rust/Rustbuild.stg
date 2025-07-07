@@ -1,0 +1,194 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group Rustbuild;
+
+Cargobuild(solution, test, dds) ::= <<
+extern crate bindgen;
+
+use std::env;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+use serde_json::Value;
+fn get_target_feature() -> Result<String, Box<dyn std::error::Error>\> {
+    if let Ok(profile) = env::var("VBS_TARGET") {
+        Ok(profile)
+    } else {
+        let target = env::var("TARGET")?;
+        if target.contains("x86_64") {
+            Ok("x64".to_string())
+        } else if target.contains("aarch64") {
+            // 默认情况下，对于 aarch64，使用 "s32g"
+            Ok("s32g".to_string())
+        } else if target.contains("android") {
+            Ok("android".to_string())
+        } else {
+            Err(format!("Unsupported target platform: {}", target).into())
+        }
+    }
+}
+
+fn build_cpp() {
+    let target_os = env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS not set");
+    let this_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let target_feature = get_target_feature().expect("Failed to get target feature");
+
+    let output = Command::new("cargo")
+        .arg("metadata")
+        .arg("--format-version=1")
+        .output()
+        .expect("Failed to execute cargo metadata");
+    let metadata: Value = serde_json::from_slice(&output.stdout).expect("Failed to parse metadata");
+
+    let mut vbs_cpp_include = None;
+    let mut vbs_deps_include = None;
+    let crateb_name = "vbs";
+    let packages = metadata["packages"]
+        .as_array()
+        .expect("Failed to get packages");
+    let mut crate_path = format!("/{}/lib/", target_feature);
+    for package in packages {
+        if package["name"] == crateb_name {
+            let path = package["manifest_path"]
+                .as_str()
+                .expect("Failed to get manifest path");
+            let file_path = Path::new(path);
+            let parent = file_path.parent().expect("Failed to get parent directory");
+            crate_path.insert_str(0, parent.to_str().unwrap());
+            vbs_cpp_include = Some(parent.join("cpp"));
+            vbs_deps_include = Some(parent.join(format!("{}/include", target_feature)));
+        }
+    }
+
+    let mut build = cc::Build::new();
+    build
+        .files(&[
+$if(dds)$
+$solution.projects:{
+    "../cpp/$it.name$.cxx",
+    "../cpp/$it.name$PubSubTypes.cxx",
+    "../cpp/$it.name$Wrapper.cpp",}; separator="\n"$$else$
+$solution.projects:{
+    "../cpp/$it.name$.cxx",
+    "../cpp/$it.name$Wrapper.cpp",}; separator="\n"$$endif$
+        ])
+        .include("../cpp");
+    if let Some(ref cpp_include) = vbs_cpp_include {
+        build.include(cpp_include);
+    }
+    if let Some(ref deps_include) = vbs_deps_include {
+        build.include(deps_include);
+    }
+
+    build
+        .flag("-Wall")
+        .flag("-fexceptions")
+        .flag_if_supported("-std=c++14")
+        .cpp(true)
+        .compile("vbstypes");
+
+    if target_os == "macos" {
+        build.flag("-march=x86-64");
+    }
+
+    setup_linking(&target_os, &this_dir, &crate_path);
+    generate_bindings(
+        &target_os,
+        &this_dir,
+        &crate_path,
+        &vbs_cpp_include,
+        &vbs_deps_include,
+    );
+}
+fn setup_linking(target_os: &str, this_dir: &str, crate_path: &str) {
+    let target_feature = get_target_feature().expect("Failed to get target feature");
+    if target_os == "android" {
+        println!(
+            "cargo:rustc-link-search=native={}/../vbs/android-arm64/lib",
+            this_dir
+        );
+        println!("cargo:include={}/../vbs/android-arm64/include", this_dir);
+        println!("cargo:rustc-link-search=native={}/build", this_dir);
+
+        println!("cargo:rustc-link-lib=vbsrust");
+        println!("cargo:rustc-link-lib=erpc_NDK");
+        println!("cargo:rustc-link-lib=crypto_NDK");
+        println!("cargo:rustc-link-lib=ertps_NDK");
+        println!("cargo:rustc-link-lib=VBSFramework_NDK");
+        println!("cargo:rustc-link-lib=ecdr_NDK");
+        println!("cargo:rustc-link-lib=foonathan_memory-0.7.1_NDK");
+        println!("cargo:rustc-link-lib=elog_NDK");
+        println!("cargo:rustc-link-lib=ssl_NDK");
+        println!("cargo:rustc-link-lib=erpc_NDK");
+        println!("cargo:rustc-link-lib=tinyxml2_NDK");
+        println!("cargo:rustc-link-lib=dl");
+    } else {
+        println!("cargo:rustc-link-search=native={}/target/", this_dir);
+        println!("cargo:rustc-link-search=native={}", crate_path);
+        println!("cargo:rustc-link-lib=vbstypes");
+        println!("cargo:rustc-link-lib=vbsrust");
+        println!("cargo:rustc-link-lib=livbs");
+        println!("cargo:rustc-link-lib=ecdr");
+        println!("cargo:rustc-link-lib=shmmem");
+        if target_feature != "s32g" {
+            println!("cargo:rustc-link-lib=dsfddsv1");
+        }
+        println!("cargo:rustc-link-lib=dl");
+        println!("cargo:rustc-link-lib=rt");
+        println!("cargo:rustc-link-lib=stdc++");
+    }
+}
+fn generate_bindings(
+    target_os: &str,
+    this_dir: &str,
+    crate_path: &str,
+    vbs_cpp_include: &Option<PathBuf>,
+    vbs_deps_include: &Option<PathBuf>,
+) {
+    let out_path = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
+
+    let mut bindings_builder = bindgen::Builder::default()
+        $solution.projects:{.header("../cpp/$it.name$Wrapper.h")}; separator="\n"$
+        .generate_comments(true)
+        $if(dds)$        .blocklist_type("TopicDataTypeWrapper")$endif$
+        //.clang_arg(format!("--sysroot={}", sysroot_path))
+        .derive_default(true);
+
+    if let Some(cpp_include) = vbs_cpp_include {
+        bindings_builder = bindings_builder.clang_arg(format!("-I{}", cpp_include.display()));
+    }
+    if let Some(deps_include) = vbs_deps_include {
+        bindings_builder = bindings_builder.clang_arg(format!("-I{}", deps_include.display()));
+    }
+
+
+    let bindings = bindings_builder
+        .merge_extern_blocks(true)
+        .generate()
+        .expect("Unable to generate bindings");
+
+    bindings
+        .write_to_file(out_path.join("typesbindings.rs"))
+        .expect("Couldn't write bindings!");
+}
+
+fn main() {
+    build_cpp();
+
+}
+
+>>

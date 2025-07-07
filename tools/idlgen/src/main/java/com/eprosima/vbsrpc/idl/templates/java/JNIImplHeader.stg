@@ -1,0 +1,148 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group JNIImplHeader;
+
+main(ctx, definitions) ::= <<
+$fileHeader(file=[ctx.filename, ".h"], description=["This header file contains the declaration of the described types in the IDL file."])$
+
+#ifndef _$ctx.headerGuardName$_JNI_IMPL$if(!ctx.NotUseRandom)$_$ctx.RandomNumber$$endif$_H_
+#define _$ctx.headerGuardName$_JNI_IMPL$if(!ctx.NotUseRandom)$_$ctx.LastRandomNumber$$endif$_H_
+
+$if(ctx.NotUseVbsFramework)$
+#include <erpc/server/RpcServerImpl.h>
+$else$
+#include <vbs/RpcHeader.hpp>
+$endif$
+
+#include "$ctx.filename$$if(ctx.RtiIdl)$Base$else$$endif$.$if(ctx.GenHpp)$hpp$else$h$endif$"
+#include <jni.h>
+
+$definitions; separator="\n"$
+
+#endif // _$ctx.headerGuardName$_JNI_IMPL$if(!ctx.NotUseRandom)$_$ctx.LastRandomNumber$$endif$_H_
+>>
+
+// TODO name -> module
+module(ctx, parent, module, definition_list) ::= <<
+namespace $module.name$
+{
+    $definition_list$
+}
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list) ::= <<
+class $interface.name$_Impl : public vbs::rpc::server::RpcServerImpl
+{
+public:
+        $interface.name$_Impl(std::string profile_name) : RpcServerImpl(profile_name)
+        {
+$interface.all_operations : {operation|
+                this->IDL_table["$operation.name$"] = new vbs::rpc::server::IDL_information(std::bind(&$interface.name$_Impl::$operation.name$, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4)
+                                                        $operation.ParametersTypeWithNullptr : {param |, $param$}; separator=""$);
+}; separator="\n"$
+        }
+
+        virtual ~$interface.name$_Impl() {unregister_java_instance();}
+
+        void register_java_instance(JavaVM *vm, jint version, jobject obj);
+        void unregister_java_instance();
+
+$interface.all_operations : {operation|
+        void $operation.name$(uint32_t conn_id, vbs::rpc::RequestMode req_mode, vbs::rpc::RpcMessageType *$operation.Inputparam : {param |$param.name$}; separator=", "$, vbs::rpc::RpcMessageType *$operation.Outputparam : {param |$param.name$}; separator=", "$);
+}; separator="\n"$
+
+private:
+        JavaVM *vm_;
+        jint version_;
+        jobject java_ImplObj_;
+$interface.AllOperationsStruct : {structname|
+        jclass java_$structname$Class_;
+}; separator="\n"$
+
+$interface.all_operations : {operation|
+        jmethodID java_$operation.name$_MethodID;
+}; separator="\n"$
+
+};
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+struct_type(ctx, parent, struct, extensions) ::= <<>>
+
+union_type(ctx, parent, union, extensions) ::= <<>>
+
+bitset_type(ctx, parent, bitset, extensions) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+/***** Utils *****/
+
+public_struct_inheritances(parent) ::= <<>>
+
+public_bitset_inheritances(parent) ::= <<>>
+
+public_member_declaration(ctx, member) ::= <<>>
+
+public_member_primitive_declaration(ctx, member) ::= <<>>
+
+public_member_cstring_declaration(ctx, member) ::= <<>>
+
+public_bitfield_declaration(member) ::= <<>>
+
+private_member_declaration(member) ::= <<>>
+
+public_unionmember_declaration(ctx, member) ::= <<>>
+
+public_unionmember_primitive_declaration(ctx, member) ::= <<>>
+
+public_unionmember_cstring_declaration(ctx, member) ::= <<>>
+
+private_declaration(typecode, name) ::= <<>>
+
+size_functions(type) ::= <<>>
+
+serialization_functions(type) ::= <<>>
+
+sequences_definition(typecode) ::= <<>>
+
+sequences_definition_impl(typecode, typename) ::= <<>>
+
+/*UTILS*/
+ecdr_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$vbsutil::ecdr::$else$vbs::$endif$>>

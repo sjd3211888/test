@@ -1,0 +1,421 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group TypesCwrapperHeader;
+
+main(ctx, definitions) ::= <<
+#ifndef _VBS_GENERATED_$ctx.RandomNumber$_$ctx.headerGuardName$_WRAPPER_H_
+#define _VBS_GENERATED_$ctx.LastRandomNumber$_$ctx.headerGuardName$_WRAPPER_H_
+
+$fileHeader(file=[ctx.filename, "Wrapper.h"], description=["This header file contains wrapper of the declaration of the described types in the IDL file."])$
+
+#include <stdint.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include <stdbool.h>
+#include "wrapper.h"
+
+$definitions; separator="\n"$
+
+#endif // _VBS_GENERATED_$ctx.LastRandomNumber$_$ctx.headerGuardName$_WRAPPER_H_
+>>
+
+// TODO name -> module
+module(ctx, parent, module, definition_list) ::= <<
+
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list) ::= <<
+typedef struct
+{
+void *serverimpl_;
+}$interface.CScopedname$ImplWrapper;
+
+typedef struct
+{
+void *server_obj_;
+}$interface.CScopedname$ServerObjWrapper;
+
+typedef struct
+{
+void *factory_;
+}$interface.CScopedname$FactoryWrapper;
+
+typedef struct
+{
+void *client_;
+}$interface.CScopedname$ClientWrapper;
+
+typedef struct
+{
+$interface.all_operations : {operation|
+    void (*on_$operation.name$)(void* user_data, uint32_t conn_id$if(operation.HasMethod)$, uint32_t req_id$endif$, int req_mode$operation.Parameters : {param |, /*$param.comment$*/void* $param.name$}; separator=""$);
+}; separator="\n"$
+    void* user_data;
+} $interface.CScopedname$_RpcServerListenerC;
+
+RpcServerImplWrapper *create_$interface.CScopedname$_impl(const char *profile_name, $interface.CScopedname$_RpcServerListenerC *listener);
+void destroy_$interface.CScopedname$_impl(RpcServerImplWrapper *impl_wrapper);
+$interface.CScopedname$FactoryWrapper* create_$interface.CScopedname$_factory();
+void destroy_$interface.CScopedname$_factory($interface.CScopedname$FactoryWrapper* factory);
+
+$interface.CScopedname$ClientWrapper* $interface.CScopedname$Client_create($interface.CScopedname$FactoryWrapper* factory,const char *profile_file_name, const char *profile_name);
+void $interface.CScopedname$Client_destroy($interface.CScopedname$ClientWrapper* client_wrapper);
+$interface.CScopedname$ServerObjWrapper* $interface.CScopedname$ServerObj_create(void* transport, const char *interface_name);
+void $interface.CScopedname$ServerObj_destroy($interface.CScopedname$ServerObjWrapper* server_obj);
+$interface.CScopedname$_RpcServerListenerC *create_$interface.CScopedname$_rpc_server_listener();
+void destroy_$interface.CScopedname$_rpc_server_listener($interface.CScopedname$_RpcServerListenerC *listener);
+$interface.all_operations : {operation|
+void $interface.CScopedname$Impl_$operation.name$_send_async_response(void* wrapper, uint32_t conn_id$if(operation.HasMethod)$, uint32_t req_id$endif$$operation.Outputparam : {param |, /*$param.comment$*/void* $param.name$}; separator=""$);
+void $interface.CScopedname$Impl_$operation.name$(RpcServerImplWrapper* wrapper, uint32_t conn_id, int req_mode$operation.Parameters : {param |, /*$param.comment$*/void* $param.name$}; separator=""$);
+int $interface.CScopedname$Client_$operation.name$_sync_send($interface.CScopedname$ClientWrapper* client, $operation.Parameters : {param |/*$param.comment$*/void* $param.name$, }; separator=""$int expire);
+int $interface.CScopedname$Client_$operation.name$_async_send($interface.CScopedname$ClientWrapper* client, $operation.Inputparam : {param |/*$param.comment$*/void* $param.name$, }; separator=""$on_async_send_complete_t callback, void *user_data, int expire);
+}; separator="\n"$
+void $interface.CScopedname$Impl_on_exception_detected(RpcServerImplWrapper* wrapper, int32_t error_number, uint32_t conn_id);
+
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+struct_type(ctx, parent, struct, extensions) ::= <<
+/*!
+ * @brief This class represents the warpper of structure $struct.name$ defined by the user in the IDL file.
+ * @ingroup $ctx.trimfilename$
+ */
+
+typedef struct
+{
+      $struct.members:{$c_member_declaration(ctx=ctx, member=it, istop=struct.Top)$}; separator="\n"$
+
+}$struct.CScopedname$Wrapper;
+$if(!ctx.Rpc)$
+/*!
+ * @brief Creates an instance of TopicDataTypeWrapper for handling data of type $struct.CScopedname$.
+ * @return A pointer to a newly created TopicDataTypeWrapper object.
+ */
+TopicDataTypeWrapper *create_$struct.CScopedname$PubSubType();
+$endif$
+/*!
+ * @brief Converts a structured wrapper type $struct.CScopedname$Wrapper back to a generic pointer.
+ * @param wrapper A pointer to the $struct.CScopedname$Wrapper to be converted.
+ * @return A void pointer to the untyped data.
+ */
+void *$struct.CScopedname$Wrapper_to_TopicData($struct.CScopedname$Wrapper *);
+$if(ctx.Rpc)$
+void $struct.CScopedname$Wrapper_to_TopicData2($struct.CScopedname$Wrapper *, void *data);
+$endif$
+
+/*!
+ * @brief Converts a structured wrapper type $struct.CScopedname$Wrapper and stores the underlying data in a specified buffer.
+ * @param wrapper A pointer to the $struct.CScopedname$Wrapper whose data will be converted.
+ * @param data A pointer to a user-allocated memory block where the untyped data will be stored.
+ */
+void $struct.CScopedname$Wrapper_to_TopicData2($struct.CScopedname$Wrapper *, void *data);
+/*!
+ * @brief Converts a generic pointer to a specific structured wrapper pointer of type $struct.CScopedname$Wrapper.
+ * @param data A void pointer to the data to be converted.
+ * @return A pointer to $struct.CScopedname$Wrapper, representing the structured data.
+ */
+void TopicData_to_$struct.CScopedname$Wrapper(void *data,$struct.CScopedname$Wrapper *c_data);
+/*!
+ * @brief This function Releases memory for possibly dynamically allocated members of the structure.
+ * @ingroup $ctx.trimfilename$
+ */
+void $struct.CScopedname$Wrapper_free_members($struct.CScopedname$Wrapper *data);
+void $struct.CScopedname$Wrapper_free(void *data);
+/*!
+ * @brief This function Returns default structure.
+ * @ingroup $ctx.trimfilename$
+ */
+void *$struct.CScopedname$Wrapper_default();
+>>
+member_wrapper(ctx, member, istop) ::= <<
+$if(member.typecode.IsType_e)$
+$elseif(member.typecode.isMapType)$
+typedef struct {
+      $if(member.typecode.keyTypeCode.primitive)$
+      $member.typecode.keyTypeCode.cTypename$* keys;
+      $else$
+      $member.typecode.keyTypeCode.cTypename$Wrapper* keys;
+      $endif$
+      $if(member.typecode.valueTypeCode.primitive)$
+      $member.typecode.valueTypeCode.cTypename$* values;
+      $else$
+      $member.typecode.valueTypeCode.cTypename$Wrapper* values;
+      $endif$
+      size_t $member.name$_cap;
+      size_t $member.name$_len;
+}$member.typecode.cTypename$Wrapper;
+$endif$
+>>
+c_member_declaration(ctx, member, istop) ::= <<
+$private_declaration(ctx=ctx, typecode=member.typecode, name=member.name, istop=istop, member = member)$
+$if(member.typecode.IsType_e)$
+$if(member.typecode.contentTypeCode.isStructType)$
+void *$member.name$_ptr;
+$endif$
+
+size_t $member.name$_len;
+    $elseif(member.typecode.isMapType)$
+        $if(member.typecode.keyTypeCode.primitive)$
+$member.typecode.keyTypeCode.cTypename$* $member.name$_key;
+$elseif(member.typecode.keyTypeCode.isType_d)$
+const $member.typecode.keyTypeCode.cTypename$** $member.name$_key;
+        $else$
+$member.typecode.keyTypeCode.cTypename$Wrapper* $member.name$_key;
+        $endif$
+
+        $if(member.typecode.valueTypeCode.primitive)$
+$member.typecode.valueTypeCode.cTypename$* $member.name$_value;
+        $elseif(member.typecode.valueTypeCode.isType_d)$
+const $member.typecode.valueTypeCode.cTypename$** $member.name$_value;
+        $else$
+$member.typecode.valueTypeCode.cTypename$Wrapper* $member.name$_value;
+        $endif$
+
+size_t $member.name$_len;
+$elseif(member.typecode.isType_d)$
+size_t $member.name$_len;
+$endif$
+>>
+private_declaration(ctx, typecode, name, istop, member) ::= <<$member_type_declaration(ctx = ctx, member = member)$ $member_name_declaration(ctx = ctx, member = member, name = name)$>>
+member_type_declaration_inner(ctx ,typecode) ::=<<
+$if(typecode.isMapType)$$else$$if(typecode.IsType_d)$const $endif$$typecode.CwrapperTypename$$endif$
+>>
+member_type_declaration(ctx, member) ::= <<$if(member.typecode.IsType_10)$
+$member_type_declaration_inner(ctx = ctx,typecode = member.typecode.TrueContentTypeCode)$
+$else$
+$member_type_declaration_inner(ctx = ctx,typecode = member.typecode)$
+$endif$
+>>
+member_name_declaration(ctx, member, name) ::= <<$if(typecode.isMapType)$$else$$if(member.typecode.IsType_f)$$name$$member.typecode.CTypeDimensions$$else$$name$$endif$;$endif$>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+union_type(ctx, parent, union, extensions) ::= <<
+/*!
+ * @brief This class represents the warpper of union $union.name$ defined by the user in the IDL file.
+ * @ingroup $ctx.trimfilename$
+ */
+
+typedef struct
+{
+        $union.Discriminator.CTypename$$if(union.Discriminator.IsType_c)$Wrapper$endif$ discriminator;
+        $union.members:{$c_member_declaration(ctx=ctx, member=it)$}; separator="\n"$
+}$union.CScopedname$Wrapper;
+
+/*!
+ * @brief Converts a structured wrapper type $union.CScopedname$Wrapper back to a generic pointer.
+ * This function is used to prepare structured C++ data for transmission or handling by C interfaces,
+ * effectively performing C++ to C type conversions.
+ * @param wrapper A pointer to the $union.CScopedname$Wrapper to be converted.
+ * @return A void pointer to the untyped data.
+ */
+void *$union.CScopedname$Wrapper_to_TopicData($union.CScopedname$Wrapper *);
+/*!
+ * @brief Converts a generic pointer to a specific structured wrapper pointer of type $union.CScopedname$Wrapper.
+ * This function is typically used to cast a void pointer (representing data received in C format)
+ * to a structured C++ wrapper type, facilitating C to C++ type conversions and data handling.
+ * @param data A void pointer to the data to be converted.
+ * @return A pointer to $union.CScopedname$Wrapper, representing the structured data.
+ */
+void TopicData_to_$union.CScopedname$Wrapper(void *data,$union.CScopedname$Wrapper *c_data);
+/*!
+ * @brief This function Releases memory for possibly dynamically allocated members of the union.
+ represents the warpper of union $union.name$ defined by the user in the IDL file.
+ * @ingroup $ctx.trimfilename$
+ */
+void $union.CScopedname$Wrapper_free_members($union.CScopedname$Wrapper *data);
+void $union.CScopedname$Wrapper_free(void *data);
+/*!
+ * @brief This function Returns default structure.
+ * @ingroup $ctx.trimfilename$
+ */
+void *$union.CScopedname$Wrapper_default();
+>>
+
+bitset_type(ctx, parent, bitset, extensions) ::= <<
+/*!
+ * @brief This class represents the warpper of structure $bitset.name$ defined by the user in the IDL file.
+ * @ingroup $ctx.trimfilename$
+ */
+
+typedef struct
+{
+    uint32_t *bits;
+    size_t bitset_size;
+}$bitset.CScopedname$Wrapper;
+
+/*!
+ * @brief Converts a structured wrapper type $bitset.CScopedname$Wrapper back to a generic pointer.
+ * @param wrapper A pointer to the $bitset.CScopedname$Wrapper to be converted.
+ * @return A void pointer to the untyped data.
+ */
+void *$bitset.CScopedname$Wrapper_to_TopicData($bitset.CScopedname$Wrapper *);
+void $bitset.CScopedname$Wrapper_to_TopicData2($bitset.CScopedname$Wrapper *data, void *data_cpp);
+/*!
+ * @brief Converts a generic pointer to a specific structured wrapper pointer of type $bitset.CScopedname$Wrapper.
+ * @param data A void pointer to the data to be converted.
+ * @return A pointer to $bitset.CScopedname$Wrapper, representing the structured data.
+ */
+void TopicData_to_$bitset.CScopedname$Wrapper(void *data,$bitset.CScopedname$Wrapper *c_data);
+/*!
+ * @brief This function Releases memory for possibly dynamically allocated members of the structure.
+ * @ingroup $ctx.trimfilename$
+ */
+void $bitset.CScopedname$Wrapper_free_members($bitset.CScopedname$Wrapper *data);
+void $bitset.CScopedname$Wrapper_free(void *data);
+/*!
+ * @brief This function Returns default structure.
+ * @ingroup $ctx.trimfilename$
+ */
+void *$bitset.CScopedname$Wrapper_default();
+>>
+
+enum_type(ctx, parent, enum) ::= <<
+/*!
+ * @brief This class represents the warpper of enum $enum.name$ defined by the user in the IDL file.
+ * @ingroup $ctx.trimfilename$
+ */
+
+typedef struct
+{
+    uint32_t value;
+}$enum.CScopedname$Wrapper;
+
+/*!
+ * @brief Converts a structured wrapper type $enum.CScopedname$Wrapper back to a generic pointer.
+ * @param wrapper A pointer to the $enum.CScopedname$Wrapper to be converted.
+ * @return A void pointer to the untyped data.
+ */
+void *$enum.CScopedname$Wrapper_to_TopicData($enum.CScopedname$Wrapper *);
+/*!
+ * @brief Converts a structured wrapper type $enum.CScopedname$Wrapper to an untyped memory block.
+ *
+ * This function takes a pointer to a $enum.CScopedname$Wrapper and writes its underlying data
+ * into the provided memory block pointed to by \p data.
+ *
+ * @param wrapper A pointer to the $enum.CScopedname$Wrapper to be converted.
+ * @param data A pointer to a user-allocated memory block where the untyped data is written.
+ */
+void $enum.CScopedname$Wrapper_to_TopicData2($enum.CScopedname$Wrapper *, void *data);
+/*!
+ * @brief Converts a generic pointer to a specific structured wrapper pointer of type $enum.CScopedname$Wrapper.
+ * @param data A void pointer to the data to be converted.
+ * @return A pointer to $enum.CScopedname$Wrapper, representing the structured data.
+ */
+
+void TopicData_to_$enum.CScopedname$Wrapper(void *data,$enum.CScopedname$Wrapper *c_data);
+/*!
+ * @brief This function Releases memory for possibly dynamically allocated members of the structure.
+ * @ingroup $ctx.trimfilename$
+ */
+void $enum.CScopedname$Wrapper_free_members($enum.CScopedname$Wrapper *data);
+void $enum.CScopedname$Wrapper_free(void *data);
+/*!
+ * @brief This function Returns default structure.
+ * @ingroup $ctx.trimfilename$
+ */
+void *$enum.CScopedname$Wrapper_default();
+
+>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<
+/*!
+ * @brief This class represents the warpper of structure $bitmask.name$ defined by the user in the IDL file.
+ * @ingroup $ctx.trimfilename$
+ */
+typedef struct
+{
+    $bitmask.CastingType$ value;
+}$bitmask.CScopedname$Wrapper;
+
+/*!
+ * @brief Converts a structured wrapper type $bitmask.CScopedname$Wrapper back to a generic pointer.
+ * @param wrapper A pointer to the $bitmask.CScopedname$Wrapper to be converted.
+ * @return A void pointer to the untyped data.
+ */
+void *$bitmask.CScopedname$Wrapper_to_TopicData($bitmask.CScopedname$Wrapper *);
+/*!
+ * @brief Converts a structured wrapper type $bitmask.CScopedname$Wrapper and stores the underlying data in a specified buffer.
+ * @param wrapper A pointer to the $bitmask.CScopedname$Wrapper whose data will be converted.
+ * @param data A pointer to a user-allocated memory block where the untyped data will be stored.
+ */
+void $bitmask.CScopedname$Wrapper_to_TopicData2($bitmask.CScopedname$Wrapper*, void* data);
+/*!
+ * @brief Converts a generic pointer to a specific structured wrapper pointer of type $bitmask.CScopedname$Wrapper.
+ * @param data A void pointer to the data to be converted.
+ * @return A pointer to $bitmask.CScopedname$Wrapper, representing the structured data.
+ */
+void TopicData_to_$bitmask.CScopedname$Wrapper(void *data,$bitmask.CScopedname$Wrapper *c_data);
+/*!
+ * @brief This function Releases memory for possibly dynamically allocated members of the structure.
+ * @ingroup $ctx.trimfilename$
+ */
+void $bitmask.CScopedname$Wrapper_free_members($bitmask.CScopedname$Wrapper *data);
+void $bitmask.CScopedname$Wrapper_free(void *data);
+/*!
+ * @brief This function Returns default structure.
+ * @ingroup $ctx.trimfilename$
+ */
+void *$bitmask.CScopedname$Wrapper_default();
+>>
+
+/***** Utils *****/
+
+public_struct_inheritances(parent) ::= <<>>
+
+public_bitset_inheritances(parent) ::= <<>>
+
+public_member_declaration(ctx, member) ::= <<>>
+
+public_member_primitive_declaration(ctx, member) ::= <<>>
+
+public_member_cstring_declaration(ctx, member) ::= <<>>
+
+public_bitfield_declaration(member) ::= <<>>
+
+public_unionmember_declaration(ctx, member) ::= <<>>
+
+public_unionmember_primitive_declaration(ctx, member) ::= <<>>
+
+public_unionmember_cstring_declaration(ctx, member) ::= <<>>
+
+size_functions(type) ::= << >>
+
+serialization_functions(type) ::= << >>
+
+sequences_definition(typecode) ::= <<
+
+>>

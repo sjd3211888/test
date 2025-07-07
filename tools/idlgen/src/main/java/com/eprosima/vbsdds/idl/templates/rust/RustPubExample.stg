@@ -1,0 +1,183 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group RustPubExample;
+
+main(ctx, definitions) ::= <<
+#![allow(non_upper_case_globals)]
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
+
+use std::{
+    collections::BTreeMap,
+    error::Error,
+    rc::Rc,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
+use vbs::{
+    DataWriter, DataWriterListenerInterface, DomainParticipant, Topic,
+    VBSMatchedStatus, VBSDeadlineMissedStatus, VBSLivelinessLostStatus, VBSEndpointCrashStatus
+};
+use vbs::TopicDataTypeWrapper;
+$if(ctx.package)$
+mod $ctx.OnlyPackage$;
+use $ctx.OnlyPackage$::*;
+$endif$
+use std::ffi::CString;
+use std::os::raw::{c_void, c_char, c_int};
+include!(concat!(env!("OUT_DIR"), "/typesbindings.rs"));
+
+pub struct Publisher {
+    topic: Rc<Topic>,
+    writer: Arc<DataWriter>,
+    participant: Arc<DomainParticipant>
+}
+
+use std::thread::Builder;
+
+impl DataWriterListenerInterface for Publisher {
+    fn on_publication_matched(&self, writer_: DataWriter, _status: VBSMatchedStatus) -> () {
+        println!("on_publication_matched()");
+        let thd = Builder::new().stack_size(8 * 1024 * 1024).spawn(move || {
+            let mut count = 0;
+            loop {
+                let var_name = &format!("Hello World, count = {}", count);
+                let mut data = $ctx.m_lastStructureScopedName$::default();
+                // {
+                //     tags: BTreeMap::new(),
+                //     payload: var_name.to_string(),
+                // };
+                // data.tags.insert("example_key".to_string(), "example_value".to_string());
+
+                println!("published_message: {:?}", data);
+                writer_.write(&data);
+                count += 1;
+                if count > 100 { break; }
+                thread::sleep(Duration::from_millis(500));
+            }
+        }).unwrap();
+        thd.join().unwrap();
+    }
+
+    fn on_offered_deadline_missed(&self, writer: DataWriter, status: VBSDeadlineMissedStatus) {
+        println!("status: {:?}", status);
+    }
+
+    fn on_liveliness_lost(&self, writer: DataWriter, status: VBSLivelinessLostStatus) {
+        println!("status: {:?}", status);
+    }
+
+    fn on_endpoint_crash(&self, writer: DataWriter, status: VBSEndpointCrashStatus) {
+        println!("status: {:?}", status);
+    }
+}
+
+impl Publisher {
+    fn new() -> Result<Publisher, &'static str> {
+        let mut participant_: DomainParticipant = DomainParticipant::new(
+            "test_xml_pub.xml",
+            "test_xml_pub.xml_profile"
+        ).map_err(|_| "Failed to create DomainParticipant")?;
+
+        let topic_ = participant_.create_topic::<$ctx.m_lastStructureScopedName$Type>(
+            "$ctx.m_lastStructureCScopedName$Topic",
+            "$ctx.OnlyFileName$Topic"
+        ).map_err(|_| "Failed to create Topic")?;
+
+        let mut publisher = Publisher {
+            topic: Rc::new(topic_),
+            writer: Arc::new(DataWriter::default()),
+            participant: Arc::new(DomainParticipant::default())
+        };
+
+        let mut writer = participant_.create_data_writer(
+            &publisher.topic,
+            "test_writer_prof"
+        ).map_err(|_| "Failed to create DataWriter")?;
+
+        writer.set_listener(Box::new(&publisher));
+        publisher.writer = Arc::new(*writer);
+        publisher.participant = Arc::new(participant_);
+
+        Ok(publisher)
+    }
+}
+
+impl Clone for Publisher {
+    fn clone(&self) -> Self {
+        Publisher {
+            topic: Rc::clone(&self.topic),
+            writer: Arc::clone(&self.writer),
+            participant: Arc::clone(&self.participant),
+        }
+    }
+}
+
+fn main() -> Result<(), Box<dyn Error>\> {
+    let _publisher = Publisher::new()?;
+    println!("Publisher is running...");
+    loop {
+        thread::sleep(Duration::from_secs(2));
+    }
+    Ok(())
+}
+$definitions; separator="\n"$
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list) ::= <<>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct) ::= <<>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+bitset_type(ctx, parent, bitset) ::= <<>>
+
+/*UTILS*/
+namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$evbs::edds::dds::$else$vbs::$endif$>>

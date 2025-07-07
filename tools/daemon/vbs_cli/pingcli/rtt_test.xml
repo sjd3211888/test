@@ -1,0 +1,17 @@
+<types>
+    <type>
+        <struct name="rtt_test_small" >
+            <member name="msg" type="int32" arrayDimensions="128" />
+        </struct>
+    </type>
+    <type>
+        <struct name="rtt_test_normal" >
+            <member name="msg" type="int32" arrayDimensions="6400" />
+        </struct>
+    </type>
+    <type>
+        <struct name="rtt_test_big" >
+            <member name="msg" type="int32" arrayDimensions="12800" />
+        </struct>
+    </type>
+</types>

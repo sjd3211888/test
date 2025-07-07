@@ -1,0 +1,577 @@
+// Copyright 2016 Proyectos y Sistemas de Mantenimiento SL (eProsima).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ------------------------------------------------------------------
+// Modification history:
+// 2023-09 ~ 2025-05: idlgen optimization: gerrit adaptation, VBS framework support, type description improvement, zero copy for variable length seq, open source optimization, etc.
+// ------------------------------------------------------------------
+
+group DDSPubSubTypeSource;
+
+main(ctx, definitions) ::= <<
+
+$if(ctx.NotUseVbsFramework)$
+#include <ecdr/FastBuffer.h>
+#include <ecdr/Cdr.h>
+#include <edds/rtps/common/CdrSerialization.hpp>
+$endif$
+
+#include "$ctx.filename$$if(ctx.RtiIdl)$$else$PubSubTypes$endif$.$if(ctx.GenHpp)$hpp$else$h$endif$"
+$if(ctx.HasMutable)$#include "$ctx.filename$CdrAux.$if(ctx.GenHpp)$hpp$else$h$endif$"$endif$
+
+$if(ctx.GenerateTypeObject)$
+#include "$ctx.filename$TypeObject.$if(ctx.GenHpp)$hpp$else$h$endif$"
+$endif$
+
+$if(ctx.NotUseVbsFramework)$
+using SerializedPayload_t = vbs::SerializedPayload_t;
+using InstanceHandle_t = vbs::InstanceHandle_t;
+$if(ctx.HasMutable)$using DataRepresentationId_t = vbs::DataRepresentationId_t;$endif$
+$endif$
+
+$definitions; separator="\n"$
+
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+
+>>
+
+annotation(ctx, annotation, isfirst) ::= <<>>
+
+interface(ctx, parent, interface, export_list) ::= <<
+$export_list$
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const, isfirst) ::= <<
+
+>>
+
+typedef_decl(ctx, parent, typedefs, isfirst) ::= <<
+
+>>
+
+struct_type(ctx, parent, struct, module_name, isfirst) ::= <<
+
+$if(struct.ScopednameList)$
+$struct.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+$if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::$if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType()
+{
+    $if (ctx.GenerateTypesROS2)$    setName("$struct.ROS2Scopednamenormal$");$else$    setName("$struct.Scopednamenormal$");$endif$
+    auto type_size = $if(ctx.HasMutable)$$struct.cScopedname$_max_cdr_typesize$else$$if(parent.IsInterface)$$struct.scopedname$$struct.cScopedname$_max_cdr_typesize$else$$struct.name$::getMaxCdrSerializedSize()$endif$$endif$;
+    type_size += $ecdr_namespace_get(ctx=ctx)$Cdr::alignment(type_size, 4); /* possible submessage alignment */
+    m_typeSize = $if(ctx.UseEstimateSize)$$if(struct.IsPlain)$$struct.name$::getMaxCdrSerializedSize() + 4$else$static_cast<uint32_t>(type_size) + 4$endif$$else$static_cast<uint32_t>(type_size) + 4$endif$; /*encapsulation*/
+    m_isGetKeyDefined = $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$::isKeyDefined();
+$if(ctx.HasMutable)$
+    size_t keyLength = $struct.cScopedname$_max_key_cdr_typesize > 16 ? $struct.cScopedname$_max_key_cdr_typesize : 16;
+$else$
+    size_t keyLength = $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$::getKeyMaxCdrSerializedSize() > 16 ?
+            $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$::getKeyMaxCdrSerializedSize() : 16;
+$endif$
+
+    m_keyBuffer = reinterpret_cast<unsigned char*>(malloc(keyLength));
+    memset(m_keyBuffer, 0, keyLength);
+    setIdlCrc16("$struct.Hash$");
+$if(ctx.GenerateTypeObject)$
+    $struct.name$::register_dynamic_type();
+$endif$
+
+}
+
+$if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::~$if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType()
+{
+    if (m_keyBuffer != nullptr)
+    {
+        free(m_keyBuffer);
+    }
+}
+
+$if(!ctx.HasMutable)$
+bool $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::serialize(
+        void* data,
+        $empty_namespace_get(ctx=ctx)$SerializedPayload_t* payload)
+{
+    $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$* p_type = static_cast<$if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$*>(data);
+
+    // Object that manages the raw buffer.
+    $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer(reinterpret_cast<char*>(payload->data), payload->max_size);
+    // Object that serializes the data.
+    $ecdr_namespace_get(ctx=ctx)$Cdr ser(vbsbuffer, $ecdr_namespace_get(ctx=ctx)$Cdr::DEFAULT_ENDIAN, $ecdr_namespace_get(ctx=ctx)$Cdr::DDS_CDR);
+    payload->encapsulation = ser.endianness() == $ecdr_namespace_get(ctx=ctx)$Cdr::BIG_ENDIANNESS ? CDR_BE : CDR_LE;
+    // Serialize encapsulation
+    ser.serialize_encapsulation();
+
+    try
+    {
+        // Serialize the object.
+        p_type->serialize(ser);
+    }
+    catch ($exception_namespace_get(ctx=ctx)$NotEnoughMemoryException& e)
+    {
+$if(ctx.NotUseVbsFramework)$        logError_("EVBS serialize error", __func__ << "(): " << getName() <<$else$        VbsLogE($endif$e.what() << getName());
+        return $if(struct.annotationCompatible)$true$else$false$endif$;
+    }
+
+    // Get the serialized length
+    payload->length = static_cast<uint32_t>(ser.getSerializedDataLength());
+    return true;
+}
+$else$
+bool $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::serialize(
+        void* data,
+        $empty_namespace_get(ctx=ctx)$SerializedPayload_t* payload,
+        $empty_namespace_get(ctx=ctx)$DataRepresentationId_t data_representation)
+{
+    $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$* p_type = static_cast<$if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$*>(data);
+
+    // Object that manages the raw buffer.
+    $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer(reinterpret_cast<char*>(payload->data), payload->max_size);
+    // Object that serializes the data.
+    vbsutil::ecdr::Cdr ser(vbsbuffer, vbsutil::ecdr::Cdr::DEFAULT_ENDIAN,
+            data_representation == $empty_namespace_get(ctx=ctx)$DataRepresentationId_t::XCDR_DATA_REPRESENTATION ?
+            vbsutil::ecdr::Cdr::XCDRv1 : vbsutil::ecdr::Cdr::XCDRv2);
+    payload->encapsulation = ser.endianness() == vbsutil::ecdr::Cdr::BIG_ENDIANNESS ? CDR_BE : CDR_LE;
+
+    ser.set_encoding_flag(
+        data_representation == $empty_namespace_get(ctx=ctx)$DataRepresentationId_t::XCDR_DATA_REPRESENTATION ?
+        $if(struct.AnnotationFinalOrAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR $elseif(struct.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR$endif$ :
+        $if(struct.annotationFinal)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR2$elseif(struct.annotationAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::DELIMIT_CDR2$elseif(struct.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR2$endif$);
+
+    try
+    {
+        // Serialize encapsulation
+        ser.serialize_encapsulation();
+        // Serialize the object.
+        ser << *p_type;
+    }
+    catch (vbsutil::ecdr::exception::Exception& e)
+    {
+$if(ctx.NotUseVbsFramework)$        logError_("EVBS serialize error", __func__ << "(): " << getName() <<$else$        VbsLogE($endif$e.what() << getName());
+        return false;
+    }
+
+    // Get the serialized length
+    payload->length = static_cast<uint32_t>(ser.getSerializedDataLength());
+    return true;
+}
+$endif$
+
+$if(!ctx.HasMutable)$
+bool $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::deserialize(
+    $empty_namespace_get(ctx=ctx)$SerializedPayload_t* payload,
+        void* data)
+{
+    try
+    {
+        //Convert DATA to pointer of your type
+        $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$* p_type = static_cast<$if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$*>(data);
+
+        // Object that manages the raw buffer.
+        $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer(reinterpret_cast<char*>(payload->data), payload->length);
+
+        // Object that deserializes the data.
+        $ecdr_namespace_get(ctx=ctx)$Cdr deser(vbsbuffer, $ecdr_namespace_get(ctx=ctx)$Cdr::DEFAULT_ENDIAN, $ecdr_namespace_get(ctx=ctx)$Cdr::DDS_CDR);
+
+        // Deserialize encapsulation.
+        deser.read_encapsulation();
+        payload->encapsulation = deser.endianness() == $ecdr_namespace_get(ctx=ctx)$Cdr::BIG_ENDIANNESS ? CDR_BE : CDR_LE;
+
+        // Deserialize the object.
+        p_type->deserialize(deser);
+        $if(struct.Top)$
+        $if(struct.UseBBMode)$
+        payload->pos = deser.getSerializedDataLength();
+        p_type->bigbuffer(reinterpret_cast<char*>(payload->data) + payload->pos + 4U);
+        if ((payload->length - payload->pos) < (p_type->bigbuffer_size() + 4U)) {
+            return false;
+        }
+        $endif$
+        $endif$
+    }
+    catch ($exception_namespace_get(ctx=ctx)$NotEnoughMemoryException& e)
+    {
+$if(ctx.NotUseVbsFramework)$        logError_("EVBS deserialize error", __func__ << "(): " << getName() <<$else$        VbsLogE($endif$e.what() << getName());
+        return $if(struct.annotationCompatible)$true$else$false$endif$;;
+    }
+
+    return true;
+}
+$else$
+bool $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::deserialize(
+        $empty_namespace_get(ctx=ctx)$SerializedPayload_t* payload,
+        void* data)
+{
+    try
+    {
+        //Convert DATA to pointer of your type
+        $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$* p_type = static_cast<$if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$*>(data);
+
+        // Object that manages the raw buffer.
+        $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer(reinterpret_cast<char*>(payload->data), payload->length);
+
+        // Object that deserializes the data.
+        vbsutil::ecdr::Cdr deser(vbsbuffer, vbsutil::ecdr::Cdr::DEFAULT_ENDIAN);
+
+        // Deserialize encapsulation.
+        deser.read_encapsulation();
+        payload->encapsulation = deser.endianness() == $ecdr_namespace_get(ctx=ctx)$Cdr::BIG_ENDIANNESS ? CDR_BE : CDR_LE;
+
+        // Deserialize the object.
+        deser \>> *p_type;
+        $if(struct.Top)$
+        $if(struct.UseBBMode)$
+        payload->pos = deser.getSerializedDataLength();
+        p_type->bigbuffer(reinterpret_cast<char*>(payload->data) + payload->pos + 4U);
+        if ((payload->length - payload->pos) < (p_type->bigbuffer_size() + 4U)) {
+            return false;
+        }
+        $endif$
+        $endif$
+    }
+    catch (vbsutil::ecdr::exception::Exception& e)
+    {
+$if(ctx.NotUseVbsFramework)$        logError_("EVBS deserialize error", __func__ << "(): " << getName() <<$else$        VbsLogE($endif$e.what() << getName());
+        return false;
+    }
+
+    return true;
+}
+
+$endif$
+
+$if(struct.Top)$
+$if(struct.UseBBMode)$
+$if(!ctx.HasMutable)$
+bool $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::deserialize(
+    $empty_namespace_get(ctx=ctx)$SerializedPayload_t* payload,
+    $empty_namespace_get(ctx=ctx)$SerializedPayload_t* extra_payload,
+        void* data)
+{
+    try
+    {
+        //Convert DATA to pointer of your type
+        $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$* p_type = static_cast<$if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$*>(data);
+
+        // Object that manages the raw buffer.
+        $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer(reinterpret_cast<char*>(payload->data), payload->length);
+
+        // Object that deserializes the data.
+        $ecdr_namespace_get(ctx=ctx)$Cdr deser(vbsbuffer, $ecdr_namespace_get(ctx=ctx)$Cdr::DEFAULT_ENDIAN, $ecdr_namespace_get(ctx=ctx)$Cdr::DDS_CDR);
+
+        // Deserialize encapsulation.
+        deser.read_encapsulation();
+        payload->encapsulation = deser.endianness() == $ecdr_namespace_get(ctx=ctx)$Cdr::BIG_ENDIANNESS ? CDR_BE : CDR_LE;
+
+        // Deserialize the object.
+        p_type->deserialize(deser);
+        if (extra_payload->length < (p_type->bigbuffer_size() + 4U)) {
+            return false;
+        }
+        p_type->bigbuffer((reinterpret_cast<void*>(extra_payload->data + 4U)));
+    }
+    catch ($exception_namespace_get(ctx=ctx)$NotEnoughMemoryException& e)
+    {
+$if(ctx.NotUseVbsFramework)$        logError_("EVBS deserialize error", __func__ << "(): " <<$else$        VbsLogE($endif$e.what());
+        return $if(struct.annotationCompatible)$true$else$false$endif$;;
+    }
+
+    return true;
+}
+$else$
+bool $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::deserialize(
+        $empty_namespace_get(ctx=ctx)$SerializedPayload_t* payload,
+        $empty_namespace_get(ctx=ctx)$SerializedPayload_t* extra_payload,
+        void* data)
+{
+    try
+    {
+        //Convert DATA to pointer of your type
+        $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$* p_type = static_cast<$if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$*>(data);
+
+        // Object that manages the raw buffer.
+        $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer(reinterpret_cast<char*>(payload->data), payload->length);
+
+        // Object that deserializes the data.
+        vbsutil::ecdr::Cdr deser(vbsbuffer, vbsutil::ecdr::Cdr::DEFAULT_ENDIAN);
+
+        // Deserialize encapsulation.
+        deser.read_encapsulation();
+        payload->encapsulation = deser.endianness() == $ecdr_namespace_get(ctx=ctx)$Cdr::BIG_ENDIANNESS ? CDR_BE : CDR_LE;
+
+        // Deserialize the object.
+        deser \>> *p_type;
+        if (extra_payload->length < (p_type->bigbuffer_size() + 4U)) {
+            return false;
+        }
+        p_type->bigbuffer((reinterpret_cast<void*>(extra_payload->data + 4U)));
+    }
+    catch (vbsutil::ecdr::exception::Exception& e)
+    {
+$if(ctx.NotUseVbsFramework)$        logError_("EVBS deserialize error", __func__ << "(): " <<$else$        VbsLogE($endif$e.what());
+        return false;
+    }
+
+    return true;
+}
+$endif$
+$endif$
+$endif$
+
+$if(!ctx.HasMutable)$
+std::function<uint32_t()> $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::getSerializedSizeProvider(
+        void* data)
+{
+    return [data]() -> uint32_t
+           {
+               return static_cast<uint32_t>(type::getCdrSerializedSize(*static_cast<$if (parent.IsInterface)$$parent.name$_$endif$$struct.name$*>(data))) +
+                      4u /*encapsulation*/;
+           };
+}
+$else$
+std::function<uint32_t()> $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::getSerializedSizeProvider(
+        void* data,
+        $empty_namespace_get(ctx=ctx)$DataRepresentationId_t data_representation)
+{
+    return [data, data_representation]() -> uint32_t
+           {
+               try
+               {
+                   vbsutil::ecdr::CdrSizeCalculator calculator(
+                       data_representation == $empty_namespace_get(ctx=ctx)$DataRepresentationId_t::XCDR_DATA_REPRESENTATION ?
+                       vbsutil::ecdr::CdrVersion::XCDRv1 : vbsutil::ecdr::CdrVersion::XCDRv2);
+                   size_t current_alignment {0};
+                   return static_cast<uint32_t>(calculator.calculate_serialized_size(
+                               *static_cast<$if (parent.IsInterface)$$parent.name$_$endif$$struct.name$*>(data), current_alignment)) +
+                           4u /*encapsulation*/;
+               }
+               catch (vbsutil::ecdr::exception::Exception& /*exception*/)
+               {
+                   return 0;
+               }
+           };
+}
+$endif$
+
+void* $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::createData()
+{
+    return reinterpret_cast<void*>(new $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$());
+}
+
+void $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::deleteData(
+        void* data)
+{
+    delete(reinterpret_cast<$if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$*>(data));
+}
+
+$if(!ctx.HasMutable)$
+bool $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::getKey(
+        void* data,
+        $empty_namespace_get(ctx=ctx)$InstanceHandle_t* handle,
+        bool force_md5)
+{
+    if (!m_isGetKeyDefined)
+    {
+        return false;
+    }
+
+    $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$* p_type = static_cast<$if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$*>(data);
+
+    // Object that manages the raw buffer.
+    $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer(reinterpret_cast<char*>(m_keyBuffer),
+            $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$::getKeyMaxCdrSerializedSize());
+
+    // Object that serializes the data.
+    $ecdr_namespace_get(ctx=ctx)$Cdr ser(vbsbuffer, $ecdr_namespace_get(ctx=ctx)$Cdr::BIG_ENDIANNESS);
+    p_type->serializeKey(ser);
+
+    if (force_md5 || $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$::getKeyMaxCdrSerializedSize() > 16)
+    {
+        m_md5.init();
+        m_md5.update(m_keyBuffer, static_cast<unsigned int>(ser.getSerializedDataLength()));
+        m_md5.finalize();
+        for (uint8_t i = 0; i < 16; ++i)
+        {
+            handle->value[i] = m_md5.digest[i];
+        }
+    }
+    else
+    {
+        for (uint8_t i = 0; i < 16; ++i)
+        {
+            handle->value[i] = m_keyBuffer[i];
+        }
+    }
+    return true;
+}
+$else$
+bool $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::getKey(
+        void* data,
+        $empty_namespace_get(ctx=ctx)$InstanceHandle_t* handle,
+        bool force_md5)
+{
+    if (!m_isGetKeyDefined)
+    {
+        return false;
+    }
+
+    $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$* p_type = static_cast<$if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$*>(data);
+
+    // Object that manages the raw buffer.
+    $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer(reinterpret_cast<char*>(m_keyBuffer),
+            $struct.cScopedname$_max_key_cdr_typesize);
+
+    // Object that serializes the data.
+    $ecdr_namespace_get(ctx=ctx)$Cdr ser(vbsbuffer, $ecdr_namespace_get(ctx=ctx)$Cdr::BIG_ENDIANNESS, vbsutil::ecdr::Cdr::XCDRv1);
+
+    vbsutil::ecdr::serialize_key(ser, *p_type);
+
+    if (force_md5 || $struct.cScopedname$_max_key_cdr_typesize > 16)
+    {
+        m_md5.init();
+        m_md5.update(m_keyBuffer, static_cast<unsigned int>(ser.getSerializedDataLength()));
+        m_md5.finalize();
+        for (uint8_t i = 0; i < 16; ++i)
+        {
+            handle->value[i] = m_md5.digest[i];
+        }
+    }
+    else
+    {
+        for (uint8_t i = 0; i < 16; ++i)
+        {
+            handle->value[i] = m_keyBuffer[i];
+        }
+    }
+    return true;
+}
+$endif$
+
+$if (struct.Top)$
+$if (struct.UseBBMode)$
+void* $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::getBigBuffer(void* data) {
+    $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$* p_type = static_cast<$if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$*>(data);
+
+    return p_type->bigbuffer();
+}
+
+void $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::setBigBuffer(void* data, void*buffer) {
+    $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$* p_type = static_cast<$if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$*>(data);
+
+    p_type->bigbuffer(buffer);
+}
+
+uint32_t $if (parent.IsInterface)$$parent.name$_$endif$$struct.name$PubSubType::getBigBufferSize(void* data) {
+    $if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$* p_type = static_cast<$if (parent.IsInterface)$$struct.scopedname$$else$$struct.name$$endif$*>(data);
+
+    return p_type->bigbuffer_size();
+}
+$endif$
+$endif$
+
+$if(struct.ScopednameList)$
+$struct.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+$if(!ctx.NotUseVbsFramework)$
+namespace vbs {
+
+bool topic_type_support<$struct.scopedname$>::ToBuffer(const $struct.scopedname$& sample, std::vector<char>& buffer) {
+        $struct.scopedname$PubSubType subType;
+        vbs::SerializedPayload_t payload;
+        uint32_t len = subType.getSerializedSizeProvider(const_cast<$struct.scopedname$*>(&sample))();
+        buffer.resize(len);
+        payload.data = reinterpret_cast<vbs::octet*>(buffer.data());
+        payload.max_size = len;
+        const bool res = subType.serialize(static_cast<void*>(const_cast<$struct.scopedname$*>(&sample)), &payload);
+
+        payload.data = nullptr;
+        return res;
+}
+
+bool topic_type_support<$struct.scopedname$>::FromBuffer($struct.scopedname$& sample, const std::vector<char>& buffer) {
+        $struct.scopedname$PubSubType subType;
+        vbs::SerializedPayload_t payload;
+        payload.data = reinterpret_cast<vbs::octet*>(const_cast<char*>(buffer.data()));
+        payload.length = buffer.size();
+        payload.max_size = buffer.size();
+        const bool res = subType.deserialize(&payload, static_cast<void*>(&sample));
+        payload.data = nullptr;
+        return res;
+}
+
+$if(!ctx.CJ)$
+$if(!ctx.RmPrintHelper)$
+std::string topic_type_support<$struct.scopedname$>::data_to_json(const $struct.scopedname$& sample,
+                std::ostringstream* o_ptr, const bool is_need_delete, const bool include_braces) {
+        (void) is_need_delete;
+        (void) include_braces;
+        (void) o_ptr;
+        return vbs::data_to_json_string(sample);
+}
+$endif$
+$endif$
+
+}
+$endif$
+>>
+
+union_type(ctx, parent, union, isfirst) ::= <<
+
+>>
+
+enum_type(ctx, parent, enum, isfirst) ::= <<
+
+>>
+
+bitmask_type(ctx, parent, bitmask, isfirst) ::= <<
+
+>>
+
+bitset_type(ctx, parent, bitset, isfirst) ::= <<
+
+>>
+
+/*UTILS*/
+empty_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$$else$vbs::$endif$>>
+
+ecdr_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$vbsutil::ecdr::$else$vbs::$endif$>>
+
+exception_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$vbsutil::ecdr::exception::$else$vbs::$endif$>>
+
+left_brackets() ::= <<{>>
+
+right_brackets() ::= <<}>>

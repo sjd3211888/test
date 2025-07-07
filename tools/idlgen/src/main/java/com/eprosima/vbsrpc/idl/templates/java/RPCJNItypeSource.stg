@@ -1,0 +1,853 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group RPCJNItypeSource;
+
+main(ctx, definitions, package, module_name, interfacename) ::= <<
+
+#include <memory>
+
+#include "$ctx.filename$$if(ctx.RtiIdl)$Base$else$$endif$.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+using namespace vbs::rpc;
+
+$definitions; separator="\n"$
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list, module_name) ::= <<>>
+
+export_list(exports) ::= <<>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct, module_name) ::= <<
+#include "$ctx.PackageUnder$$ctx.filename$_$struct.CScopednamenormal$.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_$ctx.PackageUnder$$ctx.JniFilename$_1$if(struct.HasScope)$$struct.UnderlineScopenormal$_1$endif$$struct.UnderlineName$_native_1init(JNIEnv *env, jobject obj)
+{
+    long ret = 0;
+    $struct.Scopednamenormal$ *request = new $struct.Scopednamenormal$();
+    ret = reinterpret_cast<long>(request);
+    return ret;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_$ctx.PackageUnder$$ctx.JniFilename$_1$if(struct.HasScope)$$struct.UnderlineScopenormal$_1$endif$$struct.UnderlineName$_native_1deinit(JNIEnv *env, jobject obj, jlong ptr)
+{
+    $struct.Scopednamenormal$ *request = reinterpret_cast<$struct.Scopednamenormal$*>(ptr);
+    if (request != nullptr) {
+        delete request;
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_$ctx.PackageUnder$$ctx.JniFilename$_1$if(struct.HasScope)$$struct.UnderlineScopenormal$_1$endif$$struct.UnderlineName$_native_1copy_1data_1from_1cpp(JNIEnv *env, jobject obj, jlong ptr)
+{
+    $struct.Scopednamenormal$ *ptr_ = nullptr;
+
+    ptr_ = reinterpret_cast<$struct.Scopednamenormal$*>(ptr);
+    if (ptr_ == nullptr) {
+        return;
+    }
+    jclass dataClass = env->GetObjectClass(obj);
+
+$struct.members : { member |
+    $setMember(ctx=ctx, parent=struct, member=member)$
+}; separator="\n"$
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_$ctx.PackageUnder$$ctx.JniFilename$_1$if(struct.HasScope)$$struct.UnderlineScopenormal$_1$endif$$struct.UnderlineName$_native_1copy_1data_1to_1cpp(JNIEnv *env, jobject obj, jlong ptr)
+{
+    $struct.Scopednamenormal$ *ptr_ = nullptr;
+
+    ptr_ = reinterpret_cast<$struct.Scopednamenormal$*>(ptr);
+    if (ptr_ == nullptr) {
+        return;
+    }
+
+    jclass dataClass = env->GetObjectClass(obj);
+
+$struct.members : { member |
+    $insertMember(ctx=ctx, parent=struct, member=member)$
+}; separator="\n"$
+    return;
+}
+>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+bitset_type(ctx, parent, bitset) ::= <<>>
+
+/*UTILS*/
+
+getRPCPreStructName(ctx, parent, fmember) ::= <<
+$fmember.name$().$fmember.typecode.members : { innermember | $if(innermember.typecode.IsType_a)$$getRPCPreStructName(ctx=ctx, parent=parent, fmember=innermember)$$endif$};separator=""$
+>>
+
+insertMember(ctx, parent, member) ::= <<
+$if(member.typecode.primitive)$
+$insertPrimitiveMember(ctx=ctx, parent=parent, member=member)$
+$elseif(member.typecode.isType_d)$
+$insertStringMember(ctx=ctx, parent=parent, member=member)$
+$elseif(member.typecode.isType_e)$
+$insertSequenceMember(ctx=ctx, parent=parent, member=member)$
+$elseif(member.typecode.isType_f)$
+$insertArrayMember(ctx=ctx, parent=parent, member=member)$
+$elseif(member.typecode.isMapType)$
+$insertMapMember(ctx=ctx, parent=parent, member=member)$
+$else$
+$insertStructMember(ctx=ctx, parent=parent, member=member)$
+$endif$
+>>
+
+//PrimitiveMember
+insertPrimitiveMember(ctx, parent, member) ::= <<
+jfieldID $member.name$Field = env->GetFieldID(dataClass, "$member.name$_", "$member.typecode.JNISign$");
+$member.typecode.JNITypename$ $member.name$FieldValue = env->Get$member.typecode.JavaUpperFirstTypename$Field(obj, $member.name$Field);
+
+$if(member.typecode.isType_7)$
+ptr_->$member.Name$((bool)$member.name$FieldValue);
+$elseif(member.typecode.IsType_9)$
+ptr_->$member.Name$((uint8_t)$member.name$FieldValue);
+$else$
+ptr_->$member.Name$($member.name$FieldValue);
+$endif$
+>>
+
+//StringMember
+insertStringMember(ctx, parent, member) ::= <<
+jfieldID $member.name$Field = env->GetFieldID(dataClass, "$member.name$_", "Ljava/lang/String;");
+$member.typecode.JNITypename$ $member.name$FieldValue = ($member.typecode.JNITypename$) env->Get$member.typecode.JavaUpperFirstTypename$Field(obj, $member.name$Field);
+
+const char* $member.name$cStr = env->GetStringUTFChars($member.name$FieldValue, NULL);
+std::string $member.name$str_($member.name$cStr);
+env->ReleaseStringUTFChars($member.name$FieldValue, $member.name$cStr);
+ptr_->$member.Name$($member.name$str_);
+>>
+
+//SequenceMember
+insertSequenceMember(ctx, parent, member) ::= <<
+jfieldID $member.name$Field = env->GetFieldID(dataClass, "$member.name$_", "Ljava/util/ArrayList;");
+jobject $member.name$FieldValue = env->Get$member.typecode.JavaUpperFirstTypename$Field(obj, $member.name$Field);
+
+jclass list$member.name$Class = env->GetObjectClass($member.name$FieldValue);
+
+jmethodID $member.name$getMethodID = env->GetMethodID(list$member.name$Class, "get", "(I)Ljava/lang/Object;");
+
+jmethodID $member.name$sizeMethodID = env->GetMethodID(list$member.name$Class, "size", "()I");
+
+jint $member.name$len = env->CallIntMethod($member.name$FieldValue, $member.name$sizeMethodID);
+
+std::vector<$member.typecode.ContentTypeCode.Scopednamenormal$> vec$member.name$;
+for (int i = 0; i < $member.name$len; i++) {
+    jobject jmember$member.name$ = env->CallObjectMethod($member.name$FieldValue, $member.name$getMethodID, i);
+    jclass clsObject$member.name$ = env->GetObjectClass(jmember$member.name$);
+
+    $if(member.typecode.ContentTypeCode.StringType)$
+    $member.typecode.ContentTypeCode.JNITypename$ cmember$member.name$ = (jstring)jmember$member.name$;
+    const char* $member.name$strChars = env->GetStringUTFChars(cmember$member.name$, nullptr);
+    std::string $member.name$cppStr($member.name$strChars);
+    env->ReleaseStringUTFChars(cmember$member.name$, $member.name$strChars);
+    vec$member.name$.push_back($member.name$cppStr);
+    $else$
+    $member.typecode.ContentTypeCode.JNITypename$ cmember$member.name$ = env->Call$member.typecode.ContentTypeCode.JavaUpperFirstTypename$Method(jmember$member.name$, env->GetMethodID(clsObject$member.name$, "$member.typecode.ContentTypeCode.JavaTypename$Value", "()$member.typecode.ContentTypeCode.JNISign$"));
+    vec$member.name$.push_back(static_cast<$member.typecode.ContentTypeCode.Scopednamenormal$>(cmember$member.name$));
+    $endif$
+    env->DeleteLocalRef(jmember$member.name$);
+}
+ptr_->$member.Name$(vec$member.name$);
+>>
+
+//ArrayMember
+insertArrayMember(ctx, parent, member) ::= <<
+jfieldID $member.name$Field = env->GetFieldID(dataClass, "$member.name$_", "$member.typecode.LeftEmptyArrayExtension$$member.typecode.ContentTypeCode.JNISign$");
+jobject aArray_$member.name$ = env->Get$member.typecode.JavaUpperFirstTypename$Field(obj, $member.name$Field);
+
+$member.typecode.Scopednamenormal$ cppArray$member.name$;
+$member.ForListSendBegin : { innermember |
+    $innermember$
+}; separator="\n"$
+$member.ForListSendMid$
+$member.ForListSendEnd : { innermember |
+    $innermember$
+}; separator="\n"$
+
+ptr_->$member.Name$(cppArray$member.name$);
+>>
+
+//StructMember
+insertStructMember(ctx, parent, member) ::= <<
+jfieldID $member.name$Field = env->GetFieldID(dataClass, "$member.name$_", "$if(member.typecode.IsType_10)$$member.typecode.ContentTypeCode.JNISign$$ctx.filename$_$member.typecode.ContentTypeCode.CScopednamenormal$$else$$member.typecode.JNISign$$ctx.filename$_$member.typecode.CScopednamenormal$$endif$;");
+jobject jni$member.name$FieldValue = env->Get$member.typecode.JavaUpperFirstTypename$Field(obj, $member.name$Field);
+jclass innerClassClass$member.name$ = env->GetObjectClass(jni$member.name$FieldValue);
+
+$member.typecode.Scopednamenormal$ $member.name$cppStruct;
+$if(member.SetPname)$
+
+$endif$
+$member.typecode.members : { innermember |
+$if(innermember.typecode.IsType_a)$
+$insertInnerStructMember(ctx=ctx, parent=parent, member = innermember, fmember = innermember, ffmember=member,outer=member)$
+$else$
+$if(innermember.typecode.StringType)$
+jfieldID $member.name$_$innermember.name$memberValueFieldID = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "Ljava/lang/String;");
+jstring $member.name$_$innermember.name$javaString = (jstring)env->GetObjectField(jni$member.name$FieldValue, $member.name$_$innermember.name$memberValueFieldID);
+const char *$member.name$_$innermember.name$c_str = env->GetStringUTFChars($member.name$_$innermember.name$javaString, nullptr);
+$member.name$cppStruct.$innermember.name$($member.name$_$innermember.name$c_str);
+env->ReleaseStringUTFChars($member.name$_$innermember.name$javaString, $member.name$_$innermember.name$c_str);
+
+$else$
+$if(innermember.typecode.IsMapType)$
+jfieldID $member.name$_$innermember.name$Field = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "Ljava/util/Map;");
+jobject $member.name$_$innermember.name$FieldValue = env->Get$innermember.typecode.JavaUpperFirstTypename$Field(jni$member.name$FieldValue, $member.name$_$innermember.name$Field);
+$innermember.typecode.CppTypename$ cppMap$innermember.name$_$member.name$ = $member.name$cppStruct.$innermember.Name$();
+$insertInnerMapMember(ctx=ctx, parent=parent, member = innermember, pmember=member)$
+$member.name$cppStruct.$innermember.Name$(cppMap$innermember.name$_$member.name$);
+$else$
+$if(innermember.typecode.isType_e)$
+jfieldID $member.name$_$innermember.name$Field = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "Ljava/util/ArrayList;");
+jobject $member.name$_$innermember.name$FieldValue = env->Get$innermember.typecode.JavaUpperFirstTypename$Field(jni$member.name$FieldValue, $member.name$_$innermember.name$Field);
+$insertInnerSequenceMember(ctx=ctx, parent=parent, member = innermember, pmember=member)$
+$member.name$cppStruct.$innermember.Name$(vec$innermember.name$_$member.name$);
+$else$
+$if(innermember.typecode.isType_f)$
+jfieldID $member.name$_$innermember.name$Field = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "$innermember.typecode.LeftEmptyArrayExtension$$innermember.typecode.ContentTypeCode.JNISign$");
+jobject aArray_$innermember.name$_$member.name$ = env->Get$innermember.typecode.JavaUpperFirstTypename$Field(jni$member.name$FieldValue, $member.name$_$innermember.name$Field);
+$insertInnerArrayMember(ctx=ctx, parent=parent, member = innermember, pmember = member)$
+$member.name$cppStruct.$innermember.Name$(cppArray$innermember.name$_$member.name$);
+
+$else$
+jfieldID $member.name$_$innermember.name$memberValueFieldID = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "$innermember.typecode.JNISign$");
+$member.name$cppStruct.$innermember.name$(env->Get$innermember.typecode.JavaUpperFirstTypename$Field(jni$member.name$FieldValue, $member.name$_$innermember.name$memberValueFieldID));
+
+$endif$
+$endif$
+$endif$
+$endif$
+$endif$
+}; separator="\n"$
+ptr_->$member.Name$($member.name$cppStruct);
+$if(member.SetEmptyPname)$
+
+$endif$
+>>
+
+//InnerStructMember
+insertInnerStructMember(ctx, parent, member, fmember, ffmember, outer) ::= <<
+jfieldID nested$member.name$StructFieldID = env->GetFieldID(innerClassClass$outer.name$, "$member.name$_", "$if(member.typecode.IsType_10)$$member.typecode.ContentTypeCode.JNISign$$ctx.filename$_$member.typecode.ContentTypeCode.CScopednamenormal$$else$$member.typecode.JNISign$$ctx.filename$_$member.typecode.CScopednamenormal$$endif$;");
+jobject javaInnerClass$member.name$ = env->GetObjectField(jni$outer.name$FieldValue, nested$member.name$StructFieldID);
+jclass innerClassClass$member.name$ = env->GetObjectClass(javaInnerClass$member.name$);
+$if(member.SetPname)$
+
+$endif$
+$member.typecode.members : { innermember |
+$if(innermember.typecode.IsType_a)$
+$insertInnerStructMember(ctx=ctx, parent=parent, member=innermember, fmember = innermember, ffmember=ffmember,outer=member)$
+$else$
+$if(innermember.typecode.StringType)$
+jfieldID $member.name$_$innermember.name$memberValueFieldID = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "Ljava/lang/String;");
+jstring $member.name$_$innermember.name$javaString = (jstring)env->GetObjectField(javaInnerClass$member.name$, $member.name$_$innermember.name$memberValueFieldID);
+const char *$member.name$_$innermember.name$c_str = env->GetStringUTFChars($member.name$_$innermember.name$javaString, nullptr);
+$ffmember.name$cppStruct.$getRPCPreStructName(ctx=ctx, parent=parent, fmember=fmember)$$innermember.name$($member.name$_$innermember.name$c_str);
+env->ReleaseStringUTFChars($member.name$_$innermember.name$javaString, $member.name$_$innermember.name$c_str);
+
+$else$
+$if(innermember.typecode.IsMapType)$
+jfieldID $member.name$_$innermember.name$Field = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "Ljava/util/Map;");
+jobject $member.name$_$innermember.name$FieldValue = env->Get$innermember.typecode.JavaUpperFirstTypename$Field(javaInnerClass$member.name$, $member.name$_$innermember.name$Field);
+$innermember.typecode.CppTypename$ cppMap$innermember.name$_$member.name$ = $ffmember.name$cppStruct.$getRPCPreStructName(ctx=ctx, parent=parent, fmember=fmember)$$innermember.Name$();
+$insertInnerMapMember(ctx=ctx, parent=parent, member = innermember, pmember=member)$
+$ffmember.name$cppStruct.$getRPCPreStructName(ctx=ctx, parent=parent, fmember=fmember)$$innermember.Name$(cppMap$innermember.name$_$member.name$);
+
+$else$
+$if(innermember.typecode.isType_e)$
+jfieldID $member.name$_$innermember.name$Field = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "Ljava/util/ArrayList;");
+jobject $member.name$_$innermember.name$FieldValue = env->Get$innermember.typecode.JavaUpperFirstTypename$Field(javaInnerClass$member.name$, $member.name$_$innermember.name$Field);
+$insertInnerSequenceMember(ctx=ctx, parent=parent, member = innermember, pmember=member)$
+$ffmember.name$cppStruct.$getRPCPreStructName(ctx=ctx, parent=parent, fmember=fmember)$$innermember.Name$(vec$innermember.name$_$member.name$);
+
+$else$
+$if(innermember.typecode.isType_f)$
+jfieldID $member.name$_$innermember.name$Field = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "$innermember.typecode.LeftEmptyArrayExtension$$innermember.typecode.ContentTypeCode.JNISign$");
+jobject aArray_$innermember.name$_$member.name$ = env->Get$innermember.typecode.JavaUpperFirstTypename$Field(javaInnerClass$member.name$, $member.name$_$innermember.name$Field);
+$insertInnerArrayMember(ctx=ctx, parent=parent, member = innermember, pmember = member)$
+$ffmember.name$cppStruct.$getRPCPreStructName(ctx=ctx, parent=parent, fmember=fmember)$$innermember.Name$(cppArray$innermember.name$_$member.name$);
+
+$else$
+jfieldID $member.name$_$innermember.name$memberValueFieldID = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "$innermember.typecode.JNISign$");
+$ffmember.name$cppStruct.$getRPCPreStructName(ctx=ctx, parent=parent, fmember=fmember)$$innermember.name$(env->Get$innermember.typecode.JavaUpperFirstTypename$Field(javaInnerClass$member.name$, $member.name$_$innermember.name$memberValueFieldID));
+
+$endif$
+$endif$
+$endif$
+$endif$
+$endif$
+}; separator="\n"$
+$if(member.SetEmptyPname)$
+
+$endif$
+>>
+
+//ArrayMember
+insertInnerArrayMember(ctx, parent, member, pmember) ::= <<
+
+$member.typecode.Scopednamenormal$ cppArray$member.name$_$pmember.name$;
+$member.ForListSendBegin : { innermember |
+    $innermember$
+}; separator="\n"$
+$member.ForListSendMid$
+$member.ForListSendEnd : { innermember |
+    $innermember$
+}; separator="\n"$
+>>
+
+//SequenceMember
+insertInnerSequenceMember(ctx, parent, member, pmember) ::= <<
+
+jclass list$member.name$_$pmember.name$Class = env->GetObjectClass($pmember.name$_$member.name$FieldValue);
+
+jmethodID $pmember.name$_$member.name$getMethodID = env->GetMethodID(list$member.name$_$pmember.name$Class, "get", "(I)Ljava/lang/Object;");
+
+jmethodID $pmember.name$_$member.name$sizeMethodID = env->GetMethodID(list$member.name$_$pmember.name$Class, "size", "()I");
+
+jint $pmember.name$_$member.name$len = env->CallIntMethod($pmember.name$_$member.name$FieldValue, $pmember.name$_$member.name$sizeMethodID);
+
+std::vector<$member.typecode.ContentTypeCode.CppTypename$> vec$member.name$_$pmember.name$;
+for (int i = 0; i < $pmember.name$_$member.name$len; i++) {
+    jobject jmember$member.name$ = env->CallObjectMethod($pmember.name$_$member.name$FieldValue, $pmember.name$_$member.name$getMethodID, i);
+    jclass clsObject$member.name$ = env->GetObjectClass(jmember$member.name$);
+
+    $if(member.typecode.ContentTypeCode.StringType)$
+    $member.typecode.ContentTypeCode.JNITypename$ cmember$member.name$ = (jstring)jmember$member.name$;
+    const char* $member.name$strChars = env->GetStringUTFChars(cmember$member.name$, nullptr);
+    std::string $member.name$cppStr($member.name$strChars);
+    env->ReleaseStringUTFChars(cmember$member.name$, $member.name$strChars);
+    vec$member.name$_$pmember.name$.push_back($member.name$cppStr);
+    $else$
+    $member.typecode.ContentTypeCode.JNITypename$ cmember$member.name$ = env->Call$member.typecode.ContentTypeCode.JavaUpperFirstTypename$Method(jmember$member.name$, env->GetMethodID(clsObject$member.name$, "$member.typecode.ContentTypeCode.JavaTypename$Value", "()$member.typecode.ContentTypeCode.JNISign$"));
+    vec$member.name$_$pmember.name$.push_back(static_cast<$member.typecode.ContentTypeCode.CppTypename$>(cmember$member.name$));
+    $endif$
+    env->DeleteLocalRef(jmember$member.name$);
+}
+>>
+
+//MapMember
+insertInnerMapMember(ctx, parent, member, pmember) ::= <<
+
+jclass mapClass$member.name$_$pmember.name$ = env->GetObjectClass($pmember.name$_$member.name$FieldValue);
+jmethodID entrySetMethodID$member.name$_$pmember.name$ = env->GetMethodID(mapClass$member.name$_$pmember.name$, "entrySet", "()Ljava/util/Set;");
+jobject entrySet$member.name$_$pmember.name$ = env->CallObjectMethod($pmember.name$_$member.name$FieldValue, entrySetMethodID$member.name$_$pmember.name$);
+
+jclass setClass$member.name$_$pmember.name$ = env->GetObjectClass(entrySet$member.name$_$pmember.name$);
+jmethodID iteratorMethodID$member.name$_$pmember.name$ = env->GetMethodID(setClass$member.name$_$pmember.name$, "iterator", "()Ljava/util/Iterator;");
+jobject iterator$member.name$_$pmember.name$ = env->CallObjectMethod(entrySet$member.name$_$pmember.name$, iteratorMethodID$member.name$_$pmember.name$);
+
+jclass iteratorClass$member.name$_$pmember.name$ = env->GetObjectClass(iterator$member.name$_$pmember.name$);
+jmethodID hasNextMethodID$member.name$_$pmember.name$ = env->GetMethodID(iteratorClass$member.name$_$pmember.name$, "hasNext", "()Z");
+jmethodID nextMethodID$member.name$_$pmember.name$ = env->GetMethodID(iteratorClass$member.name$_$pmember.name$, "next", "()Ljava/lang/Object;");
+
+jclass entryClass$member.name$_$pmember.name$ = env->FindClass("java/util/Map\$Entry");
+jmethodID getKeyMethodID$member.name$_$pmember.name$ = env->GetMethodID(entryClass$member.name$_$pmember.name$, "getKey", "()Ljava/lang/Object;");
+jmethodID getValueMethodID$member.name$_$pmember.name$ = env->GetMethodID(entryClass$member.name$_$pmember.name$, "getValue", "()Ljava/lang/Object;");
+
+while (env->CallBooleanMethod(iterator$member.name$_$pmember.name$, hasNextMethodID$member.name$_$pmember.name$)) {
+    jobject entry = env->CallObjectMethod(iterator$member.name$_$pmember.name$, nextMethodID$member.name$_$pmember.name$);
+
+    jobject keyObject = env->CallObjectMethod(entry, getKeyMethodID$member.name$_$pmember.name$);
+    jobject valueObject = env->CallObjectMethod(entry, getValueMethodID$member.name$_$pmember.name$);
+
+    $if(member.typecode.KeyTypeCode.StringType)$
+    jstring javaKey = reinterpret_cast<jstring>(keyObject);
+    const char *keyChars = env->GetStringUTFChars(javaKey, nullptr);
+    std::string key(keyChars);
+    $else$
+    $member.typecode.KeyTypeCode.JNITypename$ javaKey = env->Call$member.typecode.KeyTypeCode.JavaUpperFirstTypename$Method(keyObject, env->GetMethodID(env->GetObjectClass(keyObject), "$member.typecode.KeyTypeCode.JavaTypename$Value", "()$member.typecode.KeyTypeCode.JNISign$"));
+    $member.typecode.KeyTypeCode.CppTypename$ key = static_cast<$member.typecode.KeyTypeCode.CppTypename$>(javaKey);
+    $endif$
+    $if(member.typecode.ValueTypeCode.StringType)$
+    jstring javaValue = reinterpret_cast<jstring>(valueObject);
+    const char *valueChars = env->GetStringUTFChars(javaValue, nullptr);
+    std::string value(valueChars);
+    $else$
+    $member.typecode.ValueTypeCode.JNITypename$ javaValue = env->Call$member.typecode.ValueTypeCode.JavaUpperFirstTypename$Method(valueObject, env->GetMethodID(env->GetObjectClass(valueObject), "$member.typecode.ValueTypeCode.JavaTypename$Value", "()$member.typecode.ValueTypeCode.JNISign$"));
+    $member.typecode.ValueTypeCode.CppTypename$ value = static_cast<$member.typecode.ValueTypeCode.CppTypename$>(javaValue);
+    $endif$
+
+    cppMap$member.name$_$pmember.name$[key] = value;
+
+    $if(member.typecode.KeyTypeCode.StringType)$
+    env->ReleaseStringUTFChars(javaKey, keyChars);
+    $endif$
+
+    $if(member.typecode.ValueTypeCode.StringType)$
+    env->ReleaseStringUTFChars(javaValue, valueChars);
+    $endif$
+
+    env->DeleteLocalRef(entry);
+}
+
+env->DeleteLocalRef(iteratorClass$member.name$_$pmember.name$);
+env->DeleteLocalRef(iterator$member.name$_$pmember.name$);
+env->DeleteLocalRef(setClass$member.name$_$pmember.name$);
+env->DeleteLocalRef(entrySet$member.name$_$pmember.name$);
+env->DeleteLocalRef(mapClass$member.name$_$pmember.name$);
+env->DeleteLocalRef($pmember.name$_$member.name$FieldValue);
+>>
+
+//MapMember
+insertMapMember(ctx, parent, member) ::= <<
+jfieldID $member.name$Field = env->GetFieldID(dataClass, "$member.name$_", "Ljava/util/Map;");
+jobject $member.name$FieldValue = env->Get$member.typecode.JavaUpperFirstTypename$Field(obj, $member.name$Field);
+
+$member.typecode.Scopednamenormal$ cppMap$member.name$;
+
+jclass mapClass$member.name$ = env->GetObjectClass($member.name$FieldValue);
+jmethodID entrySetMethodID$member.name$ = env->GetMethodID(mapClass$member.name$, "entrySet", "()Ljava/util/Set;");
+jobject entrySet$member.name$ = env->CallObjectMethod($member.name$FieldValue, entrySetMethodID$member.name$);
+
+jclass setClass$member.name$ = env->GetObjectClass(entrySet$member.name$);
+jmethodID iteratorMethodID$member.name$ = env->GetMethodID(setClass$member.name$, "iterator", "()Ljava/util/Iterator;");
+jobject iterator$member.name$ = env->CallObjectMethod(entrySet$member.name$, iteratorMethodID$member.name$);
+
+jclass iteratorClass$member.name$ = env->GetObjectClass(iterator$member.name$);
+jmethodID hasNextMethodID$member.name$ = env->GetMethodID(iteratorClass$member.name$, "hasNext", "()Z");
+jmethodID nextMethodID$member.name$ = env->GetMethodID(iteratorClass$member.name$, "next", "()Ljava/lang/Object;");
+
+jclass entryClass$member.name$ = env->FindClass("java/util/Map\$Entry");
+jmethodID getKeyMethodID$member.name$ = env->GetMethodID(entryClass$member.name$, "getKey", "()Ljava/lang/Object;");
+jmethodID getValueMethodID$member.name$ = env->GetMethodID(entryClass$member.name$, "getValue", "()Ljava/lang/Object;");
+
+while (env->CallBooleanMethod(iterator$member.name$, hasNextMethodID$member.name$)) {
+    jobject entry = env->CallObjectMethod(iterator$member.name$, nextMethodID$member.name$);
+
+    jobject keyObject = env->CallObjectMethod(entry, getKeyMethodID$member.name$);
+    jobject valueObject = env->CallObjectMethod(entry, getValueMethodID$member.name$);
+
+    $if(member.typecode.KeyTypeCode.StringType)$
+    jstring javaKey = reinterpret_cast<jstring>(keyObject);
+    const char *keyChars = env->GetStringUTFChars(javaKey, nullptr);
+    std::string key(keyChars);
+    $else$
+    $member.typecode.KeyTypeCode.JNITypename$ javaKey = env->Call$member.typecode.KeyTypeCode.JavaUpperFirstTypename$Method(keyObject, env->GetMethodID(env->GetObjectClass(keyObject), "$member.typecode.KeyTypeCode.JavaTypename$Value", "()$member.typecode.KeyTypeCode.JNISign$"));
+    $member.typecode.KeyTypeCode.Scopednamenormal$ key = static_cast<$member.typecode.KeyTypeCode.Scopednamenormal$>(javaKey);
+    $endif$
+    $if(member.typecode.ValueTypeCode.StringType)$
+    jstring javaValue = reinterpret_cast<jstring>(valueObject);
+    const char *valueChars = env->GetStringUTFChars(javaValue, nullptr);
+    std::string value(valueChars);
+    $else$
+    $member.typecode.ValueTypeCode.JNITypename$ javaValue = env->Call$member.typecode.ValueTypeCode.JavaUpperFirstTypename$Method(valueObject, env->GetMethodID(env->GetObjectClass(valueObject), "$member.typecode.ValueTypeCode.JavaTypename$Value", "()$member.typecode.ValueTypeCode.JNISign$"));
+    $member.typecode.ValueTypeCode.Scopednamenormal$ value = static_cast<$member.typecode.ValueTypeCode.Scopednamenormal$>(javaValue);
+    $endif$
+
+    cppMap$member.name$[key] = value;
+
+    $if(member.typecode.KeyTypeCode.StringType)$
+    env->ReleaseStringUTFChars(javaKey, keyChars);
+    $endif$
+
+    $if(member.typecode.ValueTypeCode.StringType)$
+    env->ReleaseStringUTFChars(javaValue, valueChars);
+    $endif$
+
+    env->DeleteLocalRef(entry);
+}
+
+env->DeleteLocalRef(iteratorClass$member.name$);
+env->DeleteLocalRef(iterator$member.name$);
+env->DeleteLocalRef(setClass$member.name$);
+env->DeleteLocalRef(entrySet$member.name$);
+env->DeleteLocalRef(mapClass$member.name$);
+env->DeleteLocalRef($member.name$FieldValue);
+ptr_->$member.Name$(cppMap$member.name$);
+>>
+
+setMember(ctx, parent, member) ::= <<
+$if(member.typecode.primitive)$
+$setPrimitiveMember(ctx=ctx, parent=parent, member=member)$
+$elseif(member.typecode.isType_d)$
+$setStringMember(ctx=ctx, parent=parent, member=member)$
+$elseif(member.typecode.isType_e)$
+$setSequenceMember(ctx=ctx, parent=parent, member=member)$
+$elseif(member.typecode.isType_f)$
+$setArrayMember(ctx=ctx, parent=parent, member=member)$
+$elseif(member.typecode.isMapType)$
+$setMapMember(ctx=ctx, parent=parent, member=member)$
+$elseif(member.typecode.IsType_c)$
+$setEnumMember(ctx=ctx, parent=parent, member=member)$
+$else$
+$setStructMember(ctx=ctx, parent=parent, member=member)$
+$endif$
+>>
+//Get members from cpp and register them in java
+//PrimitiveMember
+setPrimitiveMember(ctx, parent, member) ::= <<
+jfieldID $member.name$Field = env->GetFieldID(dataClass, "$member.name$_", "$member.typecode.JNISign$");
+env->Set$member.typecode.JavaUpperFirstTypename$Field(obj, $member.name$Field, ptr_->$member.name$());
+>>
+
+//PrimitiveMember
+setEnumMember(ctx, parent, member) ::= <<
+jfieldID $member.name$Field = env->GetFieldID(dataClass, "$member.name$_", "$member.typecode.JNISign$");
+env->SetObjectField(obj, $member.name$Field, ptr_->$member.name$());
+>>
+
+//StringMember
+setStringMember(ctx, parent, member) ::= <<
+jfieldID $member.name$Field = env->GetFieldID(dataClass, "$member.name$_", "Ljava/lang/String;");
+jstring msg$member.name$ = env->NewStringUTF(ptr_->$member.name$().c_str());
+env->Set$member.typecode.JavaUpperFirstTypename$Field(obj, $member.name$Field, msg$member.name$);
+>>
+
+//SequenceMember
+setSequenceMember(ctx, parent, member) ::= <<
+jfieldID $member.name$Field = env->GetFieldID(dataClass, "$member.name$_", "Ljava/util/ArrayList;");
+
+$member.typecode.Scopednamenormal$ cppVector$member.name$ = ptr_->$member.name$();
+
+jclass $member.name$arrayListClass = env->FindClass("java/util/ArrayList");
+jmethodID $member.name$arrayListConstructor = env->GetMethodID($member.name$arrayListClass, "<init>", "()V");
+jobject $member.name$arrayListObject = env->NewObject($member.name$arrayListClass, $member.name$arrayListConstructor);
+
+jmethodID $member.name$arrayListAddMethod = env->GetMethodID($member.name$arrayListClass, "add", "(Ljava/lang/Object;)Z");
+$if(member.typecode.ContentTypeCode.StringType)$
+jclass $member.name$memberClass = env->FindClass("java/lang/String");
+jmethodID $member.name$memberConstructor = env->GetMethodID($member.name$memberClass, "<init>", "([BLjava/lang/String;)V");
+$else$
+jclass $member.name$memberClass = env->FindClass("java/lang/$member.typecode.ContentTypeCode.JavaWrapperTypename$");
+jmethodID $member.name$memberConstructor = env->GetMethodID($member.name$memberClass, "<init>", "($member.typecode.ContentTypeCode.JNISign$)V");
+$endif$
+
+for (const auto& item : cppVector$member.name$) {
+    $if(member.typecode.ContentTypeCode.StringType)$
+    jbyteArray bytes = env->NewByteArray(item.size());
+    env->SetByteArrayRegion(bytes, 0, item.size(), reinterpret_cast<const jbyte*>(item.c_str()));
+    jstring encoding = env->NewStringUTF("UTF-8");
+    jobject newString = env->NewObject($member.name$memberClass, $member.name$memberConstructor, bytes, encoding);
+    env->CallBooleanMethod($member.name$arrayListObject, $member.name$arrayListAddMethod, newString);
+    env->DeleteLocalRef(newString);
+    env->DeleteLocalRef(bytes);
+    env->DeleteLocalRef(encoding);
+    $else$
+    jobject memberObject = env->NewObject($member.name$memberClass, $member.name$memberConstructor, item);
+    env->CallBooleanMethod($member.name$arrayListObject, $member.name$arrayListAddMethod, memberObject);
+    env->DeleteLocalRef(memberObject);
+    $endif$
+}
+
+env->SetObjectField(obj, $member.name$Field, $member.name$arrayListObject);
+env->DeleteLocalRef($member.name$arrayListObject);
+>>
+
+//ArrayMember
+setArrayMember(ctx, parent, member) ::= <<
+jfieldID $member.name$Field = env->GetFieldID(dataClass, "$member.name$_", "$member.typecode.LeftEmptyArrayExtension$$member.typecode.ContentTypeCode.JNISign$");
+
+$member.typecode.Scopednamenormal$ cppArray$member.name$ = ptr_->$member.name$();
+$member.ForListGetBegin : { innermember |
+    $innermember$
+}; separator="\n"$
+$member.ForListGetMid$
+$member.ForListGetEnd : { innermember |
+    $innermember$
+}; separator="\n"$
+
+env->SetObjectField(obj, $member.name$Field, bArray_$member.name$);
+>>
+
+//StructMember
+setStructMember(ctx, parent, member) ::= <<
+jfieldID innerClassField$member.name$ = env->GetFieldID(dataClass, "$member.name$_", "$if(member.typecode.IsType_10)$$member.typecode.ContentTypeCode.JNISign$$ctx.filename$_$member.typecode.ContentTypeCode.CScopednamenormal$$else$$member.typecode.JNISign$$ctx.filename$_$member.typecode.CScopednamenormal$$endif$;");
+jobject javaInnerClass$member.name$ = env->GetObjectField(obj, innerClassField$member.name$);
+jclass innerClassClass$member.name$ = env->GetObjectClass(javaInnerClass$member.name$);
+
+$if(member.SetPname)$
+
+$endif$
+$member.typecode.Scopednamenormal$ $member.name$cppStruct = ptr_->$member.name$();
+$member.typecode.members : { innermember |
+$if(innermember.typecode.IsType_a)$
+$setInnerStructMember(ctx=ctx, parent=parent, member = innermember, fmember = innermember, ffmember = member, outer=member)$
+$else$
+$if(innermember.typecode.StringType)$
+jfieldID field$innermember.name$_$member.name$ID = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "Ljava/lang/String;");
+jstring $member.name$_$innermember.name$fieldValue = env->NewStringUTF($member.name$cppStruct.$innermember.name$().c_str());
+env->SetObjectField(javaInnerClass$member.name$, field$innermember.name$_$member.name$ID, $member.name$_$innermember.name$fieldValue);
+env->DeleteLocalRef($member.name$_$innermember.name$fieldValue);
+
+$else$
+$if(innermember.typecode.IsMapType)$
+$innermember.typecode.CppTypename$ cppMap$innermember.name$_$member.name$ = $member.name$cppStruct.$innermember.name$();
+jfieldID $member.name$Field = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "Ljava/util/Map;");
+$setInnerMapMember(ctx=ctx, parent=parent, member = innermember, pmember=member)$
+// 将 Java HashMap 对象设置给对应的字段
+env->SetObjectField(javaInnerClass$member.name$, $member.name$Field, hashMapObject$innermember.name$_$member.name$);
+env->DeleteLocalRef(hashMapClass$innermember.name$_$member.name$);
+env->DeleteLocalRef(hashMapObject$innermember.name$_$member.name$);
+
+$else$
+$if(innermember.typecode.isType_e)$
+jfieldID $member.name$_$innermember.name$Field = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "Ljava/util/ArrayList;");
+$innermember.typecode.CppTypename$ cppVector$innermember.name$_$member.name$ = $member.name$cppStruct.$innermember.name$();
+$setInnerSequenceMember(ctx=ctx, parent=parent, member = innermember, pmember = member)$
+env->SetObjectField(javaInnerClass$member.name$, $member.name$_$innermember.name$Field, $member.name$_$innermember.name$arrayListObject);
+env->DeleteLocalRef($member.name$_$innermember.name$arrayListObject);
+$else$
+$if(innermember.typecode.isType_f)$
+jfieldID $member.name$_$innermember.name$Field = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "$innermember.typecode.LeftEmptyArrayExtension$$innermember.typecode.ContentTypeCode.JNISign$");
+$innermember.typecode.CppTypename$ cppArray$innermember.name$_$member.name$ = $member.name$cppStruct.$innermember.name$();
+$setInnerArrayMember(ctx=ctx, parent=parent, member = innermember, pmember=member)$
+
+env->SetObjectField(javaInnerClass$member.name$, $member.name$_$innermember.name$Field, bArray_$innermember.name$_$member.name$);
+
+$else$
+jfieldID field$innermember.name$_$member.name$ID = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "$innermember.typecode.JNISign$");
+env->Set$innermember.typecode.JavaUpperFirstTypename$Field(javaInnerClass$member.name$, field$innermember.name$_$member.name$ID, $member.name$cppStruct.$innermember.name$());
+
+$endif$
+$endif$
+$endif$
+$endif$
+$endif$
+
+}; separator="\n"$
+$if(member.SetEmptyPname)$
+
+$endif$
+>>
+
+//InnerStructMember
+setInnerStructMember(ctx, parent, member, fmember, ffmember, outer) ::= <<
+jfieldID innerClassField$member.name$ = env->GetFieldID(innerClassClass$outer.name$, "$member.name$_", "$if(member.typecode.IsType_10)$$member.typecode.ContentTypeCode.JNISign$$ctx.filename$_$member.typecode.ContentTypeCode.CScopednamenormal$$else$$member.typecode.JNISign$$ctx.filename$_$member.typecode.CScopednamenormal$$endif$;");
+jobject javaInnerClass$member.name$ = env->GetObjectField(javaInnerClass$outer.name$, innerClassField$member.name$);
+jclass innerClassClass$member.name$ = env->GetObjectClass(javaInnerClass$member.name$);
+$if(member.SetPname)$
+
+$endif$
+$member.typecode.members : { innermember |
+$if(innermember.typecode.IsType_a)$
+$setInnerStructMember(ctx=ctx, parent=parent, member=innermember, fmember=fmember, ffmember=ffmember, outer=member)$
+$else$
+$if(innermember.typecode.StringType)$
+jfieldID field$innermember.name$_$member.name$ID = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "Ljava/lang/String;");
+jstring $member.name$_$innermember.name$fieldValue = env->NewStringUTF($ffmember.name$cppStruct.$getRPCPreStructName(ctx=ctx, parent=parent, fmember=fmember)$$innermember.name$().c_str());
+env->SetObjectField(javaInnerClass$member.name$, field$innermember.name$_$member.name$ID, $member.name$_$innermember.name$fieldValue);
+env->DeleteLocalRef($member.name$_$innermember.name$fieldValue);
+
+$else$
+$if(innermember.typecode.IsMapType)$
+$innermember.typecode.CppTypename$ cppMap$innermember.name$_$member.name$ = $ffmember.name$cppStruct.$getRPCPreStructName(ctx=ctx, parent=parent, fmember=fmember)$$innermember.name$();
+jfieldID $member.name$_$innermember.name$Field = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "Ljava/util/Map;");
+$setInnerMapMember(ctx=ctx, parent=parent, member = innermember, pmember=member)$
+// 将 Java HashMap 对象设置给对应的字段
+env->SetObjectField(javaInnerClass$member.name$, $member.name$_$innermember.name$Field, hashMapObject$innermember.name$_$member.name$);
+env->DeleteLocalRef(hashMapClass$innermember.name$_$member.name$);
+env->DeleteLocalRef(hashMapObject$innermember.name$_$member.name$);
+
+$else$
+$if(innermember.typecode.isType_e)$
+jfieldID $member.name$_$innermember.name$Field = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "Ljava/util/ArrayList;");
+$innermember.typecode.CppTypename$ cppVector$innermember.name$_$member.name$ = $ffmember.name$cppStruct.$getRPCPreStructName(ctx=ctx, parent=parent, fmember=fmember)$$innermember.name$();
+$setInnerSequenceMember(ctx=ctx, parent=parent, member = innermember, pmember = member)$
+env->SetObjectField(javaInnerClass$member.name$, $member.name$_$innermember.name$Field, $member.name$_$innermember.name$arrayListObject);
+env->DeleteLocalRef($member.name$_$innermember.name$arrayListObject);
+
+$else$
+$if(innermember.typecode.isType_f)$
+jfieldID $member.name$_$innermember.name$Field = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "$innermember.typecode.LeftEmptyArrayExtension$$innermember.typecode.ContentTypeCode.JNISign$");
+$innermember.typecode.CppTypename$ cppArray$innermember.name$_$member.name$ = $ffmember.name$cppStruct.$getRPCPreStructName(ctx=ctx, parent=parent, fmember=fmember)$$innermember.name$();
+$setInnerArrayMember(ctx=ctx, parent=parent, member = innermember, pmember=member)$
+
+env->SetObjectField(javaInnerClass$member.name$, $member.name$_$innermember.name$Field, bArray_$innermember.name$_$member.name$);
+
+$else$
+jfieldID field$innermember.name$_$member.name$ID = env->GetFieldID(innerClassClass$member.name$, "$innermember.name$_", "$innermember.typecode.JNISign$");
+env->Set$innermember.typecode.JavaUpperFirstTypename$Field(javaInnerClass$member.name$, field$innermember.name$_$member.name$ID, $ffmember.name$cppStruct.$getRPCPreStructName(ctx=ctx, parent=parent, fmember=fmember)$$innermember.name$());
+
+$endif$
+$endif$
+$endif$
+$endif$
+$endif$
+}; separator="\n"$
+$if(member.SetEmptyPname)$
+
+$endif$
+>>
+
+//ArrayMember
+setInnerArrayMember(ctx, parent, member, pmember) ::= <<
+$member.ForListGetBegin : { innermember |
+    $innermember$
+}; separator="\n"$
+$member.ForListGetMid$
+$member.ForListGetEnd : { innermember |
+    $innermember$
+}; separator="\n"$
+>>
+
+//SequenceMember
+setInnerSequenceMember(ctx, parent, member, pmember) ::= <<
+jclass $pmember.name$_$member.name$arrayListClass = env->FindClass("java/util/ArrayList");
+jmethodID $pmember.name$_$member.name$arrayListConstructor = env->GetMethodID($pmember.name$_$member.name$arrayListClass, "<init>", "()V");
+jobject $pmember.name$_$member.name$arrayListObject = env->NewObject($pmember.name$_$member.name$arrayListClass, $pmember.name$_$member.name$arrayListConstructor);
+
+jmethodID $pmember.name$_$member.name$arrayListAddMethod = env->GetMethodID($pmember.name$_$member.name$arrayListClass, "add", "(Ljava/lang/Object;)Z");
+$if(member.typecode.ContentTypeCode.StringType)$
+jclass $pmember.name$_$member.name$memberClass = env->FindClass("java/lang/String");
+jmethodID $pmember.name$_$member.name$memberConstructor = env->GetMethodID($pmember.name$_$member.name$memberClass, "<init>", "([BLjava/lang/String;)V");
+$else$
+jclass $pmember.name$_$member.name$memberClass = env->FindClass("java/lang/$member.typecode.ContentTypeCode.JavaWrapperTypename$");
+jmethodID $pmember.name$_$member.name$memberConstructor = env->GetMethodID($pmember.name$_$member.name$memberClass, "<init>", "($member.typecode.ContentTypeCode.JNISign$)V");
+$endif$
+
+for (const auto& item : cppVector$member.name$_$pmember.name$) {
+    $if(member.typecode.ContentTypeCode.StringType)$
+    jbyteArray bytes = env->NewByteArray(item.size());
+    env->SetByteArrayRegion(bytes, 0, item.size(), reinterpret_cast<const jbyte*>(item.c_str()));
+    jstring encoding = env->NewStringUTF("UTF-8");
+    jobject newString = env->NewObject($pmember.name$_$member.name$memberClass, $pmember.name$_$member.name$memberConstructor, bytes, encoding);
+    env->CallBooleanMethod($pmember.name$_$member.name$arrayListObject, $pmember.name$_$member.name$arrayListAddMethod, newString);
+    env->DeleteLocalRef(newString);
+    env->DeleteLocalRef(bytes);
+    env->DeleteLocalRef(encoding);
+    $else$
+    jobject memberObject = env->NewObject($pmember.name$_$member.name$memberClass, $pmember.name$_$member.name$memberConstructor, item);
+    env->CallBooleanMethod($pmember.name$_$member.name$arrayListObject, $pmember.name$_$member.name$arrayListAddMethod, memberObject);
+    env->DeleteLocalRef(memberObject);
+    $endif$
+}
+>>
+
+setInnerMapMember(ctx, parent, member, pmember) ::= <<
+// 创建一个新的 Java HashMap 对象
+jclass hashMapClass$member.name$_$pmember.name$ = env->FindClass("java/util/HashMap");
+jmethodID hashMapConstructor$member.name$_$pmember.name$ = env->GetMethodID(hashMapClass$member.name$_$pmember.name$, "<init>", "()V");
+jobject hashMapObject$member.name$_$pmember.name$ = env->NewObject(hashMapClass$member.name$_$pmember.name$, hashMapConstructor$member.name$_$pmember.name$);
+
+// 获取 HashMap 的 put 方法的 ID
+jmethodID hashMapPut$member.name$_$pmember.name$ = env->GetMethodID(hashMapClass$member.name$_$pmember.name$, "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+
+// 将 C++ 的 std::map 内容添加到 Java HashMap 对象中
+for (const auto& entry : cppMap$member.name$_$pmember.name$) {
+    $if(member.typecode.KeyTypeCode.StringType)$
+    $member.typecode.KeyTypeCode.JNITypename$ keyObject = env->NewStringUTF(entry.first.c_str());
+    $else$
+    $member.typecode.KeyTypeCode.JNITypename$ key = static_cast<$member.typecode.KeyTypeCode.JNITypename$>(entry.first);
+    jclass Key$member.typecode.KeyTypeCode.JavaWrapperTypename$Class = env->FindClass("java/lang/$member.typecode.KeyTypeCode.JavaWrapperTypename$");
+    jmethodID key$member.typecode.KeyTypeCode.JavaWrapperTypename$Constructor = env->GetMethodID(Key$member.typecode.KeyTypeCode.JavaWrapperTypename$Class, "<init>", "($member.typecode.KeyTypeCode.JNISign$)V");
+    jobject keyObject = env->NewObject(Key$member.typecode.KeyTypeCode.JavaWrapperTypename$Class, key$member.typecode.KeyTypeCode.JavaWrapperTypename$Constructor, key);
+    $endif$
+    $if(member.typecode.ValueTypeCode.StringType)$
+    $member.typecode.ValueTypeCode.JNITypename$ valueObject = env->NewStringUTF(entry.second.c_str());
+    $else$
+    $member.typecode.ValueTypeCode.JNITypename$ value = static_cast<$member.typecode.ValueTypeCode.JNITypename$>(entry.second);
+    jclass Value$member.typecode.ValueTypeCode.JavaWrapperTypename$Class = env->FindClass("java/lang/$member.typecode.ValueTypeCode.JavaWrapperTypename$");
+    jmethodID Value$member.typecode.ValueTypeCode.JavaWrapperTypename$Constructor = env->GetMethodID(Value$member.typecode.ValueTypeCode.JavaWrapperTypename$Class, "<init>", "($member.typecode.ValueTypeCode.JNISign$)V");
+    jobject valueObject = env->NewObject(Value$member.typecode.ValueTypeCode.JavaWrapperTypename$Class, Value$member.typecode.ValueTypeCode.JavaWrapperTypename$Constructor, value);
+    $endif$
+
+    env->CallObjectMethod(hashMapObject$member.name$_$pmember.name$, hashMapPut$member.name$_$pmember.name$, keyObject, valueObject);
+}
+>>
+
+//MapMember
+setMapMember(ctx, parent, member) ::= <<
+jfieldID $member.name$Field = env->GetFieldID(dataClass, "$member.name$_", "Ljava/util/Map;");
+
+// 创建一个新的 Java HashMap 对象
+jclass hashMapClass$member.name$ = env->FindClass("java/util/HashMap");
+jmethodID hashMapConstructor$member.name$ = env->GetMethodID(hashMapClass$member.name$, "<init>", "()V");
+jobject hashMapObject$member.name$ = env->NewObject(hashMapClass$member.name$, hashMapConstructor$member.name$);
+
+// 获取 HashMap 的 put 方法的 ID
+jmethodID hashMapPut$member.name$ = env->GetMethodID(hashMapClass$member.name$, "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+
+$member.typecode.Scopednamenormal$ cppMap$member.name$ = ptr_->$member.name$();
+// 将 C++ 的 std::map 内容添加到 Java HashMap 对象中
+for (const auto& entry : cppMap$member.name$) {
+    $if(member.typecode.KeyTypeCode.StringType)$
+    $member.typecode.KeyTypeCode.JNITypename$ keyObject = env->NewStringUTF(entry.first.c_str());
+    $else$
+    $member.typecode.KeyTypeCode.JNITypename$ key = static_cast<$member.typecode.KeyTypeCode.JNITypename$>(entry.first);
+    jclass Key$member.typecode.KeyTypeCode.JavaWrapperTypename$Class = env->FindClass("java/lang/$member.typecode.KeyTypeCode.JavaWrapperTypename$");
+    jmethodID Key$member.typecode.KeyTypeCode.JavaWrapperTypename$Constructor = env->GetMethodID(Key$member.typecode.KeyTypeCode.JavaWrapperTypename$Class, "<init>", "($member.typecode.KeyTypeCode.JNISign$)V");
+    jobject keyObject = env->NewObject(Key$member.typecode.KeyTypeCode.JavaWrapperTypename$Class, Key$member.typecode.KeyTypeCode.JavaWrapperTypename$Constructor, key);
+    $endif$
+    $if(member.typecode.ValueTypeCode.StringType)$
+    $member.typecode.ValueTypeCode.JNITypename$ valueObject = env->NewStringUTF(entry.second.c_str());
+    $else$
+    $member.typecode.ValueTypeCode.JNITypename$ value = static_cast<$member.typecode.ValueTypeCode.JNITypename$>(entry.second);
+    jclass Value$member.typecode.ValueTypeCode.JavaWrapperTypename$Class = env->FindClass("java/lang/$member.typecode.ValueTypeCode.JavaWrapperTypename$");
+    jmethodID Value$member.typecode.ValueTypeCode.JavaWrapperTypename$Constructor = env->GetMethodID(Value$member.typecode.ValueTypeCode.JavaWrapperTypename$Class, "<init>", "($member.typecode.ValueTypeCode.JNISign$)V");
+    jobject valueObject = env->NewObject(Value$member.typecode.ValueTypeCode.JavaWrapperTypename$Class, Value$member.typecode.ValueTypeCode.JavaWrapperTypename$Constructor, value);
+    $endif$
+
+    env->CallObjectMethod(hashMapObject$member.name$, hashMapPut$member.name$, keyObject, valueObject);
+}
+
+// 将 Java HashMap 对象设置给对应的字段
+env->SetObjectField(obj, $member.name$Field, hashMapObject$member.name$);
+env->DeleteLocalRef(hashMapClass$member.name$);
+env->DeleteLocalRef(hashMapObject$member.name$);
+>>
+
+//PrimitiveMember
+PrimitiveMember(ctx, parent, member) ::= <<
+$if(member.Typecode.IsType_9)$
+if ($member.name$ < 0 || $member.name$ > 255) {
+    return -1;
+}
+
+$elseif(member.Typecode.IsType_3)$
+if ($member.name$ < 0 || $member.name$ > 65535) {
+    return -1;
+}
+
+$elseif(member.Typecode.IsType_4)$
+if ($member.name$ < 0 || $member.name$ > 4294967295) {
+    return -1;
+}
+
+$endif$
+$member.Typecode.Scopednamenormal$ cpp_$member.name$ = static_cast<$member.Typecode.Scopednamenormal$>($member.name$);
+>>

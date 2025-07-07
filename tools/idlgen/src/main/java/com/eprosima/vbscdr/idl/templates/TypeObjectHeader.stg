@@ -1,0 +1,225 @@
+// Copyright 2016 Proyectos y Sistemas de Mantenimiento SL (eProsima).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ------------------------------------------------------------------
+// Modification history:
+// 2023-03 ~ 2025-05: Supported typeobject/type discovery main features, improved macro alignment/dynamic type flow.
+// ------------------------------------------------------------------
+
+group TypeObjectHeader;
+
+main(ctx, definitions) ::= <<
+$fileHeader(file=[ctx.filename, "TypeObject.h"], description=["This header file contains the declaration of the described types in the IDL file."])$
+
+#ifndef _EDDS_GENERATED$if(!ctx.NotUseRandom)$_$ctx.RandomNumber$$endif$_$ctx.headerGuardName$_TYPE_OBJECT_H_
+#define _EDDS_GENERATED$if(!ctx.NotUseRandom)$_$ctx.LastRandomNumber$$endif$_$ctx.headerGuardName$_TYPE_OBJECT_H_
+
+$ctx.fileNames : {include | #include "$include$TypeObject.$if(ctx.GenHpp)$hpp$else$h$endif$"}; separator="\n"$
+
+$if(ctx.NotUseVbsFramework)$
+#include <ertps/types/TypeObject.h>
+$else$
+#include <vbs/Global.hpp>
+#include <vbs/types/TypeObject.h>
+$endif$
+
+#include <map>
+
+#if defined(_WIN32)
+#if defined(VBS_USER_DLL_EXPORT)
+#define vbs_user_DllExport __declspec( dllexport )
+#else
+#define vbs_user_DllExport
+#endif
+#else
+#define vbs_user_DllExport
+#endif
+
+#if defined(_WIN32)
+#if defined(VBS_USER_DLL_EXPORT)
+#if defined($ctx.filename;format="toUpper"$_SOURCE)
+#define $ctx.filename;format="toUpper"$_DllAPI __declspec( dllexport )
+#else
+#define $ctx.filename;format="toUpper"$_DllAPI __declspec( dllimport )
+#endif // $ctx.filename;format="toUpper"$_SOURCE
+#else
+#define $ctx.filename;format="toUpper"$_DllAPI
+#endif
+#else
+#define $ctx.filename;format="toUpper"$_DllAPI
+#endif // _WIN32
+
+$if(ctx.NotUseVbsFramework)$
+using namespace evbs::ertps::types;
+$endif$
+
+vbs_user_DllExport void register$ctx.filename$_$ctx.M_lastStructureScopedNameUnderLine$Types();
+
+$definitions; separator="\n"$
+
+#endif // _EDDS_GENERATED$if(!ctx.NotUseRandom)$_$ctx.LastRandomNumber$$endif$_$ctx.headerGuardName$_TYPE_OBJECT_H_
+>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<
+
+$if(typedefs.ScopednameList)$
+$typedefs.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$typedefs.name$Identifier();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* Get$typedefs.name$Object();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$typedefs.name$Object();
+
+$if(typedefs.ScopednameList)$
+$typedefs.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+>>
+
+enum_type(ctx, parent, enum) ::= <<
+$if(enum.ScopednameList)$
+$enum.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$enum.name$Identifier();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* Get$enum.name$Object();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$enum.name$Object();
+
+$if(enum.ScopednameList)$
+$enum.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<
+$if(bitmask.ScopednameList)$
+$bitmask.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$bitmask.name$Identifier();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* Get$bitmask.name$Object();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$bitmask.name$Object();
+
+$if(bitmask.ScopednameList)$
+$bitmask.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+>>
+
+struct_type(ctx, parent, struct, extensions) ::= <<
+
+$if(struct.ScopednameList)$
+$struct.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$struct.name$Identifier();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* Get$struct.name$Object();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$struct.name$Object();
+
+$if(struct.ScopednameList)$
+$struct.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+>>
+
+union_type(ctx, parent, union, extensions) ::= <<
+
+$if(union.ScopednameList)$
+$union.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$union.name$Identifier();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* Get$union.name$Object();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$union.name$Object();
+
+$if(union.ScopednameList)$
+$union.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+>>
+
+bitset_type(ctx, parent, bitset, extensions) ::= <<
+$if(bitset.ScopednameList)$
+$bitset.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$bitset.name$Identifier();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* Get$bitset.name$Object();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$bitset.name$Object();
+
+$if(bitset.ScopednameList)$
+$bitset.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+>>
+
+annotation(ctx, annotation) ::= <<
+$if(annotation.ScopednameList)$
+$annotation.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$annotation.name$Identifier();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* Get$annotation.name$Object();
+vbs_user_DllExport const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$annotation.name$Object();
+
+namespace $annotation.name$
+{
+$annotation.enums : {$enum_type(ctx=ctx, parent=annotation, enum=it)$}; separator="\n"$
+
+$annotation.typeDefs : {$typedef_decl(ctx=ctx, parent=annotation, typedefs=it)$}; separator="\n"$
+}
+
+$if(annotation.ScopednameList)$
+$annotation.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+/***** Utils *****/
+empty_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$$else$vbs::$endif$>>

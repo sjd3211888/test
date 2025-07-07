@@ -1,0 +1,1274 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group TypesRustInterface;
+main(ctx, definitions, package, module_name, interfacename) ::= <<
+
+use super::*;
+
+$definitions; separator="\n"$
+>>
+
+member_define(ctx,member)::= <<
+$if(member.typecode.isStructType)$$member.typecode.rustTypename$$elseif(member.typecode.isMapType)$$member.typecode.rustTypename$$elseif(member.typecode.IsType_e)$Vec<$member.typecode.rustTypename$>$elseif(member.typecode.isType_f)$Box<$member.typecode.RustLeftEmptyArrayExtension$$member.typecode.rustTypename$; $member.typecode.RustRightTypeDimensions$>$else$$member.typecode.rustTypename$$endif$
+>>
+struct_type(ctx, parent, struct, module_name) ::= <<
+$struct.UseStatements : { namespace |
+$namespace$
+}; separator="\n"$
+
+$if(ctx.Rpc)$
+$if(ctx.TestExample)$
+#[derive(Debug, Clone, Serialize, Deserialize)]
+$else$
+#[derive(Debug, Clone)]
+$endif$
+$else$
+#[derive(Debug, Clone)]
+$endif$
+
+pub struct $struct.name$ {
+    $struct.members:{ member |pub $member.name$: $member_define(ctx=ctx, member=member)$,}; separator="\n"$
+}
+
+impl Default for $struct.name$ {
+    fn default() -> Self {
+        $struct.name$ {
+             $struct.members:{ member | $member_default_init(ctx=ctx, member=member, loopvar=ctx.newLoopVarName)$}; separator="\n"$
+        }
+    }
+}
+impl From<*mut $struct.CScopedname$Wrapper> for $struct.name$ {
+    fn from(c_data: *mut $struct.CScopedname$Wrapper) -> Self {
+        unsafe {
+            $struct.members:{ member |$member_c_to_rust_pre(ctx=ctx, member=member)$}; separator="\n"$
+            Self {
+            $struct.members:{ member |$member_c_to_rust(ctx=ctx, member=member)$}; separator="\n"$
+            }
+        }
+    }
+}
+
+impl TopicData for $struct.name$ {
+    fn free(c_data: *mut c_void) {
+        unsafe {
+            $struct.CScopedname$Wrapper_free_members(c_data as *mut _ as *mut $struct.CScopedname$Wrapper);
+        }
+    }
+
+    fn from_raw(topic_data: *mut c_void) -> Self {
+        unsafe {
+            let c_data = $struct.CScopedname$Wrapper::default();
+            let c_data_ptr = &c_data as *const _ as *mut $struct.CScopedname$Wrapper;
+            TopicData_to_$struct.CScopedname$Wrapper(topic_data, c_data_ptr);
+            let sf = Self::from(c_data_ptr);
+            $struct.CScopedname$Wrapper_free_members(c_data_ptr);
+            sf
+        }
+    }
+
+    fn get_default() -> *mut c_void {
+        unsafe {
+            $struct.CScopedname$Wrapper_default()
+        }
+    }
+
+    fn get_data(&self) -> *mut c_void {
+        unsafe {
+            let data_ptr = self.get_c_data();
+            let $struct.name$_cpp_ptr = $struct.CScopedname$Wrapper_to_TopicData(&data_ptr as *const _ as *mut $struct.CScopedname$Wrapper);
+            $struct.name$_cpp_ptr
+        }
+    }
+}
+impl $struct.name$ {
+    pub fn get_c_data(&self) -> $struct.CScopedname$Wrapper {
+        $struct.members:{ member |$member_get_c_data_pre(ctx=ctx, member=member)$}; separator="\n"$
+        $struct.CScopedname$Wrapper{
+        $struct.members:{ member |$member_get_c_data(ctx=ctx, member=member)$}; separator="\n"$
+        }
+    }
+
+    pub fn free_c_data(&c_data: &$struct.CScopedname$Wrapper) {
+        unsafe {
+            $struct.members:{ member |$if(member.typecode.isSequenceType)$$if(member.typecode.contentTypeCode.isStructType)$if !c_data.$member.name$_ptr.is_null() {
+                drop(Box::from_raw(c_data.$member.name$_ptr));
+            }$endif$$endif$$endif$}; separator="\n"$
+            $struct.members:{ member |$if(member.typecode.isStructType)$$member.typecode.rustTypename$::free_c_data(&c_data.$member.name$);$endif$}; separator="\n"$
+        }
+    }
+
+$if(ctx.Rpc)$
+     pub fn to_rpc_message_type(&self) -> *mut c_void {
+        self.get_data()
+    }
+}
+$else$
+}
+pub struct $struct.name$Type{}
+
+impl TopicDataType for $struct.name$Type {
+    fn get_type() -> *mut TopicDataTypeWrapper {
+        unsafe {
+            create_$struct.CScopedname$PubSubType()
+        }
+    }
+}
+$endif$
+
+>>
+
+// TODO name -> module
+module(ctx, parent, module, definition_list) ::= <<
+pub mod $module.name$ {
+    $definition_list$
+} // mod $module.name$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+annotation(ctx, annotation) ::= <<>>
+interface(ctx, parent, interface, export_list, module_name) ::= <<
+
+$interface.UseStatements : { namespace |
+$namespace$
+}; separator="\n"$
+
+pub struct $interface.name$Impl {
+    pub ptr: *mut RpcServerImplWrapper,
+    pub listener: *mut $interface.CScopedname$_RpcServerListenerC,
+}
+
+pub struct $interface.name$Client{
+    client: *mut $interface.CScopedname$ClientWrapper,
+}
+
+impl Drop for $interface.name$Impl {
+    fn drop(&mut self) {
+        unsafe {
+            destroy_$interface.CScopedname$_impl(self.ptr);
+            let user_data = (*self.listener).user_data;
+            Box::from_raw(user_data as *mut Box<dyn $interface.name$_RpcServerListenerInterface>);
+            destroy_$interface.CScopedname$_rpc_server_listener(self.listener);
+        }
+    }
+}
+
+impl Drop for $interface.name$Client {
+    fn drop(&mut self) {
+        if !self.client.is_null() {
+            unsafe {
+                $interface.CScopedname$Client_destroy(self.client);
+            }
+        }
+    }
+}
+
+pub struct $interface.name$Factory {
+    factory: *mut $interface.CScopedname$FactoryWrapper,
+}
+
+impl $interface.name$Factory {
+    pub fn new() -> Self {
+        let factory = unsafe { create_$interface.CScopedname$_factory() };
+        $interface.name$Factory { factory }
+    }
+}
+
+impl Drop for $interface.name$Factory {
+    fn drop(&mut self) {
+        if !self.factory.is_null() {
+            unsafe {
+                destroy_$interface.CScopedname$_factory(self.factory);
+            }
+        }
+    }
+}
+pub trait $interface.name$_RpcServerListenerInterface {
+$interface.all_operations : {operation|
+fn on_$operation.name$(&self, conn_id: u32$if(operation.HasMethod)$, req_id: u32$endif$, req_mode: i32
+            $operation.Parameters : {param |, $param.name$: &mut $param.typecode.rustTypename$}; separator=""$);
+}; separator="\n"$
+}
+
+impl $interface.name$Impl {
+    pub fn new(profile_name: &str, listener: Box<dyn $interface.name$_RpcServerListenerInterface>) -> Self {
+$interface.all_operations : {operation|
+    unsafe extern "C" fn on_$operation.name$_trampoline(user_data: *mut c_void, conn_id: u32$if(operation.HasMethod)$, req_id: u32$endif$, req_mode: i32
+            $operation.Parameters : {param |, $param.name$: *mut c_void}; separator=""$) {
+                let listener = &*(user_data as *mut Box<dyn $interface.name$_RpcServerListenerInterface>);
+                let mut rust_req = $operation.Inputparam : {param |$param.Typecode.RustTypename$}; separator=""$::from_raw($operation.Inputparam : {param |$param.name$}; separator=""$);
+                let mut rust_res = $operation.Outputparam : {param |$param.typecode.rustTypename$}; separator=""$::default();
+                listener.on_$operation.name$(conn_id$if(operation.HasMethod)$, req_id$endif$, req_mode, &mut rust_req, &mut rust_res);
+                let mut $operation.Outputparam : {param |$param.typecode.CScopedname$}; separator=""$_wrapper = rust_res.get_c_data();
+                $operation.Outputparam : {param |$param.typecode.CScopedname$}; separator=""$Wrapper_to_TopicData2(&mut $operation.Outputparam : {param |$param.typecode.CScopedname$}; separator=""$_wrapper as *mut _, $operation.Outputparam : {param |$param.name$}; separator=""$ as *mut _);
+                $operation.Outputparam : {param |$param.typecode.rustTypename$}; separator=""$::free_c_data(&$operation.Outputparam : {param |$param.typecode.CScopedname$}; separator=""$_wrapper);
+        }
+}; separator="\n"$
+
+        let listener_ptr: *mut Box<dyn $interface.name$_RpcServerListenerInterface> = Box::into_raw(Box::new(listener));
+        let c_listener = unsafe { create_$interface.CScopedname$_rpc_server_listener() };
+        unsafe {
+        $interface.all_operations : {operation|
+            (*c_listener).on_$operation.name$= Some(on_$operation.name$_trampoline);}; separator="\n"$
+            (*c_listener).user_data = listener_ptr as *mut c_void;
+        }
+
+        let c_profile_name = CString::new(profile_name).unwrap();
+        let server = unsafe { create_$interface.CScopedname$_impl(c_profile_name.as_ptr(), c_listener) };
+
+        $interface.name$Impl {
+        ptr:server,
+        listener: c_listener,
+    }
+}
+}
+impl $interface.name$Client {
+    pub fn new(factory: &$interface.name$Factory, profile_file_name: &str, profile_name: &str) -> Self {
+        let profile_file_cstr = CString::new(profile_file_name).unwrap();
+        let profile_name_cstr = CString::new(profile_name).unwrap();
+
+        let client = unsafe {
+            $interface.CScopedname$Client_create(factory.factory, profile_file_cstr.as_ptr(), profile_name_cstr.as_ptr())
+        };
+
+        $interface.name$Client { client }
+    }
+$interface.all_operations : {operation|
+    pub fn $operation.name$_Sync_Send(&self$operation.Inputparam : {param |, $param.name$: &mut $param.Typecode.rustTypename$}; separator=""$$operation.Outputparam : {param |, $param.name$: &mut $param.Typecode.rustTypename$}; separator=""$, timeout: i32) -> Result<(), i32> {
+        $operation.Inputparam : {param |let mut $param.name$_c_data = $param.name$.get_c_data();}; separator="\n"$
+        $operation.Outputparam : {param |let mut $param.name$_c_data = $param.name$.get_c_data();}; separator="\n"$
+        let status = unsafe {
+        $interface.CScopedname$Client_$operation.name$_sync_send(
+            self.client,
+            $operation.Inputparam : {param |&mut $param.name$_c_data as *mut _ as *mut c_void,}; separator="\n"$
+            $operation.Outputparam : {param |&mut $param.name$_c_data as *mut _ as *mut c_void,}; separator="\n"$
+            timeout,
+        )
+    };
+        $operation.Inputparam : {param |$param.typecode.rustTypename$}; separator=""$::free_c_data($operation.Inputparam : {param |&$param.name$_c_data}; separator=""$);
+        if status == 0 {
+            $operation.Outputparam : {param |let updated_res = $param.Typecode.RustTypename$::from(&mut $param.name$_c_data as *mut $param.Typecode.CScopedname$Wrapper);}; separator="\n"$
+            *$operation.Outputparam : {param |$param.name$}; separator=""$ = updated_res;
+        }
+        $operation.Outputparam : {param |$param.typecode.rustTypename$}; separator=""$::free_c_data($operation.Outputparam : {param |&$param.name$_c_data}; separator=""$);
+        $operation.Outputparam : {param |$param.Typecode.RustTypename$::free(&mut $param.name$_c_data as *mut _ as *mut c_void);}; separator="\n"$
+
+        if status == 0 { Ok(()) } else { Err(status) }
+    }
+    pub fn $operation.name$_Async_Send<F>(&self$operation.Inputparam : {param |, $param.name$: &mut $param.Typecode.rustTypename$}; separator=""$, callback: F, expire: i32) -> Result<(), i32>
+    where
+        F: Fn(i32, &$operation.Outputparam : {param |$param.Typecode.rustTypename$}; separator=""$) + 'static,
+    {
+        let boxed_callback = Box::new(callback);
+        let callback_ptr = Box::into_raw(boxed_callback) as *mut c_void;
+        $operation.Inputparam : {param |let mut $param.name$_c_data = $param.name$.get_c_data();}; separator="\n"$
+        unsafe {
+            let status = $interface.CScopedname$Client_$operation.name$_async_send(
+            self.client,
+            $operation.Inputparam : {param |&mut $param.name$_c_data as *mut _ as *mut c_void,}; separator="\n"$
+            Some(Self::$operation.name$_Callback_Handler::<F>),
+            callback_ptr,
+            expire,
+        );
+       if status == 0 {
+                Ok(())
+            } else {
+                Err(status)
+            }
+        }
+    }
+    extern "C" fn $operation.name$_Callback_Handler<F>(
+        user_data: *mut c_void,
+        status: i32,
+        response: *mut RpcMessageTypeWrapper,
+    ) where
+        F: Fn(i32, &$operation.Outputparam : {param |$param.Typecode.rustTypename$}; separator=""$)  + 'static,
+    {
+        let callback = unsafe { Box::from_raw(user_data as *mut F) };
+        let mut res_type_wrapper = unsafe {
+            let mut c_response: $operation.Outputparam : {param |$param.Typecode.CScopedname$}; separator=""$Wrapper = Default::default();
+            TopicData_to_$operation.Outputparam : {param |$param.Typecode.CScopedname$}; separator=""$Wrapper((*response).context, &mut c_response);
+            c_response
+        };
+        let res = $operation.Outputparam : {param |$param.Typecode.rustTypename$}; separator=""$::from(&mut res_type_wrapper as *mut _);
+
+        callback(status, &res);
+    }
+}; separator="\n"$
+}
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+union_type(ctx, parent, union, extensions) ::= <<
+$union.UseStatements : { namespace |
+$namespace$
+}; separator="\n"$
+
+#[derive(Debug, Default, Clone)]
+pub struct $union.name$ {
+   pub discriminator: $union.Discriminator.RustTypename$,
+   pub data: $union.name$InnerData,
+}
+
+$if(ctx.Rpc)$
+$if(ctx.TestExample)$
+#[derive(Debug, Clone, Serialize, Deserialize)]
+$else$
+#[derive(Debug, Clone)]
+$endif$
+$else$
+#[derive(Debug, Clone)]
+$endif$
+
+pub enum $union.name$InnerData {
+ $union.members:{ member |
+    $if(member.typecode.isStructType)$
+$member.name$($member.typecode.rustTypename$),
+    $elseif(member.typecode.isMapType)$
+$member.name$($member.typecode.rustTypename$),
+    $elseif(member.typecode.isSequenceType)$
+$member.name$(Vec<$member.typecode.rustTypename$>),
+    $else$
+$member.name$($member.typecode.rustTypename$),
+    $endif$
+    }; separator=""$
+}
+impl Default for $union.name$InnerData {
+    fn default() -> Self {
+        $union.name$InnerData::$first(union.members).name$($if(first(union.members).annotationDefault)$$unionmember_default_init(ctx=ctx, member=first(union.members), loopvar=ctx.newLoopVarName)$$else$$if(!first(union.members).annotationOptional)$$unionmember_default_init(ctx=ctx, member=first(union.members), loopvar=ctx.newLoopVarName)$$endif$$endif$)
+    }
+}
+
+impl From<*mut $union.CScopedname$Wrapper> for $union.name$ {
+    fn from(c_data: *mut $union.CScopedname$Wrapper) -> Self {
+        unsafe {
+            if c_data.is_null() {
+                panic!("Null pointer passed to $union.CScopedname$ from");
+            }
+            $if(union.Discriminator.IsType_c)$
+            let discriminator = match (*c_data).discriminator.value {
+            $union.Discriminator.members:{$if(it.HasValue)$$it.Value$ => $union.Discriminator.rustTypename$::$it.name$ $else$$it.name$$endif$,}; separator="\n"$
+                _ => panic!("Invalid discriminator value"),
+            };$endif$
+            $union.name$ {
+                $if(union.Discriminator.IsType_c)$
+                discriminator: discriminator.clone(),$else$
+                discriminator: (*c_data).discriminator,$endif$
+
+                data: match $if(union.Discriminator.IsType_c)$$else$(*c_data).$endif$discriminator {
+                $union.members:{ member |$unionmember_c_to_rust(name = union.name, totallabels=union.totallabels,member = member,totallabels=union.totallabels, defaultvalue=union.defaultvalue)$}; separator="\n"$
+                _ => panic!("Invalid u_type value"),
+                },
+            }
+        }
+    }
+}
+
+impl TopicData for $union.name$ {
+    fn free(c_data: *mut c_void) {
+        unsafe {
+            $union.CScopedname$Wrapper_free_members(c_data as *mut _ as *mut $union.CScopedname$Wrapper);
+        }
+    }
+
+    fn from_raw(topic_data: *mut c_void) -> Self {
+        unsafe {
+            let c_data = $union.CScopedname$Wrapper::default();
+            let c_data_ptr = &c_data as *const _ as *mut $union.CScopedname$Wrapper;
+            TopicData_to_$union.CScopedname$Wrapper(topic_data, c_data_ptr);
+            let sf = Self::from(c_data_ptr);
+            $union.CScopedname$Wrapper_free_members(c_data_ptr);
+            sf
+        }
+    }
+
+    fn get_default() -> *mut c_void {
+        unsafe {
+            $union.CScopedname$Wrapper_default()
+        }
+    }
+
+    fn get_data(&self) -> *mut c_void {
+        unsafe {
+            let data_ptr = self.get_c_data();
+            let $union.name$_cpp_ptr = $union.CScopedname$Wrapper_to_TopicData(&data_ptr as *const _ as *mut $union.CScopedname$Wrapper);
+            $union.name$_cpp_ptr
+        }
+    }
+}
+impl $union.name$ {
+    pub fn get_c_data(&self) -> $union.CScopedname$Wrapper {
+        $union.CScopedname$Wrapper{
+                $if(union.Discriminator.IsType_c)$
+                discriminator: match self.discriminator {
+                $union.Discriminator.members:{$if(it.HasValue)$$union.Discriminator.rustTypename$::$it.name$ => $union.Discriminator.cTypename$Wrapper { value: $it.Value$ }$else$$it.name$$endif$,}; separator="\n"$
+                },
+                $else$
+                discriminator: self.discriminator,
+                $endif$
+                $union.members:{ member |$unionmember_get_c_data(name=union.name, member=member)$}; separator="\n"$
+        }
+    }
+
+}
+
+>>
+
+bitset_type(ctx, parent, bitset, extensions) ::= <<
+#[derive(Debug, Default, Clone)]
+pub struct $bitset.name$ {
+    pub bitset_size: usize,
+    pub bits: Vec<u32>,
+}
+impl From<*mut $bitset.CScopedname$Wrapper> for $bitset.name$ {
+    fn from(c_data: *mut $bitset.CScopedname$Wrapper) -> Self {
+        unsafe {
+            let bits_slice = std::slice::from_raw_parts((*c_data).bits, $bitset.rustsize$);
+            Self {
+                bitset_size: (*c_data).bitset_size,
+                bits: bits_slice.to_vec(),
+            }
+        }
+    }
+}
+
+impl TopicData for $bitset.name$ {
+    fn free(c_data: *mut c_void) {
+        unsafe {
+            $bitset.CScopedname$Wrapper_free(c_data);
+        }
+    }
+
+    fn from_raw(topic_data: *mut c_void) -> Self {
+        unsafe {
+            let c_data = $bitset.CScopedname$Wrapper::default();
+            let c_data_ptr = &c_data as *const _ as *mut $bitset.CScopedname$Wrapper;
+            TopicData_to_$bitset.CScopedname$Wrapper(topic_data, c_data_ptr);
+            let sf = Self::from(c_data_ptr);
+            // will crash if free here
+            // $bitset.CScopedname$Wrapper_free(c_data_ptr as *mut c_void);
+            sf
+        }
+    }
+
+    fn get_default() -> *mut c_void {
+        unsafe {
+            $bitset.CScopedname$Wrapper_default()
+        }
+    }
+
+    fn get_data(&self) -> *mut c_void {
+        unsafe {
+            let data_ptr = self.get_c_data();
+            let $bitset.name$_cpp_ptr = $bitset.CScopedname$Wrapper_to_TopicData(&data_ptr as *const _ as *mut $bitset.CScopedname$Wrapper);
+            $bitset.name$_cpp_ptr
+        }
+    }
+}
+impl $bitset.name$ {
+    pub fn get_c_data(&self) -> $bitset.CScopedname$Wrapper {
+        $bitset.CScopedname$Wrapper{
+            bits: self.bits.as_ptr() as *mut u32,
+            bitset_size: self.bitset_size,
+        }
+    }
+
+pub fn set_bitfield(&mut self, offset: usize, size: usize, value: u32) {
+    for i in 0..size {
+        if (value & (1 << i)) != 0 {
+            self.bits[offset / 32] |= 1 << (offset % 32 + i);
+        } else {
+            self.bits[offset / 32] &= !(1 << (offset % 32 + i));
+        }
+    }
+}
+}
+
+>>
+
+enum_type(ctx, parent, enum) ::= <<
+
+$if(ctx.Rpc)$
+$if(ctx.TestExample)$
+#[derive(Debug, Clone, Serialize, Deserialize)]
+$else$
+#[derive(Debug, Clone)]
+$endif$
+$else$
+#[derive(Debug, Clone)]
+$endif$
+
+pub enum $enum.name$ {
+        $enum.members:{$it.name$,}; separator="\n"$
+    }
+
+impl $enum.name$ {
+    pub fn value(&self) -> i32 {
+        match self {
+            $enum.members:{$if(it.HasValue)$$enum.name$::$it.name$ => $it.Value$$else$$it.name$$endif$,}; separator="\n"$
+        }
+    }
+}
+impl Default for $enum.name$ {
+    fn default() -> Self {
+            $enum.rustInitialValue$
+        }
+    }
+impl From<*mut $enum.CScopedname$Wrapper> for $enum.name$ {
+    fn from(c_data: *mut $enum.CScopedname$Wrapper) -> Self {
+        unsafe {
+            let topic_data = $enum.CScopedname$Wrapper_to_TopicData(c_data);
+                let my_enum = ::std::mem::transmute::<*mut ::std::os::raw::c_void, &$enum.name$>(topic_data);
+                //my_enum.clone()
+                let ret = my_enum.clone();
+                $enum.name$::free(topic_data);
+                ret
+        }
+    }
+}
+
+impl TopicData for $enum.name$ {
+    fn free(c_data: *mut c_void) {
+        unsafe {
+            $enum.CScopedname$Wrapper_free(c_data);
+        }
+    }
+
+    fn from_raw(topic_data: *mut c_void) -> Self {
+        unsafe {
+            let c_data = $enum.CScopedname$Wrapper::default();
+            let c_data_ptr = &c_data as *const _ as *mut $enum.CScopedname$Wrapper;
+            TopicData_to_$enum.CScopedname$Wrapper(topic_data, c_data_ptr);
+            let sf = Self::from(c_data_ptr);
+            // will crash if free here
+            // $enum.CScopedname$Wrapper_free(c_data_ptr as *mut c_void);
+            sf
+        }
+    }
+
+    fn get_default() -> *mut c_void {
+        unsafe {
+            $enum.CScopedname$Wrapper_default()
+        }
+    }
+
+    fn get_data(&self) -> *mut c_void {
+        unsafe {
+            let data_ptr = self.get_c_data();
+            let $enum.name$_cpp_ptr = $enum.CScopedname$Wrapper_to_TopicData(&data_ptr as *const _ as *mut $enum.CScopedname$Wrapper);
+            $enum.name$_cpp_ptr
+        }
+    }
+}
+impl $enum.name$ {
+    pub fn get_c_data(&self) -> $enum.CScopedname$Wrapper {
+         unsafe {
+            let mut c_data = $enum.CScopedname$Wrapper::default();
+            TopicData_to_$enum.CScopedname$Wrapper(self as *const _ as *mut c_void, &mut c_data);
+            c_data
+        }
+    }
+
+}
+
+>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum $bitmask.name$ {
+    $bitmask.members:{$it.name$ = 0x01 << $it.position$,}; separator="\n"$
+}
+impl Default for $bitmask.name$ {
+    fn default() -> Self {
+        $bitmask.RustInitialValue$
+    }
+}
+
+impl $bitmask.name$ {
+    pub fn from_bits(bits: $bitmask.rustCastingType$) -> Self {
+        match bits {
+            $bitmask.members:{$it.HexValue$ => $bitmask.name$::$it.name$,}; separator="\n"$
+            _ => panic!("Invalid bitmask"),
+        }
+    }
+
+    pub fn bits(self) -> $bitmask.rustCastingType$ {
+        self as $bitmask.rustCastingType$
+    }
+}
+
+impl From<*mut $bitmask.CScopedname$Wrapper> for $bitmask.name$ {
+    fn from(c_data: *mut $bitmask.CScopedname$Wrapper) -> Self {
+        unsafe {
+            $bitmask.name$::from_bits((*c_data).value)
+        }
+    }
+}
+
+impl TopicData for $bitmask.name$ {
+    fn free(c_data: *mut c_void) {
+        unsafe {
+            $bitmask.CScopedname$Wrapper_free(c_data);
+        }
+    }
+
+    fn from_raw(topic_data: *mut c_void) -> Self {
+        unsafe {
+            let c_data = $bitmask.CScopedname$Wrapper::default();
+            let c_data_ptr = &c_data as *const _ as *mut $bitmask.CScopedname$Wrapper;
+            TopicData_to_$bitmask.CScopedname$Wrapper(topic_data, c_data_ptr);
+            let sf = Self::from(c_data_ptr);
+            // will crash if free here
+            // $bitmask.CScopedname$Wrapper_free(c_data_ptr as *mut c_void);
+            sf
+        }
+    }
+
+    fn get_default() -> *mut c_void {
+        unsafe {
+            $bitmask.CScopedname$Wrapper_default()
+        }
+    }
+
+    fn get_data(&self) -> *mut c_void {
+        unsafe {
+            let data_ptr = self.get_c_data();
+            let $bitmask.name$_cpp_ptr = $bitmask.CScopedname$Wrapper_to_TopicData(&data_ptr as *const _ as *mut $bitmask.CScopedname$Wrapper);
+            $bitmask.name$_cpp_ptr
+        }
+    }
+}
+impl $bitmask.name$ {
+    pub fn get_c_data(&self) -> $bitmask.CScopedname$Wrapper {
+        $bitmask.CScopedname$Wrapper{
+            value: self.bits(),
+        }
+    }
+
+}>>
+
+/***** Utils *****/
+member_conv_to_rust(ctx, typecode, member) ::= <<
+
+>>
+unionmember_c_to_rust(name, totallabels, member, defaultvalue) ::= <<
+$if(member.labels)$
+$member.labels:{$it$}; separator=" | "$ =>
+$if(member.typecode.isStringType)$
+$name$InnerData::$member.name$(
+    if !(*c_data).$member.name$.is_null() {
+        CStr::from_ptr((*c_data).$member.name$).to_str().unwrap().to_owned()
+    } else {
+        String::new()
+    }
+),
+$elseif(member.typecode.isWStringType)$
+$name$InnerData::$member.name$(
+    if !(*c_data).$member.name$.is_null() {
+        CStr::from_ptr((*c_data).$member.name$).to_str().unwrap()
+    } else {
+        String::new()
+    }
+),
+$elseif(member.typecode.isType_7)$
+$name$InnerData::$member.name$((*c_data).$member.name$),
+$elseif(member.typecode.isSequenceType)$
+    $if(member.typecode.contentTypeCode.primitive)$
+{
+    if !(*c_data).$member.name$.is_null() {
+        $name$InnerData::$member.name$(Vec::from_raw_parts((*c_data).$member.name$, (*c_data).$member.name$_len, (*c_data).$member.name$_len))
+    } else {
+        $name$InnerData::$member.name$(Vec::new())
+    }
+},
+    $else$
+{
+    if !(*c_data).$member.name$.is_null() {
+        let $member.name$_ptrs = Vec::from_raw_parts((*c_data).$member.name$, (*c_data).$member.name$_len, (*c_data).$member.name$_len);
+        $member.name$_ptrs.iter().map(|f| { $member.typecode.cTypename$::from(f as *const _ as *mut $member.typecode.cTypename$Wrapper) }).collect()
+    } else {
+        Vec::new()
+    }
+},
+    $endif$
+$elseif(member.typecode.isStructType)$
+$name$InnerData::$member.name$($member.typecode.rustTypename$::from(&(*c_data).$member.name$ as *const _ as *mut $member.typecode.cTypename$Wrapper)),
+$elseif(member.typecode.isUnionType)$
+$name$InnerData::$member.name$($member.typecode.rustTypename$::from(&(*c_data).$member.name$ as *const _ as *mut $member.typecode.cTypename$Wrapper)),
+$elseif(member.typecode.isMapType)$
+$member.name$: {
+    let mut $member.name$_map: std::collections::BTreeMap<$member.typecode.keyTypeCode.rustTypename$, $member.typecode.valueTypeCode.rustTypename$> = std::collections::BTreeMap::new();
+    if !(*c_data).$member.name$_key.is_null() && !(*c_data).$member.name$_value.is_null() {
+        let $member.name$_key_slice: &[$member.typecode.keyTypeCode.rustTypename$] = std::slice::from_raw_parts((*c_data).$member.name$_key, (*c_data).$member.name$_len);
+        $if(member.typecode.valueTypeCode.primitive)$
+        let $member.name$_value_slice: &[$member.typecode.valueTypeCode.rustTypename$] = std::slice::from_raw_parts((*c_data).$member.name$_value, (*c_data).$member.name$_len);
+        let $member.name$_combined_slices = $member.name$_key_slice.iter().zip($member.name$_value_slice.iter());
+            $else$
+        let $member.name$_value_slice: &[$member.typecode.valueTypeCode.rustTypename$Wrapper] = std::slice::from_raw_parts((*c_data).$member.name$_value, (*c_data).$member.name$_len);
+        let $member.name$_value_slice2: Vec<_> = $member.name$_value_slice.iter().map(|f| {
+            $member.typecode.valueTypeCode.rustTypename$::from(f as *const _ as *mut $member.typecode.valueTypeCode.rustTypename$Wrapper)
+            }).collect();
+        let $member.name$_combined_slices = $member.name$_key_slice.iter().zip($member.name$_value_slice2.iter());
+            $endif$
+        for ($member.name$_k, $member.name$_v) in $member.name$_combined_slices.into_iter() {
+            $member.name$_map.insert(*$member.name$_k, $member.name$_v.clone());
+        }
+    }
+    $member.name$_map
+},
+$else$
+$name$InnerData::$member.name$(
+    if !(*c_data).$member.name$.is_null() {
+        (*c_data).$member.name$
+    } else {
+        Default::default()
+    }
+),
+    $endif$
+$endif$
+>>
+
+//TODO:
+//map only support string or PrimitiveType
+member_c_to_rust_inner(ctx, typecode, member) ::= <<
+ $if(typecode.isStringType)$
+$member.name$,
+$elseif(typecode.isWStringType)$
+$member.name$,
+$elseif(typecode.isType_f)$
+$member.name$: Box::new($array_c_to_rust_inner(typecode=member.typecode.ContentTypeCode,member=member)$),
+$elseif(typecode.IsType_c)$
+$member.name$: $typecode.RustTypename$::from(&mut (*c_data).$member.name$ as *mut $typecode.cTypename$Wrapper),
+    $elseif(typecode.isType_7)$
+$member.name$: (*c_data).$member.name$,
+    $elseif(typecode.isSequenceType)$
+$member.name$:{
+    $if(typecode.contentTypeCode.isStringType)$
+    if !(*c_data).$member.name$.is_null() {
+        let $member.name$_ptrs = Vec::from_raw_parts(
+        (*c_data).$member.name$,
+        (*c_data).$member.name$_len,
+        (*c_data).$member.name$_len,
+        );
+        $member.name$_ptrs
+        .iter()
+        .map(|&ptr|{
+        CStr::from_ptr(ptr).to_string_lossy().into_owned()
+        })
+        .collect::<Vec<$member.typecode.RustTypename$\>>()
+    } else {
+        Vec::new()
+    }
+    $elseif(typecode.contentTypeCode.IsType_a)$
+    if !(*c_data).$member.name$.is_null() {
+        let mut $member.name$_ptrs = Vec::from_raw_parts(
+        (*c_data).$member.name$,
+        (*c_data).$member.name$_len,
+        (*c_data).$member.name$_len,
+        );
+        $member.name$_ptrs
+        .iter_mut()
+        .map(|ptr|$member.typecode.rustTypename$::from(ptr as *mut $member.typecode.cTypename$Wrapper))
+        .collect()
+    } else {
+        Vec::new()
+    }
+    $elseif(typecode.contentTypeCode.isBitmaskType)$
+    if !(*c_data).$member.name$.is_null() {
+        let mut $member.name$_ptrs = Vec::from_raw_parts(
+        (*c_data).$member.name$,
+        (*c_data).$member.name$_len,
+        (*c_data).$member.name$_len,
+        );
+        $member.name$_ptrs
+        .iter_mut()
+        .map(|ptr|$member.typecode.rustTypename$::from(ptr as *mut $member.typecode.cTypename$Wrapper))
+        .collect()
+    } else {
+        Vec::new()
+    }
+    $elseif(typecode.contentTypeCode.IsType_c)$
+    if !(*c_data).$member.name$.is_null() {
+        let mut $member.name$_ptrs = Vec::from_raw_parts(
+        (*c_data).$member.name$,
+        (*c_data).$member.name$_len,
+        (*c_data).$member.name$_len,
+        );
+        $member.name$_ptrs
+        .iter_mut()
+        .map(|ptr|$member.typecode.rustTypename$::from(ptr as *mut $member.typecode.cTypename$Wrapper))
+        .collect()
+    } else {
+        Vec::new()
+    }
+    $elseif(typecode.contentTypeCode.primitive)$
+    if !(*c_data).$member.name$.is_null() {
+        Vec::from_raw_parts((*c_data).$member.name$, (*c_data).$member.name$_len, (*c_data).$member.name$_len)
+    } else {
+        Vec::new()
+    }
+        $else$
+$member.name$: {
+    if !(*c_data).$member.name$.is_null() {
+        let $member.name$_ptrs = Vec::from_raw_parts((*c_data).$member.name$, (*c_data).$member.name$_len, (*c_data).$member.name$_len);
+        $member.name$_ptrs.iter().map(|f| { $typecode.cTypename$::from(f as *const _ as *mut $typecode.cTypename$Wrapper) }).collect()
+    } else {
+        Vec::new()
+    }
+        $endif$
+
+},
+$elseif(typecode.isStructType)$
+$member.name$: $typecode.rustTypename$::from(&(*c_data).$member.name$ as *const _ as *mut $typecode.cTypename$Wrapper),
+$elseif(typecode.isUnionType)$
+$member.name$: $typecode.rustTypename$::from(&(*c_data).$member.name$ as *const _ as *mut $typecode.cTypename$Wrapper),
+   $elseif(typecode.isMapType)$
+$member.name$: {
+    let mut $member.name$_map= std::collections::BTreeMap::new();
+    if !(*c_data).$member.name$_key.is_null() && !(*c_data).$member.name$_value.is_null() && (*c_data).$member.name$_len > 0 {
+        let $member.name$_keys_slice = std::slice::from_raw_parts((*c_data).$member.name$_key, (*c_data).$member.name$_len);
+        let $member.name$_values_slice = std::slice::from_raw_parts((*c_data).$member.name$_value, (*c_data).$member.name$_len);
+
+        for (&$if(member.typecode.KeyTypeCode.IsType_d)$$member.name$_key_ptr$else$key$endif$, &$if(member.typecode.ValueTypeCode.IsType_d)$$member.name$_value_ptr$else$value$endif$) in $member.name$_keys_slice.iter().zip($member.name$_values_slice.iter()) {
+$if(member.typecode.KeyTypeCode.IsType_d)$
+            let key = CStr::from_ptr($member.name$_key_ptr).to_string_lossy().into_owned();
+$endif$
+
+$if(member.typecode.KeyTypeCode.IsType_d)$
+            let value = CStr::from_ptr($member.name$_value_ptr).to_string_lossy().into_owned();
+$endif$
+
+            $member.name$_map.insert(key, value);
+        }
+    }
+    $member.name$_map
+},
+    $elseif(typecode.IsBitsetType)$
+    $member.name$: $typecode.rustTypename$::from(&(*c_data).$member.name$ as *const _ as *mut $typecode.cTypename$Wrapper),
+    $elseif(typecode.IsBitmaskType)$
+    $member.name$: $typecode.rustTypename$::from(&(*c_data).$member.name$ as *const _ as *mut $typecode.cTypename$Wrapper),
+    $else$
+$member.name$: (*c_data).$member.name$,
+    $endif$
+>>
+member_c_to_rust_pre_inner(ctx, typecode, member) ::= <<
+$if(typecode.isStringType)$
+let $member.name$;
+$left_brackets()$
+let $member.name$_len = (*c_data).$member.name$_len as usize;
+let $member.name$_ptr = (*c_data).$member.name$ as *const u8;
+$member.name$ = if $member.name$_ptr.is_null() || $member.name$_len == 0 {
+        "".to_string()
+    } else {
+        let $member.name$_slice = std::slice::from_raw_parts($member.name$_ptr, $member.name$_len);
+        String::from_utf8_lossy($member.name$_slice).into_owned()
+    };
+$right_brackets()$
+$elseif(typecode.isWStringType)$
+let $member.name$;
+$left_brackets()$
+let $member.name$_len = (*c_data).$member.name$_len as usize;
+let $member.name$_ptr = (*c_data).$member.name$ as *const u8;
+$member.name$ = if $member.name$_ptr.is_null() || $member.name$_len == 0 {
+        "".to_string()
+    } else {
+        let $member.name$_slice = std::slice::from_raw_parts($member.name$_ptr, $member.name$_len);
+        String::from_utf8_lossy($member.name$_slice).into_owned()
+    };
+$right_brackets()$
+$endif$>>
+member_c_to_rust(ctx, member) ::= <<
+$if(member.typecode.IsType_10)$
+    $member_c_to_rust_inner(ctx=ctx, typecode=member.typecode.TrueContentTypeCode, member=member)$
+$else$
+    $member_c_to_rust_inner(ctx=ctx, typecode=member.typecode, member=member)$
+$endif$
+>>
+member_c_to_rust_pre(ctx, member) ::= <<
+$if(member.typecode.IsType_10)$
+$member_c_to_rust_pre_inner(ctx=ctx, typecode=member.typecode.TrueContentTypeCode, member=member)$
+$else$
+$member_c_to_rust_pre_inner(ctx=ctx, typecode=member.typecode, member=member)$
+$endif$
+>>
+//todo!!
+unionmember_get_c_data(name, member) ::= <<
+$member.name$: match self.data {
+$if(member.typecode.isType_7)$
+$name$InnerData::$member.name$(val) => val,
+_ => $if(first(union.members).annotationDefault)$$unionmember_default_init(ctx=ctx, member=first(union.members), loopvar=ctx.newLoopVarName)$$else$$if(!first(union.members).annotationOptional)$$unionmember_default_init(ctx=ctx, member=first(union.members), loopvar=ctx.newLoopVarName)$$endif$$endif$,
+
+$else$
+$if(member.typecode.isStringType)$
+$elseif(member.typecode.isWStringType)$
+    $else$
+    $name$InnerData::$member.name$(val) => val,
+    _ => $unionmember_default_init(ctx=ctx, member=member, loopvar=ctx.newLoopVarName)$,
+    $endif$
+$endif$
+},
+>>
+
+//TODO:
+//map only support string or PrimitiveType
+member_get_c_data_pre_inner(ctx, typecode, member) ::= <<
+$if(member.typecode.isMapType)$
+    let $member.name$_len = self.$member.name$.len();
+$if(member.typecode.KeyTypeCode.IsType_d)$
+    let mut $member.name$_keys_ptrs: Vec<*const c_char> = Vec::with_capacity($member.name$_len);
+$else$
+    let mut $member.name$_keys_ptrs: Vec<$member.typecode.KeyTypeCode.RustTypename$> = Vec::with_capacity($member.name$_len);
+$endif$
+
+$if(member.typecode.ValueTypeCode.IsType_d)$
+    let mut $member.name$_values_ptrs: Vec<*const c_char> = Vec::with_capacity($member.name$_len);
+$else$
+    let mut $member.name$_values_ptrs: Vec<$member.typecode.ValueTypeCode.RustTypename$> = Vec::with_capacity($member.name$_len);
+$endif$
+
+    for (key, value) in &self.$member.name$ {
+$if(member.typecode.KeyTypeCode.IsType_d)$
+        let key_cstring = CString::new(key.clone()).unwrap();
+        let key_ptr = key_cstring.into_raw() as *const c_char;
+$else$
+        let key_ptr = *key;
+$endif$
+
+$if(member.typecode.ValueTypeCode.IsType_d)$
+        let value_cstring = CString::new(value.clone()).unwrap();
+        let value_ptr = value_cstring.into_raw() as *const c_char;
+$else$
+        let value_ptr = *value;
+$endif$
+
+        $member.name$_keys_ptrs.push(key_ptr);
+        $member.name$_values_ptrs.push(value_ptr);
+    }
+    let $member.name$_keys_box = $member.name$_keys_ptrs.into_boxed_slice();
+    let $member.name$_values_box = $member.name$_values_ptrs.into_boxed_slice();
+$if(member.typecode.KeyTypeCode.IsType_d)$
+    let $member.name$_keys_ptr = Box::into_raw($member.name$_keys_box) as *mut *const c_char;
+$else$
+    let $member.name$_keys_ptr = Box::into_raw($member.name$_keys_box) as *mut $member.typecode.KeyTypeCode.RustTypename$;
+$endif$
+
+$if(member.typecode.ValueTypeCode.IsType_d)$
+    let $member.name$_values_ptr = Box::into_raw($member.name$_values_box) as *mut *const c_char;
+$else$
+    let $member.name$_values_ptr = Box::into_raw($member.name$_values_box) as *mut $member.typecode.ValueTypeCode.RustTypename$;
+$endif$
+
+$elseif(typecode.isStringType)$
+    let ($member.name$_ptr, $member.name$_len) = if self.$member.name$.is_empty() {
+        (std::ptr::null(), 0)
+    } else {
+        let $member.name$_bytes = self.$member.name$.as_bytes();
+        ($member.name$_bytes.as_ptr(), $member.name$_bytes.len())
+    };
+$elseif(typecode.isWStringType)$
+    let ($member.name$_ptr, $member.name$_len) = if self.$member.name$.is_empty() {
+        (std::ptr::null(), 0)
+    } else {
+        let $member.name$_bytes = self.$member.name$.as_bytes();
+        ($member.name$_bytes.as_ptr(), $member.name$_bytes.len())
+    };
+$elseif(typecode.isSequenceType)$
+    $if(member.typecode.contentTypeCode)$
+        $if(member.typecode.contentTypeCode.isStructType)$
+    let $member.name$_tmp_ptr: *mut Vec<_> = {
+        unsafe {
+            let $member.name$_ptr: Box<Vec<_\>> = Box::new(self.$member.name$.iter().map(|f| {
+                    f.get_c_data()
+            }).collect());
+            Box::into_raw($member.name$_ptr)
+        }
+    };
+        $endif$
+    $endif$
+$endif$
+>>
+member_get_c_data_inner(ctx, typecode, member) ::= <<
+$if(typecode.isType_7)$
+    $member.name$: self.$member.name$,
+$elseif(typecode.isType_f)$
+    $member.name$: $assign_get_c_data_inner(typecode=member.typecode.contentTypeCode,member=member)$
+$elseif(typecode.isStringType)$
+    $member.name$: $member.name$_ptr as *const c_char,
+    $member.name$_len,
+$elseif(typecode.isWStringType)$
+    $member.name$: $member.name$_ptr as *const c_char,
+    $member.name$_len,
+$elseif(typecode.isStructType)$
+    $member.name$: self.$member.name$.get_c_data(),
+$elseif(typecode.IsBitsetType)$
+    $member.name$: self.$member.name$.get_c_data(),
+$elseif(typecode.isBitmaskType)$
+    $member.name$: self.$member.name$.get_c_data(),
+$elseif(typecode.isType_c)$
+    $member.name$: self.$member.name$.get_c_data(),
+$elseif(typecode.isSequenceType)$
+    $if(typecode.contentTypeCode.isStringType)$
+    $member.name$: {
+        unsafe {
+            let $member.name$_c_ptrs: Vec<*mut c_char> = self
+            .$member.name$
+            .iter()
+            .map(|f| {
+                CString::new(f.clone())
+                .expect("Rust Error: failed to convert to C string")
+                .into_raw()})
+            .collect();
+            let $member.name$_c_ptrs_as =
+            Box::into_raw($member.name$_c_ptrs.into_boxed_slice()) as *mut *mut c_char;
+            $member.name$_c_ptrs_as
+        }
+    },
+    $elseif(typecode.contentTypeCode.IsType_c)$
+    $member.name$: {
+        let $member.name$_c_ptrs: Vec<$typecode.cTypename$Wrapper>= self
+        .$member.name$
+        .iter()
+        .map(|e| $typecode.cTypename$Wrapper{value: e.value() as u32 } )
+        .collect();
+        let $member.name$_ptr = $member.name$_c_ptrs.as_ptr() as *mut $typecode.cTypename$Wrapper;
+        std::mem::forget($member.name$_c_ptrs);
+        $member.name$_ptr
+    },
+    $elseif(typecode.contentTypeCode.isBitmaskType)$
+    $member.name$: {
+        unsafe {
+            let $member.name$_c_ptrs: Box<Vec<_>\> = Box::new(self.$member.name$.iter().map(|f| {
+                f.get_c_data()
+             }).collect());
+            let $member.name$_c_ptrs_as = (*$member.name$_c_ptrs).as_ptr() as *const _ as *mut $typecode.cTypename$Wrapper;
+            Box::into_raw($member.name$_c_ptrs);
+            $member.name$_c_ptrs_as
+        }
+    },
+    $elseif(typecode.contentTypeCode.primitive)$
+    $member.name$: self.$member.name$.as_ptr() as *mut $typecode.rustTypename$,
+    $elseif(typecode.contentTypeCode.isStructType)$
+    $member.name$_ptr: unsafe { $member.name$_tmp_ptr as *mut c_void },
+    $member.name$_len: unsafe { (*$member.name$_tmp_ptr).len() },
+    $member.name$: unsafe {(*$member.name$_tmp_ptr).as_ptr() as *const _ as *mut _module_test_BasicStructWrapper },
+    $else$
+    $member.name$: {
+        unsafe {
+            let $member.name$_c_ptrs: Box<Vec<_>\> = Box::new(self.$member.name$.iter().map(|f| {
+                f.get_c_data()
+             }).collect());
+            let $member.name$_c_ptrs_as = (*$member.name$_c_ptrs).as_ptr() as *const _ as *mut $typecode.cTypename$Wrapper;
+            Box::into_raw($member.name$_c_ptrs);
+            $member.name$_c_ptrs_as
+        }
+    },
+    $endif$
+    $if(!typecode.contentTypeCode.isStructType)$
+    $member.name$_len: self.$member.name$.len(),
+    $endif$
+$elseif(typecode.isUnionType)$
+    $member.name$: self.$member.name$.get_c_data(),
+$elseif(typecode.isMapType)$
+    $member.name$_key: $member.name$_keys_ptr,
+    $member.name$_value: $member.name$_values_ptr,
+    $member.name$_len: $member.name$_len,
+$else$
+    $if(typecode.isStringType)$
+    $member.name$: {
+        let $member.name$_str = CStr::from_ptr(self.$member.name$);
+        $member.name$_str.to_string_lossy().into_owned()
+    },
+    $elseif(typecode.isWStringType)$
+   $member.name$: self.$member.name$.as_ptr(),
+    $else$
+    $member.name$: self.$member.name$,
+    $endif$
+$endif$
+>>
+member_get_c_data_pre(ctx, member) ::= <<
+$if(member.typecode.IsType_10)$
+    $member_get_c_data_pre_inner(ctx=ctx, typecode=member.typecode.TrueContentTypeCode, member=member)$
+$else$
+    $member_get_c_data_pre_inner(ctx=ctx, typecode=member.typecode, member=member)$
+$endif$
+>>
+member_get_c_data(ctx, member) ::= <<
+$if(member.typecode.IsType_10)$
+    $member_get_c_data_inner(ctx=ctx, typecode=member.typecode.TrueContentTypeCode, member=member)$
+$else$
+    $member_get_c_data_inner(ctx=ctx, typecode=member.typecode, member=member)$
+$endif$
+>>
+public_struct_inheritances(parent) ::= <<>>
+
+public_bitset_inheritances(parent) ::= <<>>
+
+public_member_declaration(ctx, member) ::= <<>>
+
+public_member_primitive_declaration(ctx, member) ::= <<>>
+
+public_member_cstring_declaration(ctx, member) ::= <<>>
+
+public_bitfield_declaration(member) ::= <<>>
+
+public_unionmember_declaration(ctx, member) ::= <<>>
+
+public_unionmember_primitive_declaration(ctx, member) ::= <<>>
+
+public_unionmember_cstring_declaration(ctx, member) ::= <<>>
+
+size_functions(type) ::= << >>
+
+serialization_functions(type) ::= << >>
+
+sequences_definition(typecode) ::= <<
+
+>>
+
+unionmember_default_init(ctx, member, loopvar) ::= <<
+$if(member.typecode.primitive)$$if(member.typecode.isBitmaskType)$$else$$if(member.annotationDefault)$$member.annotationDefaultValue$$else$$member.typecode.initialValue$$endif$$endif$$elseif(member.typecode.isStringType)$$if(ctx.generateTypesC)$$if(member.annotationDefault)$$member.annotationDefaultValue$$else$nullptr$endif$$else$$if(member.annotationDefault)$$member.annotationDefaultValue$$else$$member.typecode.initialValue$$endif$$endif$$elseif(member.typecode.isType_f)$$if(member.typecode.contentTypeCode.primitive)$$if(member.typecode.contentTypeCode.IsType_c)$$member.typecode.contentTypeCode.scopedname$ m_$member.name${}$else$memset(&m_$member.name$, $if(member.annotationDefault)$$member.annotationDefaultValue$$else$0$endif$, $member.typecode.size$ * $member.typecode.contentTypeCode.size$)$endif$$elseif(member.typecode.contentTypeCode.isStringType)$$if(ctx.generateTypesC)$$member_array_default_cstring_init(ctx=ctx, name=memberName(member.name), loopvar=ctx.newLoopVarName, dims=member.typecode.dimensions)$$endif$$endif$$endif$$endif$>>
+
+member_array_default_cstring_init(ctx, name, loopvar, dims) ::= <<$if(rest(dims))$for (uint32_t $loopvar$ = 0; $loopvar$ < $name$.size(); ++$loopvar$)
+{
+    $member_array_default_cstring_init(ctx=ctx, name=indexName(name=name,loopvar=loopvar),  loopvar=ctx.nextLoopVarName, dims=rest(dims))$
+}$else$$name$.fill(nullptr);$endif$>>
+
+unionmember_array_default_cstring_init(ctx, name, loopvar, dims) ::= <<$if(rest(dims))$for (uint32_t $loopvar$ = 0; $loopvar$ < $name$.size(); ++$loopvar$)
+{
+    $unionmember_array_default_cstring_init(ctx=ctx, name=indexName(name=name,loopvar=loopvar),  loopvar=ctx.nextLoopVarName, dims=rest(dims))$
+}$else$$name$.fill(nullptr);$endif$>>
+
+left_brackets() ::= <<{>>
+
+array_c_to_rust_inner(typecode, member) ::= <<
+$if(typecode.isType_a)$
+std::array::from_fn(|i| {$typecode.rustTypename$::from(&mut (*c_data).$member.name$[i] as *mut $typecode.CScopedname$Wrapper)})
+$elseif(typecode.IsType_c)$
+std::array::from_fn(|i| {$typecode.rustTypename$::from(&mut (*c_data).$member.name$[i] as *mut $typecode.CScopedname$Wrapper)})
+$else$(*c_data).$member.name$$endif$
+>>
+
+assign_get_c_data_inner(typecode, member) ::= <<
+$if(typecode.isType_a)$
+std::array::from_fn(|i| self.$member.name$[i].get_c_data()),
+$elseif(typecode.IsType_c)$
+std::array::from_fn(|i| self.$member.name$[i].get_c_data()),
+$else$*self.$member.name$,$endif$
+>>
+
+right_brackets() ::= <<}>>
+
+member_default_init(ctx, member, loopvar) ::= <<
+$if(member.NeedsPointer)$$member.name$: Box::new($member.typecode.RustTypename$($if(member.annotationDefault)$$member.annotationDefaultValue$$endif$)),$else$$if(member.typecode.IsType_10)$$if(member.typecode.TrueContentTypeCode.primitive)$$if(member.typecode.TrueContentTypeCode.isBitmaskType)$$member.name$: $if(member.annotationDefault)$$member.annotationDefaultValue$$else$Default::default()$endif$,$elseif(member.typecode.TrueContentTypeCode.isType_c)$$member.name$: Default::default(),$else$$member.name$: $if(member.annotationDefault)$$member.annotationDefaultValue$$else$0$endif$,$endif$$elseif(member.typecode.TrueContentTypeCode.isStringType)$$member.name$: $if(ctx.generateTypesC)$$if(member.annotationDefault)$$member.annotationDefaultValue$$else$String::new()$endif$,$else$$if(member.annotationDefault)$$member.annotationDefaultValue$$else$String::new()$endif$,$endif$$elseif(member.typecode.TrueContentTypeCode.isType_a)$$member.name$: Default::default(),$elseif(member.typecode.TrueContentTypeCode.isUnionType)$$member.name$: Default::default(),$elseif(member.typecode.TrueContentTypeCode.IsBitsetType)$$member.name$: Default::default(),$elseif(member.typecode.TrueContentTypeCode.isType_e)$$if(member.typecode.TrueContentTypeCode.contentTypeCode.isStringType)$$member.name$: Vec::<String>::new(),$else$$member.name$: Vec::new(),$endif$$elseif(member.typecode.TrueContentTypeCode.isType_19)$$member.name$: BTreeMap::new(),$elseif(member.typecode.TrueContentTypeCode.isType_f)$$if(member.typecode.TrueContentTypeCode.contentTypeCode.primitive)$$if(member.typecode.TrueContentTypeCode.contentTypeCode.IsType_c)$    $member.name$: Box::new(std::array::from_fn(|_| $member.typecode.TrueContentTypeCode.contentTypeCode.RustTypename$::default())),$else$    $member.name$: Box::new($member.typecode.TrueContentTypeCode.RustLeftEmptyArrayExtension$$if(member.annotationDefault)$$member.annotationDefaultValue$$else$$member.typecode.TrueContentTypeCode.contentTypeCode.initialValue$$endif$; $member.typecode.TrueContentTypeCode.RustRightTypeDimensions$),$endif$$elseif(member.typecode.TrueContentTypeCode.contentTypeCode.isStringType)$$elseif(member.typecode.TrueContentTypeCode.contentTypeCode.isType_a)$$member.name$: Box::new(std::array::from_fn(|_| $member.typecode.TrueContentTypeCode.contentTypeCode.RustTypename$::default())),$endif$$endif$$elseif(member.typecode.primitive)$$if(member.typecode.isBitmaskType)$$member.name$: $if(member.annotationDefault)$$member.annotationDefaultValue$$else$Default::default()$endif$,$elseif(member.typecode.isType_c)$$member.name$: Default::default(),$else$$member.name$: $if(member.annotationDefault)$$member.annotationDefaultValue$$else$$member.typecode.initialValue$$endif$,$endif$$elseif(member.typecode.isType_a)$$member.name$: Default::default(),$elseif(member.typecode.IsBitsetType)$$member.name$: Default::default(),$elseif(member.typecode.isUnionType)$$member.name$: Default::default(),$elseif(member.typecode.isType_e)$$if(member.typecode.contentTypeCode.isStringType)$$member.name$: Vec::<String>::new(),$else$$member.name$: Vec::new(),$endif$$elseif(member.typecode.isType_19)$$member.name$: BTreeMap::new(),$elseif(member.typecode.IsType_d)$$member.name$: $if(member.annotationDefault)$$member.annotationDefaultValue$$else$String::new()$endif$,$elseif(member.typecode.isType_f)$$if(member.typecode.contentTypeCode.primitive)$$if(member.typecode.contentTypeCode.IsType_c)$$member.name$: Box::new(std::array::from_fn(|_| $member.typecode.contentTypeCode.RustTypename$::default())),$else$$member.name$: Box::new($member.typecode.RustLeftEmptyArrayExtension$$if(member.annotationDefault)$$member.annotationDefaultValue$$else$$member.typecode.contentTypeCode.initialValue$$endif$; $member.typecode.RustRightTypeDimensions$),$endif$$elseif(member.typecode.contentTypeCode.isStringType)$$elseif(member.typecode.contentTypeCode.isType_a)$$member.name$: Box::new(std::array::from_fn(|_| $member.typecode.contentTypeCode.RustTypename$::default())),$endif$$endif$$endif$>>
+// $if(member.NeedsPointer)$
+//     $member.name$: Box::new($member.typecode.RustTypename$($if(member.annotationDefault)$$member.annotationDefaultValue$$endif$)),
+// $else$
+//     $if(member.typecode.IsType_10)$
+//         $if(member.typecode.TrueContentTypeCode.primitive)$
+//             $if(member.typecode.TrueContentTypeCode.isBitmaskType)$
+//                 $member.name$: $if(member.annotationDefault)$$member.annotationDefaultValue$$else$Default::default()$endif$,
+//             $elseif(member.typecode.TrueContentTypeCode.isType_c)$
+//                 $member.name$: Default::default(),
+//             $else$
+//                 $member.name$: $if(member.annotationDefault)$$member.annotationDefaultValue$$else$0$endif$,
+//             $endif$
+//         $elseif(member.typecode.TrueContentTypeCode.isStringType)$
+//             $member.name$: $if(ctx.generateTypesC)$$if(member.annotationDefault)$$member.annotationDefaultValue$$else$String::new()$endif$,
+//             $else$
+//                 $if(member.annotationDefault)$$member.annotationDefaultValue$$else$String::new()$endif$,
+//             $endif$
+//          $elseif(member.typecode.TrueContentTypeCode.isType_a)$
+//               $member.name$: Default::default(),
+//          $elseif(member.typecode.TrueContentTypeCode.isUnionType)$
+//               $member.name$: Default::default(),
+//              $elseif(member.typecode.TrueContentTypeCode.IsBitsetType)$
+//               $member.name$: Default::default(),
+//          $elseif(member.typecode.TrueContentTypeCode.isType_e)$
+//              $if(member.typecode.TrueContentTypeCode.contentTypeCode.isStringType)$
+//                 $member.name$: Vec::<String>::new(),
+//             $else$
+//                 $member.name$: Vec::new(),
+//             $endif$
+//         $elseif(member.typecode.TrueContentTypeCode.isType_19)$
+//                $member.name$: BTreeMap::new(),
+//         $elseif(member.typecode.TrueContentTypeCode.isType_f)$
+//             $if(member.typecode.TrueContentTypeCode.contentTypeCode.primitive)$
+//                 $if(member.typecode.TrueContentTypeCode.contentTypeCode.IsType_c)$
+//                    $member.name$: Box::new(std::array::from_fn(|_| $member.typecode.TrueContentTypeCode.contentTypeCode.RustTypename$::default())),
+//                 $else$
+//                    $member.name$: Box::new($member.typecode.TrueContentTypeCode.RustLeftEmptyArrayExtension$$if(member.annotationDefault)$$member.annotationDefaultValue$$else$$member.typecode.TrueContentTypeCode.contentTypeCode.initialValue$$endif$; $member.typecode.TrueContentTypeCode.RustRightTypeDimensions$),
+//                 $endif$
+//             $elseif(member.typecode.TrueContentTypeCode.contentTypeCode.isStringType)$
+//              $elseif(member.typecode.TrueContentTypeCode.contentTypeCode.isType_a)$
+//             $member.name$: Box::new(std::array::from_fn(|_| $member.typecode.TrueContentTypeCode.contentTypeCode.RustTypename$::default())),
+//         $endif$
+//         $endif$
+//     $elseif(member.typecode.primitive)$
+//         $if(member.typecode.isBitmaskType)$
+//             $member.name$: $if(member.annotationDefault)$$member.annotationDefaultValue$$else$Default::default()$endif$,
+//         $elseif(member.typecode.isType_c)$
+//             $member.name$: Default::default(),
+//         $else$
+//             $member.name$: $if(member.annotationDefault)$$member.annotationDefaultValue$$else$$member.typecode.initialValue$$endif$,
+//         $endif$
+//     $elseif(member.typecode.isType_a)$
+//          $member.name$: Default::default(),
+//     $elseif(member.typecode.IsBitsetType)$
+//          $member.name$: Default::default(),
+//          $elseif(member.typecode.isUnionType)$
+//               $member.name$: Default::default(),
+//     $elseif(member.typecode.isType_e)$
+//         $if(member.typecode.contentTypeCode.isStringType)$
+//             $member.name$: Vec::<String>::new(),
+//         $else$
+//             $member.name$: Vec::new(),
+//         $endif$
+//     $elseif(member.typecode.isType_19)$
+//         $member.name$: BTreeMap::new(),
+//     $elseif(member.typecode.IsType_d)$
+//         $member.name$: $if(member.annotationDefault)$$member.annotationDefaultValue$$else$String::new()$endif$,
+//     $elseif(member.typecode.isType_f)$
+//         $if(member.typecode.contentTypeCode.primitive)$
+//             $if(member.typecode.contentTypeCode.IsType_c)$
+//                 $member.name$: Box::new(std::array::from_fn(|_| $member.typecode.contentTypeCode.RustTypename$::default())),
+//             $else$
+//                 $member.name$: Box::new($member.typecode.RustLeftEmptyArrayExtension$$if(member.annotationDefault)$$member.AnnotationDefaultValue$$else$$member.typecode.contentTypeCode.initialValue$$endif$; $member.typecode.RustRightTypeDimensions$),
+//             $endif$
+//         $elseif(member.typecode.contentTypeCode.isStringType)$
+//             $elseif(member.typecode.contentTypeCode.isType_a)$
+//             $member.name$: Box::new(std::array::from_fn(|_| $member.typecode.contentTypeCode.RustTypename$::default())),
+//         $endif$
+//     $endif$
+// $endif$
+

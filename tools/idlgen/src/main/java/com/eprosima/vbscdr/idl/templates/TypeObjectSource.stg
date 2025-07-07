@@ -1,0 +1,1516 @@
+// Copyright 2016 Proyectos y Sistemas de Mantenimiento SL (eProsima).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ------------------------------------------------------------------
+// Modification history:
+// 2023-03 ~ 2025-05: Supported/fixed typeobject generation, dynamic registration, unbounded string, autoid, fixed multi-type and macro alignment issues.
+// ------------------------------------------------------------------
+
+group TypeObjectSource;
+
+main(ctx, definitions) ::= <<
+$fileHeader(file=[ctx.filename, "TypeObject.cpp"], description=["This source file contains the definition of the described types in the IDL file."])$
+
+#ifdef _WIN32
+// Remove linker warning LNK4221 on Visual Studio
+namespace { char dummy; }
+#endif
+
+#include "$ctx.filename$$if(ctx.RtiIdl)$Base$else$$endif$.$if(ctx.GenHpp)$hpp$else$h$endif$"
+#include "$ctx.filename$TypeObject.$if(ctx.GenHpp)$hpp$else$h$endif$"
+#include <utility>
+#include <sstream>
+$if(ctx.NotUseVbsFramework)$
+#include <ertps/rtps/common/SerializedPayload.h>
+#include <deps/common/md5.h>
+#include <ertps/types/TypeObjectFactory.h>
+#include <ertps/types/TypeNamesGenerator.h>
+#include <ertps/types/AnnotationParameterValue.h>
+#include <ecdr/FastBuffer.h>
+$if(ctx.cdr)$
+#include <ecdr/Cdr.h>
+
+$endif$
+$if(ctx.vbscdr)$
+#include <ecdr/EtCdr.h>
+
+$endif$
+
+$endif$
+
+$if(ctx.NotUseVbsFramework)$
+using namespace evbs::ertps::rtps;
+$endif$
+
+void register$ctx.filename$_$ctx.M_lastStructureScopedNameUnderLine$Types()
+{
+    static std::once_flag once_flag;
+    std::call_once(once_flag, []()
+            {
+                $types_namespace_get(ctx = ctx)$TypeObjectFactory *factory = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance();
+                if(factory == nullptr)
+                    return;
+                $ctx.Definitions: { def | $register_type(ctx=ctx, object=def, param="type_name")$}; separator="\n"$
+            });
+}
+
+$definitions; separator="\n"$
+>>
+
+try_create(ctx, object, param) ::= <<
+if ($param$ == "$if(object.hasScope)$$object.scope$::$endif$$object.name$") return $if(object.hasScope)$$object.scope$::$endif$Get$object.name$Identifier();
+>>
+
+try_object(ctx, object, param) ::= <<
+if ($param$ == "$if(object.hasScope)$$object.scope$::$endif$$object.name$")
+{
+    $if(object.hasScope)$$object.scope$::$endif$Get$object.name$Identifier();
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$if(object.hasScope)$$object.scope$::$endif$$object.name$");
+}
+>>
+
+register_type(ctx, object, param) ::= <<
+
+$if(!object.isModule)$
+$if(!object.isConstDeclaration)$
+factory->add_type_object("$if(object.hasScope)$$object.scope$::$endif$$object.name$", $if(object.hasScope)$$object.scope$::$endif$Get$object.name$Identifier(),
+        $if(object.hasScope)$$object.scope$::$endif$Get$object.name$Object());
+$if(object.isAnnotation)$
+{
+    using namespace $object.name$;
+    $register_annotation_types(object)$
+}
+$endif$
+$endif$
+$else$
+$register_module_type_object(object)$
+$endif$
+>>
+register_module_type_object(object) ::= <<
+
+ $object.DefinitionsScopeNames : {scopeName |
+factory->add_type_object("$scopeName.scope$::$scopeName.name$", $scopeName.scope$::Get$scopeName.name$Identifier(),
+$scopeName.scope$::Get$scopeName.name$Object());
+}$
+>>
+register_annotation_types(annotation) ::= <<
+
+$annotation.enums : {$register_annotation_enum(it)$}; separator="\n"$
+
+$annotation.typeDefs : {$register_annotation_typedef(it)$}; separator="\n"$
+
+>>
+
+register_annotation_enum(enum) ::= <<
+factory->add_type_object("$enum.name$", $if(object.hasScope)$$object.scope$::$endif$Get$enum.name$Identifier(),
+        $if(object.hasScope)$$object.scope$::$endif$Get$enum.name$Object());
+>>
+
+register_annotation_typedef(typedef) ::= <<
+factory->add_type_object("$typedef.name$",
+        $if(object.hasScope)$$object.scope$::$endif$Get$typedef.name$Identifier(),
+        $if(object.hasScope)$$object.scope$::$endif$Get$typedef.name$Object());
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+annotation(ctx, annotation) ::= <<
+$if(annotation.ScopednameList)$
+$annotation.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$annotation.name$Identifier()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeIdentifier* c_identifier = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$annotation.name$");
+    if (c_identifier != nullptr && (c_identifier->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE))
+    {
+        return c_identifier;
+    }
+
+    Get$annotation.name$Object(); // Generated inside
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$annotation.name$");
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* Get$annotation.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$annotation.name$");
+    if (c_type_object != nullptr)
+    {
+        return c_type_object;
+    }
+    return GetComplete$annotation.name$Object();
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$annotation.name$Object()
+{
+    using namespace $annotation.name$;
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$annotation.name$");
+    if (c_type_object != nullptr && c_type_object->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE)
+    {
+        return c_type_object;
+    }
+
+    $empty_namespace_get(ctx = ctx)$TypeObject *type_object = new $empty_namespace_get(ctx = ctx)$TypeObject();
+    type_object->_d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+    type_object->complete()._d($tk_structure_get(ctx = ctx)$TK_ANNOTATION$tk_bracket_get(ctx = ctx)$);
+
+    // No flags apply
+    //type_object->complete().annotation_type().annotation_flags().IS_FINAL(false);
+    //type_object->complete().annotation_type().annotation_flags().IS_APPENDABLE(false);
+    //type_object->complete().annotation_type().annotation_flags().IS_MUTABLE(false);
+    //type_object->complete().annotation_type().annotation_flags().IS_NESTED(false);
+    //type_object->complete().annotation_type().annotation_flags().IS_AUTOID_HASH(false);
+
+    type_object->complete().annotation_type().header().annotation_name("$annotation.name$");
+
+    $annotation.members:{ member | $complete_annotation_member(ctx=ctx, object=member)$}; separator="\n"$
+
+    $empty_namespace_get(ctx = ctx)$TypeIdentifier identifier;
+    identifier._d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+
+    $empty_namespace_get(ctx = ctx)$SerializedPayload_t payload(static_cast<uint32_t>(
+        $types_namespace_get(ctx = ctx)$TypeObject::getCdrSerializedSize(*type_object) + 4));
+    $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer((char*) payload.data, payload.max_size);
+    // Fixed endian (Page 221, EquivalenceHash definition of Extensible and Dynamic Topic Types for DDS document)
+    $ecdr_namespace_get(ctx=ctx)$Cdr ser(
+        vbsbuffer, $ecdr_namespace_get(ctx=ctx)$Cdr::LITTLE_ENDIANNESS,
+        $ecdr_namespace_get(ctx=ctx)$Cdr::DDS_CDR); // Object that serializes the data.
+    payload.encapsulation = CDR_LE;
+
+    type_object->serialize(ser);
+    payload.length = (uint32_t)ser.getSerializedDataLength(); //Get the serialized length
+    $md5_namespace_get(ctx=ctx)$MD5 objectHash;
+    objectHash.update((char*)payload.data, payload.length);
+    objectHash.finalize();
+    for(int i = 0; i < 14; ++i)
+    {
+        identifier.equivalence_hash()[i] = objectHash.digest[i];
+    }
+
+    $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->add_type_object("$annotation.name$", &identifier, type_object);
+    delete type_object;
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$annotation.name$");
+}
+
+namespace $annotation.name$
+{
+$annotation.enums : {$enum_type(ctx=ctx, parent=annotation, enum=it)$}; separator="\n"$
+
+$annotation.typeDefs : {$typedef_decl(ctx=ctx, parent=annotation, typedefs=it)$}; separator="\n"$
+
+} // $annotation.name$ namespace
+
+$if(annotation.ScopednameList)$
+$annotation.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+>>
+
+complete_annotation_member(ctx, object) ::= <<
+$types_namespace_get(ctx = ctx)$CompleteAnnotationParameter cam_$object.name$;
+$empty_namespace_get(ctx = ctx)$TypeIdentifier* cam_$object.name$_typeId = $get_type_identifier(ctx=ctx, type=object.typecode)$;
+if (mam_$object.name$_typeId != nullptr)
+{
+    cam_$object.name$.common().member_type_id(*cam_$object.name$_typeId);
+}
+cam_$object.name$.name("$object.name$");
+
+$if(object.value)$
+$empty_namespace_get(ctx = ctx)$AnnotationParameterValue def_value_$object.name$;
+def_value_$object.name$._d(cam_$object.name$.common().member_type_id()._d());
+def_value_$object.name$.from_string("$object.value$");
+cam_$object.name$.default_value(def_value_$object.name$);
+$endif$
+
+type_object->complete().annotation_type().member_seq().emplace_back(cam_$object.name$);
+
+>>
+
+interface(ctx, parent, interface, export_list) ::= <<>>
+
+export_list(exports) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<
+$if(typedefs.ScopednameList)$
+$typedefs.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$typedefs.name$Identifier()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeIdentifier* c_identifier = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$typedefs.Scopednamenormal$");
+    if (c_identifier != nullptr && (c_identifier->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE))
+    {
+        return c_identifier;
+    }
+
+    Get$typedefs.name$Object(); // Generated inside
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$typedefs.Scopednamenormal$");
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* Get$typedefs.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$typedefs.Scopednamenormal$");
+    if (c_type_object != nullptr)
+    {
+        return c_type_object;
+    }
+    return GetComplete$typedefs.name$Object();
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$typedefs.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$typedefs.Scopednamenormal$");
+    if (c_type_object != nullptr && c_type_object->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE)
+    {
+        return c_type_object;
+    }
+
+    $empty_namespace_get(ctx = ctx)$TypeObject *type_object = new $empty_namespace_get(ctx = ctx)$TypeObject();
+    type_object->_d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+    type_object->complete()._d($tk_structure_get(ctx = ctx)$TK_ALIAS$tk_bracket_get(ctx = ctx)$);
+
+    // No flags apply
+    //type_object->complete().alias_type().alias_flags().IS_FINAL(false);
+    //type_object->complete().alias_type().alias_flags().IS_APPENDABLE(false);
+    //type_object->complete().alias_type().alias_flags().IS_MUTABLE(false);
+    //type_object->complete().alias_type().alias_flags().IS_NESTED(false);
+    //type_object->complete().alias_type().alias_flags().IS_AUTOID_HASH(false);
+
+    //type_object->complete().alias_type().header().detail().ann_builtin().verbatim().placement("placement");
+    //type_object->complete().alias_type().header().detail().ann_builtin().verbatim().language("language");
+    //type_object->complete().alias_type().header().detail().ann_builtin().verbatim().text("text");
+    //type_object->complete().alias_type().header().detail().ann_custom().push_back(...);
+    type_object->complete().alias_type().header().detail().type_name("$typedefs.Scopednamenormal$");
+
+    // No flags apply
+    //type_object->complete().alias_type().body().common().related_flags().TRY_CONSTRUCT1(false);
+    //type_object->complete().alias_type().body().common().related_flags().TRY_CONSTRUCT2(false);
+    //type_object->complete().alias_type().body().common().related_flags().IS_EXTERNAL(false);
+    //type_object->complete().alias_type().body().common().related_flags().IS_OPTIONAL(false);
+    //type_object->complete().alias_type().body().common().related_flags().IS_MUST_UNDERSTAND(false);
+    //type_object->complete().alias_type().body().common().related_flags().IS_KEY(false);
+    //type_object->complete().alias_type().body().common().related_flags().IS_DEFAULT(false);
+
+    //type_object->complete().alias_type().body().common().ann_builtin()
+    //type_object->complete().alias_type().body().common().ann_custom()
+
+    // Must be defined already, if don't, may be an recursive alias
+    const $empty_namespace_get(ctx = ctx)$TypeIdentifier *relatedType = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier($get_content_type(ctx=ctx, type=typedefs.typedefContentTypeCode)$);
+
+    if (relatedType != nullptr)
+    {
+        type_object->complete().alias_type().body().common().related_type() = *relatedType; // Make a copy
+    }
+    else
+    {
+        // Cannot determine base type
+        delete type_object;
+        return nullptr;
+    }
+
+    $empty_namespace_get(ctx = ctx)$TypeIdentifier identifier;
+    identifier._d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+
+    $empty_namespace_get(ctx = ctx)$SerializedPayload_t payload(static_cast<uint32_t>(
+        $types_namespace_get(ctx = ctx)$TypeObject::getCdrSerializedSize(*type_object) + 4));
+    $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer((char*) payload.data, payload.max_size);
+    // Fixed endian (Page 221, EquivalenceHash definition of Extensible and Dynamic Topic Types for DDS document)
+    $ecdr_namespace_get(ctx=ctx)$Cdr ser(
+        vbsbuffer, $ecdr_namespace_get(ctx=ctx)$Cdr::LITTLE_ENDIANNESS,
+        $ecdr_namespace_get(ctx=ctx)$Cdr::DDS_CDR); // Object that serializes the data.
+    payload.encapsulation = CDR_LE;
+
+    type_object->serialize(ser);
+    payload.length = (uint32_t)ser.getSerializedDataLength(); //Get the serialized length
+    $md5_namespace_get(ctx=ctx)$MD5 objectHash;
+    objectHash.update((char*)payload.data, payload.length);
+    objectHash.finalize();
+    for(int i = 0; i < 14; ++i)
+    {
+        identifier.equivalence_hash()[i] = objectHash.digest[i];
+    }
+
+    // Don't add our TypeIdentifier but our alias
+    $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->add_alias("$typedefs.Scopednamenormal$", $get_content_type(ctx=ctx, type=typedefs.typedefContentTypeCode)$);
+
+    $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->add_type_object("$typedefs.Scopednamenormal$", &identifier, type_object);
+    delete type_object;
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$typedefs.Scopednamenormal$");
+}
+
+$if(typedefs.ScopednameList)$
+$typedefs.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+>>
+
+enum_type(ctx, parent, enum) ::= <<
+$if(enum.ScopednameList)$
+$enum.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$enum.name$Identifier()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeIdentifier* c_identifier = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$enum.Scopednamenormal$");
+    if (c_identifier != nullptr && (c_identifier->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE))
+    {
+        return c_identifier;
+    }
+
+    Get$enum.name$Object(); // Generated inside
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$enum.Scopednamenormal$");
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* Get$enum.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$enum.Scopednamenormal$");
+    if (c_type_object != nullptr)
+    {
+        return c_type_object;
+    }
+    return GetComplete$enum.name$Object();
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$enum.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$enum.Scopednamenormal$");
+    if (c_type_object != nullptr && c_type_object->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE)
+    {
+        return c_type_object;
+    }
+
+    $empty_namespace_get(ctx = ctx)$TypeObject *type_object = new $empty_namespace_get(ctx = ctx)$TypeObject();
+    type_object->_d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+    type_object->complete()._d($tk_structure_get(ctx = ctx)$TK_ENUM$tk_bracket_get(ctx = ctx)$);
+
+    type_object->complete().enumerated_type().header().common().bit_bound(32); // TODO fixed by IDL, isn't?
+    type_object->complete().enumerated_type().header().detail().type_name("$enum.Scopednamenormal$");
+
+    $if(enum.annotationList)$
+    $enum.annotationList:{ ann |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+    //ann.annotation_typeid(Get$ann.name$Identifier());
+    {
+        auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$ann.name$");
+        if (type_id == nullptr) {
+            $if(ctx.NotUseVbsFramework)$
+            logError_(TypeObject, "Get type id fail " << "$ann.name$");
+            $else$
+            VbsLogE("Get type id fail " << "$ann.name$");
+            $endif$
+            delete type_object;
+            return nullptr;
+        }
+        ann.annotation_typeid(*type_id);
+    }
+    $if(ann.valueList)$
+    $ann.valueList:{ annval |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+    $md5_namespace_get(ctx=ctx)$MD5 message_hash("$annval.name$");
+    for(int i = 0; i < 4; ++i)
+    {
+        annParam.paramname_hash()[i] = message_hash.digest[i];
+    }
+    $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+    paramValue._d($tk_structure_get(ctx = ctx)$$annval.typecode.typeIdentifier$$tk_bracket_get(ctx = ctx)$);
+    paramValue.from_string("$annval.value$");
+    annParam.value(paramValue);
+    ann.param_seq().push_back(annParam);
+}
+    };separator="\n"$
+    $endif$
+    type_object->complete().enumerated_type().header().detail().ann_custom().push_back(ann);
+}
+    }; separator="\n"$
+    $endif$
+
+    $enum.members:{ member | $complete_enumerated_literal(ctx=ctx, object=member)$}; separator="\n"$
+
+    $empty_namespace_get(ctx = ctx)$TypeIdentifier identifier;
+    identifier._d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+
+    $empty_namespace_get(ctx = ctx)$SerializedPayload_t payload(static_cast<uint32_t>(
+        $types_namespace_get(ctx = ctx)$TypeObject::getCdrSerializedSize(*type_object) + 4));
+    $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer((char*) payload.data, payload.max_size);
+    // Fixed endian (Page 221, EquivalenceHash definition of Extensible and Dynamic Topic Types for DDS document)
+    $ecdr_namespace_get(ctx=ctx)$Cdr ser(
+        vbsbuffer, $ecdr_namespace_get(ctx=ctx)$Cdr::LITTLE_ENDIANNESS,
+        $ecdr_namespace_get(ctx=ctx)$Cdr::DDS_CDR); // Object that serializes the data.
+    payload.encapsulation = CDR_LE;
+
+    type_object->serialize(ser);
+    payload.length = (uint32_t)ser.getSerializedDataLength(); //Get the serialized length
+    $md5_namespace_get(ctx=ctx)$MD5 objectHash;
+    objectHash.update((char*)payload.data, payload.length);
+    objectHash.finalize();
+    for(int i = 0; i < 14; ++i)
+    {
+        identifier.equivalence_hash()[i] = objectHash.digest[i];
+    }
+
+    $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->add_type_object("$enum.Scopednamenormal$", &identifier, type_object);
+    delete type_object;
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$enum.Scopednamenormal$");
+}
+
+$if(enum.ScopednameList)$
+$enum.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+>>
+
+complete_enumerated_literal(ctx, object) ::= <<
+$types_namespace_get(ctx = ctx)$CompleteEnumeratedLiteral cel_$object.name$;
+cel_$object.name$.common().flags().TRY_CONSTRUCT1(false); // Doesn't apply
+cel_$object.name$.common().flags().TRY_CONSTRUCT2(false); // Doesn't apply
+cel_$object.name$.common().flags().IS_EXTERNAL(false); // Doesn't apply
+cel_$object.name$.common().flags().IS_OPTIONAL(false); // Doesn't apply
+cel_$object.name$.common().flags().IS_MUST_UNDERSTAND(false); // Doesn't apply
+cel_$object.name$.common().flags().IS_KEY(false); // Doesn't apply
+cel_$object.name$.common().flags().IS_DEFAULT($object.annotationDefaultLiteral$);
+cel_$object.name$.common().value($member.value$);
+cel_$object.name$.detail().name("$object.name$");
+
+$if(object.annotationList)$
+$object.annotationList:{ ann |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+    //ann.annotation_typeid(Get$ann.name$Identifier());
+    {
+        auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$ann.name$");
+        if (type_id == nullptr) {
+            $if(ctx.NotUseVbsFramework)$
+            logError_(TypeObject, "Get type id fail " << "$ann.name$");
+            $else$
+            VbsLogE("Get type id fail " << "$ann.name$");
+            $endif$
+            delete type_object;
+            return nullptr;
+        }
+        ann.annotation_typeid(*type_id);
+    }
+    $if(ann.valueList)$
+    $ann.valueList:{ annval |
+    {
+        $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+        $md5_namespace_get(ctx=ctx)$MD5 message_hash("$annval.name$");
+        for(int i = 0; i < 4; ++i)
+        {
+            annParam.paramname_hash()[i] = message_hash.digest[i];
+        }
+        $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+        paramValue._d($tk_structure_get(ctx = ctx)$TK_INT32$tk_bracket_get(ctx = ctx)$);
+        paramValue.from_string("$annval.value$");
+        annParam.value(paramValue);
+        ann.param_seq().push_back(annParam);
+    }
+    };separator="\n"$
+    $endif$
+    cel_$object.name$.detail().ann_custom().push_back(ann);
+}
+}; separator="\n"$
+$endif$
+
+type_object->complete().enumerated_type().literal_seq().emplace_back(cel_$object.name$);
+
+>>
+
+struct_type(ctx, parent, struct, extensions) ::= <<
+$if(struct.ScopednameList)$
+$struct.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$struct.name$Identifier()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeIdentifier * c_identifier = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$struct.Scopednamenormal$");
+    if (c_identifier != nullptr && (c_identifier->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE))
+    {
+        return c_identifier;
+    }
+
+    Get$struct.name$Object(); // Generated inside
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$struct.Scopednamenormal$");
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* Get$struct.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$struct.Scopednamenormal$");
+    if (c_type_object != nullptr)
+    {
+        return c_type_object;
+    }
+    return GetComplete$struct.name$Object();
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$struct.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$struct.Scopednamenormal$");
+    if (c_type_object != nullptr && c_type_object->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE)
+    {
+        return c_type_object;
+    }
+
+    $empty_namespace_get(ctx = ctx)$TypeObject *type_object = new $empty_namespace_get(ctx = ctx)$TypeObject();
+    type_object->_d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+    type_object->complete()._d($tk_structure_get(ctx = ctx)$TK_STRUCTURE$tk_bracket_get(ctx = ctx)$);
+
+    type_object->complete().struct_type().struct_flags().IS_FINAL($struct.annotationFinal$);
+    type_object->complete().struct_type().struct_flags().IS_APPENDABLE($struct.annotationAppendable$);
+    type_object->complete().struct_type().struct_flags().IS_MUTABLE($struct.annotationMutable$);
+    type_object->complete().struct_type().struct_flags().IS_NESTED($struct.annotationNested$);
+    type_object->complete().struct_type().struct_flags().IS_AUTOID_HASH(false); // Unsupported
+
+    $types_namespace_get(ctx = ctx)$MemberId memberId = 0;
+    $struct.members:{ member | $complete_member_object_type(ctx=ctx, object=member)$}; separator="\n"$
+
+    // Header
+    type_object->complete().struct_type().header().detail().type_name("$struct.Scopednamenormal$");
+    // TODO inheritance
+    $struct.inheritances:{$complete_struct_inheritance(it)$}; separator="\n"$
+
+    $if(struct.annotationList)$
+    $struct.annotationList:{ ann |
+$if(!ann.VbsConfig)$
+$if(!ctx.HasMutable)$if (strcmp("$ann.name$", "compatible") == 0)$endif$
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+    //ann.annotation_typeid(Get$ann.name$Identifier());
+    {
+        auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$ann.name$");
+        if (type_id == nullptr) {
+            $if(ctx.NotUseVbsFramework)$
+            logError_(TypeObject, "Get type id fail " << "$ann.name$");
+            $else$
+            VbsLogE("Get type id fail " << "$ann.name$");
+            $endif$
+            delete type_object;
+            return nullptr;
+        }
+        ann.annotation_typeid(*type_id);
+    }
+    $if(ann.valueList)$
+    $ann.valueList:{ annval |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+    $md5_namespace_get(ctx=ctx)$MD5 message_hash("$annval.name$");
+    for(int i = 0; i < 4; ++i)
+    {
+        annParam.paramname_hash()[i] = message_hash.digest[i];
+    }
+    $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+    paramValue._d($if(!annval.typecode.IsType_c)$$tk_structure_get(ctx = ctx)$$else$$ek_structure_get(ctx = ctx)$$endif$$annval.typecode.typeIdentifier$$tk_bracket_get(ctx = ctx)$);
+    paramValue.from_string("$annval.value$");
+    annParam.value(paramValue);
+    ann.param_seq().push_back(annParam);
+}
+
+    };separator="\n"$
+    $endif$
+    type_object->complete().struct_type().header().detail().ann_custom().push_back(ann);
+}
+$endif$
+    }; separator="\n"$
+    $endif$
+
+    $empty_namespace_get(ctx = ctx)$TypeIdentifier identifier;
+    identifier._d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+
+    $empty_namespace_get(ctx = ctx)$SerializedPayload_t payload(static_cast<uint32_t>(
+        $types_namespace_get(ctx = ctx)$TypeObject::getCdrSerializedSize(*type_object) + 4));
+    $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer((char*) payload.data, payload.max_size);
+    // Fixed endian (Page 221, EquivalenceHash definition of Extensible and Dynamic Topic Types for DDS document)
+    $ecdr_namespace_get(ctx=ctx)$Cdr ser(
+        vbsbuffer, $ecdr_namespace_get(ctx=ctx)$Cdr::LITTLE_ENDIANNESS,
+        $ecdr_namespace_get(ctx=ctx)$Cdr::DDS_CDR); // Object that serializes the data.
+    payload.encapsulation = CDR_LE;
+
+    type_object->serialize(ser);
+    payload.length = (uint32_t)ser.getSerializedDataLength(); //Get the serialized length
+    $md5_namespace_get(ctx=ctx)$MD5 objectHash;
+    objectHash.update((char*)payload.data, payload.length);
+    objectHash.finalize();
+    for(int i = 0; i < 14; ++i)
+    {
+        identifier.equivalence_hash()[i] = objectHash.digest[i];
+    }
+
+    $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->add_type_object("$struct.Scopednamenormal$", &identifier, type_object);
+    delete type_object;
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$struct.Scopednamenormal$");
+}
+
+$if(struct.ScopednameList)$
+$struct.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+>>
+
+complete_struct_inheritance(parent) ::= <<
+type_object->complete().struct_type().header().base_type(*Get$parent.name$Identifier());
+>>
+
+complete_member_object_type(ctx, object) ::= <<
+$types_namespace_get(ctx = ctx)$CompleteStructMember cst_$object.name$;
+cst_$object.name$.common().member_id(memberId++);
+cst_$object.name$.common().member_flags().TRY_CONSTRUCT1(false); // Unsupported
+cst_$object.name$.common().member_flags().TRY_CONSTRUCT2(false); // Unsupported
+cst_$object.name$.common().member_flags().IS_EXTERNAL(false); // Unsupported
+cst_$object.name$.common().member_flags().IS_OPTIONAL($object.annotationOptional$);
+cst_$object.name$.common().member_flags().IS_MUST_UNDERSTAND($object.annotationMustUnderstand$);
+cst_$object.name$.common().member_flags().IS_KEY($object.annotationKey$);
+cst_$object.name$.common().member_flags().IS_DEFAULT(false); // Doesn't apply
+{
+$if(object.typecode.plainType)$
+    auto type_id = $get_type_identifier(ctx=ctx, type=object.typecode)$;
+$elseif(object.typecode.objectType)$
+    auto type_id = $if(object.typecode.hasScope)$$object.typecode.scope$::$endif$Get$object.typecode.name$Identifier();
+$else$
+    auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$object.typecode.cppTypenameForTypeIdNormal$");
+$endif$
+
+    if (type_id == nullptr) {
+        $if(ctx.NotUseVbsFramework)$
+        logError_(TypeObject, "Get type id fail " << "$object.name$");
+        $else$
+        VbsLogE("Get type id fail " << "$object.name$");
+        $endif$
+        delete type_object;
+        return nullptr;
+    }
+    cst_$object.name$.common().member_type_id(*type_id);
+}
+
+cst_$object.name$.detail().name("$object.name$");
+
+$if(object.annotationList)$
+$object.annotationList:{ ann |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+    //ann.annotation_typeid(Get$ann.name$Identifier());
+    {
+        auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$ann.name$");
+
+        if (type_id == nullptr) {
+            $if(ctx.NotUseVbsFramework)$
+            logError_(TypeObject, "Get type id fail " << "$ann.name$");
+            $else$
+            VbsLogE("Get type id fail " << "$ann.name$");
+            $endif$
+            delete type_object;
+            return nullptr;
+        }
+        ann.annotation_typeid(*type_id);
+    }
+    $if(ann.valueList)$
+    $ann.valueList:{ annval |
+    {
+        $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+        $md5_namespace_get(ctx=ctx)$MD5 message_hash("$annval.name$");
+        for(int i = 0; i < 4; ++i)
+        {
+            annParam.paramname_hash()[i] = message_hash.digest[i];
+        }
+        $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+        paramValue._d($tk_structure_get(ctx = ctx)$$if(annval.typecode.typeIdentifier)$$annval.typecode.typeIdentifier$$else$$if(object.typecode.IsType_d)$TK_STRING8$else$$object.typecode.typeIdentifier$$endif$$endif$$tk_bracket_get(ctx = ctx)$);
+        paramValue.from_string($if(object.annotationDefault)$$if(object.typecode.IsType_d)$$annval.value$$else$"$annval.value$"$endif$$else$"$annval.value$"$endif$);
+        annParam.value(paramValue);
+        ann.param_seq().push_back(annParam);
+    }
+    };separator="\n"$
+    $endif$
+    cst_$object.name$.detail().ann_custom().push_back(ann);
+}
+}; separator="\n"$
+$endif$
+
+type_object->complete().struct_type().member_seq().emplace_back(cst_$object.name$);
+
+>>
+
+get_type_identifier(ctx, type) ::= <<$if(type.isSequenceType)$$types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_sequence_identifier($get_content_type(ctx=ctx, type=type.contentTypeCode)$, $if(type.IsBounded)$$type.maxsize$$else$0$endif$)$elseif(type.isArrayType)$$types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_array_identifier($get_content_type(ctx=ctx, type=type.contentTypeCode)$, {$type.dimensions:{ dim |$dim$}; separator=", "$})$elseif(type.isSetType)$$types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_sequence_identifier($get_content_type(ctx=ctx, type=type.contentTypeCode)$, $if(type.IsBounded)$$type.maxsize$$else$0$endif$)$elseif(type.isMapType)$$types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_map_identifier($get_content_type(ctx=ctx, type=type.keyTypeCode)$, $get_content_type(ctx=ctx, type=type.valueTypeCode)$, $if(type.IsBounded)$$type.maxsize$$else$0$endif$)$elseif(type.isStringType)$$types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_string_identifier($if(type.IsBounded)$$type.maxsize$$else$0$endif$, false)$elseif(type.isWStringType)$$types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_string_identifier($if(type.IsBounded)$$type.maxsize$$else$0$endif$, true)$elseif(type.objectType)$$if(type.HasScope)$$type.Scopenormal$::$endif$Get$type.name$Identifier()$elseif(type.plainType)$$types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$type.cppTypenameForTypeIdNormal$")$else$$types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$type.cppTypenameForTypeIdNormal$")$endif$>>
+
+get_content_type(ctx, type) ::= <<
+$if(type.plainType)$
+$if(type.isSequenceType)$
+$empty_namespace_get(ctx = ctx)$TypeNamesGenerator::get_sequence_type_name(
+    $get_content_type(ctx=ctx, type=type.contentTypeCode)$, $if(type.IsBounded)$$type.maxsize$$else$0$endif$)
+$elseif(type.isArrayType)$
+$empty_namespace_get(ctx = ctx)$
+TypeNamesGenerator::get_array_type_name($get_content_type(ctx=ctx, type=type.contentTypeCode)$,
+{$type.dimensions:{ dim |$dim$}; separator=", "$})
+$elseif(type.isSetType)$
+$empty_namespace_get(ctx = ctx)$TypeNamesGenerator::get_sequence_type_name($get_content_type(ctx=ctx, type=type.contentTypeCode)$, $if(type.IsBounded)$$type.maxsize$$else$0$endif$)
+$elseif(type.isMapType)$$empty_namespace_get(ctx = ctx)$TypeNamesGenerator::get_map_type_name($get_content_type(ctx=ctx, type=type.keyTypeCode)$, $get_content_type(ctx=ctx, type=type.valueTypeCode)$, $if(type.IsBounded)$$type.maxsize$$else$0$endif$)
+$elseif(type.isStringType)$
+$empty_namespace_get(ctx = ctx)$TypeNamesGenerator::get_string_type_name($if(type.IsBounded)$$type.maxsize$$else$0$endif$, false)
+$elseif(type.isWStringType)$
+$empty_namespace_get(ctx = ctx)$TypeNamesGenerator::get_string_type_name($if(type.IsBounded)$$type.maxsize$$else$0$endif$, true)
+$else$"$type.cppTypenameForTypeIdNormal$"
+$endif$
+$else$"$type.cppTypenameForTypeIdNormal$"$endif$>>
+
+union_type(ctx, parent, union) ::= <<
+
+$if(union.ScopednameList)$
+$union.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$union.name$Identifier()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeIdentifier * c_identifier = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$union.Scopednamenormal$");
+    if (c_identifier != nullptr && (c_identifier->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE))
+    {
+        return c_identifier;
+    }
+
+    Get$union.name$Object();
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$union.Scopednamenormal$");
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* Get$union.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$union.Scopednamenormal$");
+    if (c_type_object != nullptr)
+    {
+        return c_type_object;
+    }
+    return GetComplete$union.name$Object();
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$union.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$union.Scopednamenormal$");
+    if (c_type_object != nullptr && c_type_object->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE)
+    {
+        return c_type_object;
+    }
+
+    $empty_namespace_get(ctx = ctx)$TypeObject *type_object = new $empty_namespace_get(ctx = ctx)$TypeObject();
+    type_object->_d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+    type_object->complete()._d($tk_structure_get(ctx = ctx)$TK_UNION$tk_bracket_get(ctx = ctx)$);
+
+    type_object->complete().union_type().union_flags().IS_FINAL($union.annotationFinal$);
+    type_object->complete().union_type().union_flags().IS_APPENDABLE($union.annotationAppendable$);
+    type_object->complete().union_type().union_flags().IS_MUTABLE($union.annotationMutable$);
+    type_object->complete().union_type().union_flags().IS_NESTED($union.annotationNested$);
+    type_object->complete().union_type().union_flags().IS_AUTOID_HASH(false); // Unsupported
+
+    type_object->complete().union_type().discriminator().common().member_flags().TRY_CONSTRUCT1(false); // Unsupported
+    type_object->complete().union_type().discriminator().common().member_flags().TRY_CONSTRUCT2(false); // Unsupported
+    type_object->complete().union_type().discriminator().common().member_flags().IS_EXTERNAL(false); // Doesn't apply
+    type_object->complete().union_type().discriminator().common().member_flags().IS_OPTIONAL(false); // Doesn't apply
+    type_object->complete().union_type().discriminator().common().member_flags().IS_MUST_UNDERSTAND(false); // Doesn't apply
+    type_object->complete().union_type().discriminator().common().member_flags().IS_KEY(false); // Unsupported
+    type_object->complete().union_type().discriminator().common().member_flags().IS_DEFAULT(false); // Doesn't apply
+{
+$if(union.discriminator.isType_c)$
+        auto type_id = $if(union.discriminator.hasScope)$$union.discriminator.scope$::$endif$Get$union.discriminator.name$Identifier();
+$else$
+        auto type_id = $get_type_identifier(ctx=ctx, type=union.discriminator)$;
+$endif$
+
+        if (type_id == nullptr) {
+            $if(ctx.NotUseVbsFramework)$
+            logError_(TypeObject, "Get union discriminator type id fail " << "$union.name$");
+            $else$
+            VbsLogE("Get union discriminator type id fail " << "$union.name$");
+            $endif$
+            delete type_object;
+            return nullptr;
+        }
+        type_object->complete().union_type().discriminator().common().type_id(*type_id);
+    }
+    $if(union.discriminator.annotationList)$
+    $union.discriminator.annotationList:{ ann |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+    //ann.annotation_typeid(Get$ann.name$Identifier());
+    ann.annotation_typeid(*$types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$ann.name$"));
+    $if(ann.valueList)$
+    $ann.valueList:{ annval |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+    $md5_namespace_get(ctx=ctx)$MD5 message_hash("$annval.name$");
+    for(int i = 0; i < 4; ++i)
+    {
+        annParam.paramname_hash()[i] = message_hash.digest[i];
+    }
+    $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+    paramValue._d($tk_structure_get(ctx = ctx)$$annval.typecode.typeIdentifier$$tk_bracket_get(ctx = ctx)$);
+    paramValue.from_string("$annval.value$");
+    annParam.value(paramValue);
+    ann.param_seq().push_back(annParam);
+}
+    };separator="\n"$
+    $endif$
+    type_object->complete().union_type().discriminator().ann_custom().push_back(ann);
+}
+    }; separator="\n"$
+    $endif$
+
+    $types_namespace_get(ctx = ctx)$MemberId memberId = 0;
+    $union.members:{ member | $complete_union_member_object_type(ctx=ctx, object=member, discriminator=union.discriminator)$}; separator="\n"$
+
+    // Header
+    type_object->complete().union_type().header().detail().type_name("$union.Scopednamenormal$");
+
+    $if(union.annotationList)$
+    $union.annotationList:{ ann |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+    //ann.annotation_typeid(Get$ann.name$Identifier());
+    {
+        auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$ann.name$");
+        if (type_id == nullptr) {
+            $if(ctx.NotUseVbsFramework)$
+            logError_(TypeObject, "Get type id fail " << "$ann.name$");
+            $else$
+            VbsLogE("Get type id fail " << "$ann.name$");
+            $endif$
+            delete type_object;
+            return nullptr;
+        }
+        ann.annotation_typeid(*type_id);
+    }
+    $if(ann.valueList)$
+    $ann.valueList:{ annval |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+    $md5_namespace_get(ctx=ctx)$MD5 message_hash("$annval.name$");
+    for(int i = 0; i < 4; ++i)
+    {
+        annParam.paramname_hash()[i] = message_hash.digest[i];
+    }
+    $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+    paramValue._d($tk_structure_get(ctx = ctx)$$if(annval.typecode.typeIdentifier)$$annval.typecode.typeIdentifier$$else$$if(object.typecode.IsType_d)$TK_STRING8$else$$object.typecode.typeIdentifier$$endif$$endif$$tk_bracket_get(ctx = ctx)$);
+    paramValue.from_string("$annval.value$");
+    annParam.value(paramValue);
+    ann.param_seq().push_back(annParam);
+}
+    };separator="\n"$
+    $endif$
+    type_object->complete().union_type().header().detail().ann_custom().push_back(ann);
+}
+    }; separator="\n"$
+    $endif$
+
+    $empty_namespace_get(ctx = ctx)$TypeIdentifier* identifier = new $empty_namespace_get(ctx = ctx)$TypeIdentifier();
+    identifier->_d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+
+    $empty_namespace_get(ctx = ctx)$SerializedPayload_t payload(static_cast<uint32_t>(
+        $types_namespace_get(ctx = ctx)$TypeObject::getCdrSerializedSize(*type_object) + 4));
+    $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer((char*) payload.data, payload.max_size);
+    // Fixed endian (Page 221, EquivalenceHash definition of Extensible and Dynamic Topic Types for DDS document)
+    $ecdr_namespace_get(ctx=ctx)$Cdr ser(
+        vbsbuffer, $ecdr_namespace_get(ctx=ctx)$Cdr::LITTLE_ENDIANNESS,
+        $ecdr_namespace_get(ctx=ctx)$Cdr::DDS_CDR); // Object that serializes the data.
+    payload.encapsulation = CDR_LE;
+
+    type_object->serialize(ser);
+    payload.length = (uint32_t)ser.getSerializedDataLength(); //Get the serialized length
+    $md5_namespace_get(ctx=ctx)$MD5 objectHash;
+    objectHash.update((char*)payload.data, payload.length);
+    objectHash.finalize();
+    for(int i = 0; i < 14; ++i)
+    {
+        identifier->equivalence_hash()[i] = objectHash.digest[i];
+    }
+
+    $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->add_type_object("$union.Scopednamenormal$", identifier, type_object);
+    delete type_object;
+    delete identifier;
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$union.Scopednamenormal$");
+}
+
+$if(union.ScopednameList)$
+$union.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+>>
+
+complete_union_member_object_type(ctx, object, discriminator) ::= <<
+$types_namespace_get(ctx = ctx)$CompleteUnionMember cst_$object.name$;
+cst_$object.name$.common().member_id(memberId++);
+cst_$object.name$.common().member_flags().TRY_CONSTRUCT1(false); // Unsupported
+cst_$object.name$.common().member_flags().TRY_CONSTRUCT2(false); // Unsupported
+cst_$object.name$.common().member_flags().IS_EXTERNAL(false); // Unsupported
+cst_$object.name$.common().member_flags().IS_OPTIONAL(false); // Doesn't apply
+cst_$object.name$.common().member_flags().IS_MUST_UNDERSTAND(false); // Doesn't apply
+cst_$object.name$.common().member_flags().IS_KEY(false); // Doesn't apply
+cst_$object.name$.common().member_flags().IS_DEFAULT($object.annotationDefault$);
+$if(object.typecode.plainType)$
+cst_$object.name$.common().type_id(*$get_type_identifier(ctx=ctx, type=object.typecode)$);
+$elseif(object.typecode.objectType)$
+cst_$object.name$.common().type_id(*$if(object.typecode.hasScope)$$object.typecode.scope$::$endif$Get$object.typecode.name$Identifier());
+$else$
+cst_$object.name$.common().type_id(*$types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$object.typecode.cppTypenameForTypeIdNormal$"));
+$endif$
+
+$if(object.labels)$
+$object.labels:{ label | cst_$object.name$.common().label_seq().emplace_back(static_cast<int32_t>($label$));}; separator="\n"$
+$endif$
+
+cst_$object.name$.detail().name("$object.name$");
+
+$if(object.annotationList)$
+$object.annotationList:{ ann |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+    //ann.annotation_typeid(Get$ann.name$Identifier());
+    {
+        auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$ann.name$");
+        if (type_id == nullptr) {
+            $if(ctx.NotUseVbsFramework)$
+            logError_(TypeObject, "Get type id fail " << "$ann.name$");
+            $else$
+            VbsLogE("Get type id fail " << "$ann.name$");
+            $endif$
+            delete type_object;
+            return nullptr;
+        }
+        ann.annotation_typeid(*type_id);
+    }
+    $if(ann.valueList)$
+    $ann.valueList:{ annval |
+    {
+        $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+        $md5_namespace_get(ctx=ctx)$MD5 message_hash("$annval.name$");
+        for(int i = 0; i < 4; ++i)
+        {
+            annParam.paramname_hash()[i] = message_hash.digest[i];
+        }
+        $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+        paramValue._d($tk_structure_get(ctx = ctx)$$annval.typecode.typeIdentifier$$tk_bracket_get(ctx = ctx)$);
+        paramValue.from_string("$annval.value$");
+        annParam.value(paramValue);
+        ann.param_seq().push_back(annParam);
+    }
+    };separator="\n"$
+    $endif$
+    cst_$object.name$.detail().ann_custom().push_back(ann);
+}
+}; separator="\n"$
+$endif$
+
+type_object->complete().union_type().member_seq().emplace_back(cst_$object.name$);
+
+>>
+
+bitmask_type(ctx, parent, bitmask, union) ::= <<
+
+$if(bitmask.ScopednameList)$
+$bitmask.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$bitmask.name$Identifier()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeIdentifier* c_identifier = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$bitmask.Scopednamenormal$");
+    if (c_identifier != nullptr && (c_identifier->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE))
+    {
+        return c_identifier;
+    }
+
+    Get$bitmask.name$Object(); // Generated inside
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$bitmask.Scopednamenormal$");
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* Get$bitmask.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$bitmask.Scopednamenormal$");
+    if (c_type_object != nullptr)
+    {
+        return c_type_object;
+    }
+    return GetComplete$bitmask.name$Object();
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$bitmask.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$bitmask.Scopednamenormal$");
+    if (c_type_object != nullptr && c_type_object->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE)
+    {
+        return c_type_object;
+    }
+
+    $empty_namespace_get(ctx = ctx)$TypeObject *type_object = new $empty_namespace_get(ctx = ctx)$TypeObject();
+    type_object->_d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+    type_object->complete()._d($tk_structure_get(ctx = ctx)$TK_BITMASK$tk_bracket_get(ctx = ctx)$);
+
+    type_object->complete().bitmask_type().header().common().bit_bound($bitmask.bitBound$);
+
+    $if(union.annotationList)$
+    $union.annotationList:{ ann |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+    //ann.annotation_typeid(Get$ann.name$Identifier());
+    {
+        auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$ann.name$");
+        if (type_id == nullptr) {
+            $if(ctx.NotUseVbsFramework)$
+            logError_(TypeObject, "Get type id fail " << "$ann.name$");
+            $else$
+            VbsLogE("Get type id fail " << "$ann.name$");
+            $endif$
+            delete type_object;
+            return nullptr;
+        }
+        ann.annotation_typeid(*type_id);
+    }
+    $if(ann.valueList)$
+    $ann.valueList:{ annval |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+    $md5_namespace_get(ctx=ctx)$MD5 message_hash("$annval.name$");
+    for(int i = 0; i < 4; ++i)
+    {
+        annParam.paramname_hash()[i] = message_hash.digest[i];
+    }
+    $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+    paramValue._d($tk_structure_get(ctx = ctx)$$annval.typecode.typeIdentifier$$tk_bracket_get(ctx = ctx)$);
+    paramValue.from_string("$annval.value$");
+    annParam.value(paramValue);
+    ann.param_seq().push_back(annParam);
+}
+    };separator="\n"$
+    $endif$
+    type_object->complete().bitmask_type().header().detail().ann_custom().push_back(ann);
+}
+    }; separator="\n"$
+    $endif$
+
+    type_object->complete().bitmask_type().header().detail().type_name("$bitmask.Scopednamenormal$");
+
+    $bitmask.members:{ member | $complete_bitmask_flag(ctx=ctx, object=member)$}; separator="\n"$
+
+    $empty_namespace_get(ctx = ctx)$TypeIdentifier identifier;
+    identifier._d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+
+    $empty_namespace_get(ctx = ctx)$SerializedPayload_t payload(static_cast<uint32_t>(
+        $types_namespace_get(ctx = ctx)$TypeObject::getCdrSerializedSize(*type_object) + 4));
+    $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer((char*) payload.data, payload.max_size);
+    // Fixed endian (Page 221, EquivalenceHash definition of Extensible and Dynamic Topic Types for DDS document)
+    $ecdr_namespace_get(ctx=ctx)$Cdr ser(
+        vbsbuffer, $ecdr_namespace_get(ctx=ctx)$Cdr::LITTLE_ENDIANNESS,
+        $ecdr_namespace_get(ctx=ctx)$Cdr::DDS_CDR); // Object that serializes the data.
+    payload.encapsulation = CDR_LE;
+
+    type_object->serialize(ser);
+    payload.length = (uint32_t)ser.getSerializedDataLength(); //Get the serialized length
+    $md5_namespace_get(ctx=ctx)$MD5 objectHash;
+    objectHash.update((char*)payload.data, payload.length);
+    objectHash.finalize();
+    for(int i = 0; i < 14; ++i)
+    {
+        identifier.equivalence_hash()[i] = objectHash.digest[i];
+    }
+
+    $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->add_type_object("$bitmask.Scopednamenormal$", &identifier, type_object);
+    delete type_object;
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$bitmask.Scopednamenormal$");
+}
+
+$if(bitmask.ScopednameList)$
+$bitmask.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+>>
+
+complete_bitmask_flag(ctx, object) ::= <<
+$types_namespace_get(ctx = ctx)$CompleteBitflag cbf_$object.name$;
+cbf_$object.name$.common().flags().TRY_CONSTRUCT1(false);
+cbf_$object.name$.common().flags().TRY_CONSTRUCT2(false);
+cbf_$object.name$.common().flags().IS_EXTERNAL(false);
+cbf_$object.name$.common().flags().IS_OPTIONAL(false);
+cbf_$object.name$.common().flags().IS_MUST_UNDERSTAND(false);
+cbf_$object.name$.common().flags().IS_KEY(false);
+cbf_$object.name$.common().flags().IS_DEFAULT(false);
+cbf_$object.name$.common().position($object.position$);
+cbf_$object.name$.detail().name("$object.name$");
+
+// Position annotation always present
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+    {
+        auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("position");
+        if (type_id == nullptr) {
+            $if(ctx.NotUseVbsFramework)$
+            logError_(TypeObject, "Get type id fail " << "position");
+            $else$
+            VbsLogE("Get type id fail " << "position");
+            $endif$
+            delete type_object;
+            return nullptr;
+        }
+        ann.annotation_typeid(*type_id);
+    }
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+    $md5_namespace_get(ctx=ctx)$MD5 message_hash("value");
+    for(int i = 0; i < 4; ++i)
+    {
+        annParam.paramname_hash()[i] = message_hash.digest[i];
+    }
+    $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+    paramValue._d($tk_structure_get(ctx = ctx)$TK_UINT16$tk_bracket_get(ctx = ctx)$);
+    paramValue.uint_16_value($object.position$);
+    annParam.value(paramValue);
+    ann.param_seq().push_back(annParam);
+
+    cbf_$object.name$.detail().ann_custom().push_back(ann);
+}
+
+$if(object.annotationList)$
+$object.annotationList:{ ann |
+{
+    if (std::strcmp("position", "$ann.name$") != 0)
+    {
+        $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+        //ann.annotation_typeid(Get$ann.name$Identifier());
+        {
+            auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$ann.name$");
+            if (type_id == nullptr) {
+                $if(ctx.NotUseVbsFramework)$
+                logError_(TypeObject, "Get type id fail " << "$ann.name$");
+                $else$
+                VbsLogE("Get type id fail " << "$ann.name$");
+                $endif$
+                delete type_object;
+                return nullptr;
+            }
+            ann.annotation_typeid(*type_id);
+        }
+        $if(ann.valueList)$
+        $ann.valueList:{ annval |
+        {
+            $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+            $md5_namespace_get(ctx=ctx)$MD5 message_hash("$annval.name$");
+            for(int i = 0; i < 4; ++i)
+            {
+                annParam.paramname_hash()[i] = message_hash.digest[i];
+            }
+            $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+            paramValue._d($tk_structure_get(ctx = ctx)$$if(annval.typecode.typeIdentifier)$$annval.typecode.typeIdentifier$$else$$if(object.typecode.IsType_d)$TK_STRING8$else$$object.typecode.typeIdentifier$$endif$$endif$$tk_bracket_get(ctx = ctx)$);
+            paramValue.from_string("$annval.value$");
+            annParam.value(paramValue);
+            ann.param_seq().push_back(annParam);
+        }
+        };separator="\n"$
+        $endif$
+        cbf_$object.name$.detail().ann_custom().push_back(ann);
+    }
+}
+}; separator="\n"$
+$endif$
+
+type_object->complete().bitmask_type().flag_seq().emplace_back(cbf_$object.name$);
+
+>>
+
+bitset_type(ctx, parent, bitset, extensions, union) ::= <<
+$if(bitset.ScopednameList)$
+$bitset.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+const $empty_namespace_get(ctx = ctx)$TypeIdentifier* Get$bitset.name$Identifier()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeIdentifier* c_identifier = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$bitset.Scopednamenormal$");
+    if (c_identifier != nullptr && (c_identifier->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE))
+    {
+        return c_identifier;
+    }
+
+    Get$bitset.name$Object(); // Generated inside
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$bitset.Scopednamenormal$");
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* Get$bitset.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$bitset.Scopednamenormal$");
+    if (c_type_object != nullptr)
+    {
+        return c_type_object;
+    }
+    return GetComplete$bitset.name$Object();
+}
+
+const $empty_namespace_get(ctx = ctx)$TypeObject* GetComplete$bitset.name$Object()
+{
+    const $empty_namespace_get(ctx = ctx)$TypeObject* c_type_object = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$bitset.Scopednamenormal$");
+    if (c_type_object != nullptr && c_type_object->_d() == $empty_namespace_get(ctx= ctx)$EK_COMPLETE)
+    {
+        return c_type_object;
+    }
+
+    $empty_namespace_get(ctx = ctx)$TypeObject *type_object = new $empty_namespace_get(ctx = ctx)$TypeObject();
+    type_object->_d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+    type_object->complete()._d($tk_structure_get(ctx = ctx)$TK_BITSET$tk_bracket_get(ctx = ctx)$);
+
+    $if(union.annotationList)$
+    $union.annotationList:{ ann |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+    //ann.annotation_typeid(Get$ann.name$Identifier());
+    {
+        auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$ann.name$");
+        if (type_id == nullptr) {
+            $if(ctx.NotUseVbsFramework)$
+            logError_(TypeObject, "Get type id fail " << "$ann.name$");
+            $else$
+            VbsLogE("Get type id fail " << "$ann.name$");
+            $endif$
+            delete type_object;
+            return nullptr;
+        }
+        ann.annotation_typeid(*type_id);
+    }
+    $if(ann.valueList)$
+    $ann.valueList:{ annval |
+{
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+    $md5_namespace_get(ctx=ctx)$MD5 message_hash("$annval.name$");
+    for(int i = 0; i < 4; ++i)
+    {
+        annParam.paramname_hash()[i] = message_hash.digest[i];
+    }
+    $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+    paramValue._d($tk_structure_get(ctx = ctx)$$annval.typecode.typeIdentifier$$tk_bracket_get(ctx = ctx)$);
+    paramValue.from_string("$annval.value$");
+    annParam.value(paramValue);
+    ann.param_seq().push_back(annParam);
+}
+    };separator="\n"$
+    $endif$
+    type_object->complete().bitset_type().header().detail().ann_custom().push_back(ann);
+}
+    }; separator="\n"$
+    $endif$
+
+    type_object->complete().bitset_type().header().detail().type_name("$bitset.Scopednamenormal$");
+
+    $bitset.bitfields:{ member | $complete_bitfield(ctx=ctx, object=member)$}; separator="\n"$
+
+    $bitset.parents:{$complete_bitset_inheritance(it)$}; separator="\n"$
+
+    $empty_namespace_get(ctx = ctx)$TypeIdentifier identifier;
+    identifier._d($empty_namespace_get(ctx= ctx)$EK_COMPLETE);
+
+    $empty_namespace_get(ctx = ctx)$SerializedPayload_t payload(static_cast<uint32_t>(
+        $types_namespace_get(ctx = ctx)$TypeObject::getCdrSerializedSize(*type_object) + 4));
+    $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer((char*) payload.data, payload.max_size);
+    // Fixed endian (Page 221, EquivalenceHash definition of Extensible and Dynamic Topic Types for DDS document)
+    $ecdr_namespace_get(ctx=ctx)$Cdr ser(
+        vbsbuffer, $ecdr_namespace_get(ctx=ctx)$Cdr::LITTLE_ENDIANNESS,
+        $ecdr_namespace_get(ctx=ctx)$Cdr::DDS_CDR); // Object that serializes the data.
+    payload.encapsulation = CDR_LE;
+
+    type_object->serialize(ser);
+    payload.length = (uint32_t)ser.getSerializedDataLength(); //Get the serialized length
+    $md5_namespace_get(ctx=ctx)$MD5 objectHash;
+    objectHash.update((char*)payload.data, payload.length);
+    objectHash.finalize();
+    for(int i = 0; i < 14; ++i)
+    {
+        identifier.equivalence_hash()[i] = objectHash.digest[i];
+    }
+
+    $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->add_type_object("$bitset.Scopednamenormal$", &identifier, type_object);
+    delete type_object;
+    return $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_object("$bitset.Scopednamenormal$");
+}
+
+$if(bitset.ScopednameList)$
+$bitset.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+>>
+
+complete_bitfield(ctx, object) ::= <<
+$types_namespace_get(ctx = ctx)$CompleteBitfield cbf_$object.name$;
+cbf_$object.name$.common().flags().TRY_CONSTRUCT1(false);
+cbf_$object.name$.common().flags().TRY_CONSTRUCT2(false);
+cbf_$object.name$.common().flags().IS_EXTERNAL(false);
+cbf_$object.name$.common().flags().IS_OPTIONAL(false);
+cbf_$object.name$.common().flags().IS_MUST_UNDERSTAND(false);
+cbf_$object.name$.common().flags().IS_KEY(false);
+cbf_$object.name$.common().flags().IS_DEFAULT(false);
+cbf_$object.name$.common().position($object.basePosition$);
+cbf_$object.name$.common().bitcount($object.spec.bitSize$);
+cbf_$object.name$.common().holder_type($tk_structure_get(ctx = ctx)$$object.spec.typecode.typeIdentifier$$tk_bracket_get(ctx = ctx)$);
+cbf_$object.name$.detail().name("$object.name$");
+
+// Position annotation always present
+{
+    // Position
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+    {
+        auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("position");
+        if (type_id == nullptr) {
+            $if(ctx.NotUseVbsFramework)$
+            logError_(TypeObject, "Get type id fail " << "position");
+            $else$
+            VbsLogE("Get type id fail " << "position");
+            $endif$
+            delete type_object;
+            return nullptr;
+        }
+        ann.annotation_typeid(*type_id);
+    }
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+    $md5_namespace_get(ctx=ctx)$MD5 message_hash("value");
+    for(int i = 0; i < 4; ++i)
+    {
+        annParam.paramname_hash()[i] = message_hash.digest[i];
+    }
+    $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+    paramValue._d($tk_structure_get(ctx = ctx)$TK_UINT16$tk_bracket_get(ctx = ctx)$);
+    paramValue.uint_16_value($object.basePosition$);
+    annParam.value(paramValue);
+    ann.param_seq().push_back(annParam);
+
+    cbf_$object.name$.detail().ann_custom().push_back(ann);
+}
+
+// Use bit_bound as bitcount.
+{
+    // Position
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+    {
+        auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("bit_bound");
+        if (type_id == nullptr) {
+            $if(ctx.NotUseVbsFramework)$
+            logError_(TypeObject, "Get type id fail " << "bit_bound");
+            $else$
+            VbsLogE("Get type id fail " << "bit_bound");
+            $endif$
+            delete type_object;
+            return nullptr;
+        }
+        ann.annotation_typeid(*type_id);
+    }
+    $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+    $md5_namespace_get(ctx=ctx)$MD5 message_hash("value");
+    for(int i = 0; i < 4; ++i)
+    {
+        annParam.paramname_hash()[i] = message_hash.digest[i];
+    }
+    $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+    paramValue._d($tk_structure_get(ctx = ctx)$TK_UINT16$tk_bracket_get(ctx = ctx)$);
+    paramValue.uint_16_value($object.spec.bitSize$);
+    annParam.value(paramValue);
+    ann.param_seq().push_back(annParam);
+
+    cbf_$object.name$.detail().ann_custom().push_back(ann);
+}
+
+$if(object.annotationList)$
+$object.annotationList:{ ann |
+{
+    if (std::strcmp("position", "$ann.name$") != 0 && std::strcmp("bit_bound", "$ann.name$") != 0)
+    {
+        $empty_namespace_get(ctx = ctx)$AppliedAnnotation ann;
+        //ann.annotation_typeid(Get$ann.name$Identifier());
+        {
+            auto type_id = $types_namespace_get(ctx = ctx)$TypeObjectFactory::get_instance()->get_type_identifier("$ann.name$");
+            if (type_id == nullptr) {
+                $if(ctx.NotUseVbsFramework)$
+                logError_(TypeObject, "Get type id fail " << "$ann.name$");
+                $else$
+                VbsLogE("Get type id fail " << "$ann.name$");
+                $endif$
+                delete type_object;
+                return nullptr;
+            }
+            ann.annotation_typeid(*type_id);
+        }
+        $if(ann.valueList)$
+        $ann.valueList:{ annval |
+        {
+            $empty_namespace_get(ctx = ctx)$AppliedAnnotationParameter annParam;
+            $md5_namespace_get(ctx=ctx)$MD5 message_hash("$annval.name$");
+            for(int i = 0; i < 4; ++i)
+            {
+                annParam.paramname_hash()[i] = message_hash.digest[i];
+            }
+            $empty_namespace_get(ctx = ctx)$AnnotationParameterValue paramValue;
+            paramValue._d($tk_structure_get(ctx = ctx)$$if(annval.typecode.typeIdentifier)$$annval.typecode.typeIdentifier$$else$$object.spec.typecode.typeIdentifier$$endif$$tk_bracket_get(ctx = ctx)$);
+            paramValue.from_string("$annval.value$");
+            annParam.value(paramValue);
+            ann.param_seq().push_back(annParam);
+        }
+        };separator="\n"$
+        $endif$
+        cbf_$object.name$.detail().ann_custom().push_back(ann);
+    }
+}
+}; separator="\n"$
+$endif$
+
+type_object->complete().bitset_type().field_seq().emplace_back(cbf_$object.name$);
+
+>>
+
+complete_bitset_inheritance(parent) ::= <<
+type_object->complete().bitset_type().header().base_type(*Get$parent.name$Identifier());
+>>
+
+/***** Utils *****/
+
+/*UTILS*/
+ecdr_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$vbsutil::ecdr::$else$vbs::$endif$>>
+
+md5_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$evbs::$else$vbs::$endif$>>
+
+types_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$evbs::ertps::types::$else$vbs::$endif$>>
+
+empty_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$$else$vbs::$endif$>>
+
+/* for difference ns typekind */
+tk_structure_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$$else$static_cast<vbs::octet>(vbs::TypeKind::$endif$>>
+ek_structure_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$$else$static_cast<vbs::octet>($endif$>>
+tk_bracket_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$$else$)$endif$>>
+

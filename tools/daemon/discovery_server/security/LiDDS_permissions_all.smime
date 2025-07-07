@@ -1,0 +1,148 @@
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----E33785AF135210E041BACEBDB7EA5B89"
+
+This is an S/MIME signed message
+
+------E33785AF135210E041BACEBDB7EA5B89
+Content-Type: text/plain
+
+<?xml version="1.0" encoding="utf-8"?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.omg.org/spec/DDS-Security/20170801/omg_shared_ca_permissions.xsd">
+    <permissions>
+        <grant name="PermissionsFSD">
+            <subject_name>CN=WB_FSD.vehicle.chj</subject_name>
+            <validity>
+                <not_before>2013-06-01T13:00:00</not_before>
+                <not_after>2038-06-01T13:00:00</not_after>
+            </validity>
+            <allow_rule>
+                <domains>
+                    <id_range>
+                        <min>0</min>
+                        <max>230</max>
+                    </id_range>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                </subscribe>
+            </allow_rule>
+            <default>DENY</default>
+        </grant>
+        <grant name="PermissionsHU">
+            <subject_name>CN=WB_HU.vehicle.chj</subject_name>
+            <validity>
+                <not_before>2013-06-01T13:00:00</not_before>
+                <not_after>2038-06-01T13:00:00</not_after>
+            </validity>
+            <allow_rule>
+                <domains>
+                    <id_range>
+                        <min>0</min>
+                        <max>230</max>
+                    </id_range>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                </subscribe>
+            </allow_rule>
+            <default>DENY</default>
+        </grant>
+        <grant name="PermissionsXCU">
+            <subject_name>CN=WB_XCU.vehicle.chj</subject_name>
+            <validity>
+                <not_before>2013-06-01T13:00:00</not_before>
+                <not_after>2038-06-01T13:00:00</not_after>
+            </validity>
+            <allow_rule>
+                <domains>
+                    <id_range>
+                        <min>0</min>
+                        <max>230</max>
+                    </id_range>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                </subscribe>
+            </allow_rule>
+            <default>DENY</default>
+        </grant>
+        <grant name="PermissionsX64">
+            <subject_name>CN=WB_X64.vehicle.chj</subject_name>
+            <validity>
+                <not_before>2013-06-01T13:00:00</not_before>
+                <not_after>2038-06-01T13:00:00</not_after>
+            </validity>
+            <allow_rule>
+                <domains>
+                    <id_range>
+                        <min>0</min>
+                        <max>230</max>
+                    </id_range>
+                </domains>
+                <publish>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                </publish>
+                <subscribe>
+                    <topics>
+                        <topic>*</topic>
+                    </topics>
+                </subscribe>
+            </allow_rule>
+            <default>DENY</default>
+        </grant>
+    </permissions>
+</dds>
+------E33785AF135210E041BACEBDB7EA5B89
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+
+MIIEIQYJKoZIhvcNAQcCoIIEEjCCBA4CAQExDzANBglghkgBZQMEAgEFADALBgkq
+hkiG9w0BBwGgggICMIIB/jCCAaSgAwIBAgIUKN7Bl0q+h49dFH0hmZWIAAcUkg4w
+CgYIKoZIzj0EAwIwdjELMAkGA1UEBhMCQ04xEDAOBgNVBAgMB0JlaWppbmcxEDAO
+BgNVBAcMB0JlaWppbmcxGzAZBgNVBAoMEkxpWGlhbmcgQXV0b21vdGl2ZTEmMCQG
+A1UEAwwdTGlBdXRvIEdsb2JhbCBUZXN0IFZlaGljbGUgQ0EwHhcNMjUwMzA2MDg1
+NTU4WhcNMzUwMzA0MDg1NTU4WjB2MQswCQYDVQQGEwJDTjEQMA4GA1UECAwHQmVp
+amluZzEQMA4GA1UEBwwHQmVpamluZzEbMBkGA1UECgwSTGlYaWFuZyBBdXRvbW90
+aXZlMSYwJAYDVQQDDB1MaUF1dG8gR2xvYmFsIFRlc3QgVmVoaWNsZSBDQTBZMBMG
+ByqGSM49AgEGCCqGSM49AwEHA0IABBx98ag6vBH/YrmSsMEaa/daiqccPTRIfqm4
+ebaFmiaKFGL5AxBhlJL1c9FHFVE2QuGSrtLO8VB/3Pph2A7Jg2ijEDAOMAwGA1Ud
+EwQFMAMBAf8wCgYIKoZIzj0EAwIDSAAwRQIhAK9mzCfuEotjaK0aP+M51Q9Bwres
+F8Lp6Q75GTg4KH3dAiAX7m8galyJDIMJfrz6xtPo5pgwFf0rrbHg9dBW9LqZtDGC
+AeMwggHfAgEBMIGOMHYxCzAJBgNVBAYTAkNOMRAwDgYDVQQIDAdCZWlqaW5nMRAw
+DgYDVQQHDAdCZWlqaW5nMRswGQYDVQQKDBJMaVhpYW5nIEF1dG9tb3RpdmUxJjAk
+BgNVBAMMHUxpQXV0byBHbG9iYWwgVGVzdCBWZWhpY2xlIENBAhQo3sGXSr6Hj10U
+fSGZlYgABxSSDjANBglghkgBZQMEAgEFAKCB5DAYBgkqhkiG9w0BCQMxCwYJKoZI
+hvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0yNTAzMDYwOTIyMTlaMC8GCSqGSIb3DQEJ
+BDEiBCAjGwucTWRJ22s395NkVz5mdRXJ68PnhB6Yi/4cedXdnDB5BgkqhkiG9w0B
+CQ8xbDBqMAsGCWCGSAFlAwQBKjALBglghkgBZQMEARYwCwYJYIZIAWUDBAECMAoG
+CCqGSIb3DQMHMA4GCCqGSIb3DQMCAgIAgDANBggqhkiG9w0DAgIBQDAHBgUrDgMC
+BzANBggqhkiG9w0DAgIBKDAKBggqhkjOPQQDAgRHMEUCIH2MdcpXeN9Yf0FVDzFR
+f12LIMZWdcV0tur8s0vU4vciAiEAh1Bk0qKpT4b9lU+b/BwTlYIjplNc5OqqvY9b
+tNQwp7Q=
+
+------E33785AF135210E041BACEBDB7EA5B89--
+

@@ -1,0 +1,4934 @@
+// Copyright 2016 Proyectos y Sistemas de Mantenimiento SL (eProsima).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ------------------------------------------------------------------
+// Modification history:
+// 2023-03 ~ 2025-05: Enhanced IDL structure, serialization, zero-copy, multi-language integration, layout hiding and compatibility fixes.
+// ------------------------------------------------------------------
+
+group TypesSource;
+
+main(ctx, definitions) ::= <<
+$fileHeader(file=[ctx.filename, ".cpp"], description=["This source file contains the definition of the described types in the IDL file."])$
+
+#ifdef _WIN32
+// Remove linker warning LNK4221 on Visual Studio
+namespace {
+char dummy;
+}  // namespace
+#endif  // _WIN32
+
+#include "$ctx.filename$$if(ctx.RtiIdl)$Base$else$$endif$.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+$if(!ctx.PureStructure)$
+$if(ctx.generateTypeObject)$
+#include "$ctx.filename$TypeObject.$if(ctx.GenHpp)$hpp$else$h$endif$"
+$endif$
+
+$if(ctx.HasMutable)$
+#include "$ctx.filename$CdrAux.ipp"
+$endif$
+$endif$
+
+$if(ctx.NotUseVbsFramework)$
+$if(ctx.cdr)$
+#include <ecdr/Cdr.h>
+
+$endif$
+
+$if(ctx.vbscdr)$
+#include <ecdr/ECdr.h>
+
+$endif$
+
+#include <ecdr/exceptions/BadParamException.h>
+using namespace vbsutil::ecdr::exception;
+$endif$
+
+#include <utility>
+
+$if(!ctx.CJ)$
+#ifndef _FIRST_DEFINE_DJS
+#define _FIRST_DEFINE_DJS
+
+$ctx.types:{ type | $if(type.typeCode.IsType_10)$$else$$if(type.typeCode.StructOrUnion)$
+
+$if(type.typeCode.ScopednameList)$
+$type.typeCode.ScopednameList : { namespace |
+namespace $namespace$ $left_brackets()$
+}; separator="\n"$
+$endif$
+
+$print_stream_helper_declaration(type.typeCode)$
+
+$if(type.typeCode.ScopednameList)$
+$type.typeCode.ScopednameList : { namespace |
+$right_brackets()$
+}; separator="\n"$
+$endif$
+
+$endif$$endif$
+}; separator="\n"$
+
+namespace vbs {
+    $print_vbs_data_to_json_string_declaration(ctx=ctx)$
+
+    $print_vbs_data_to_json_string_definition()$
+}
+#endif
+$endif$
+
+$if(ctx.HideInternals)$
+template <typename T>
+typename T::Impl* getImplPointer(T& obj) {
+    return (reinterpret_cast<std::uintptr_t>(obj.get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+           ? reinterpret_cast<typename T::Impl*>(
+                 reinterpret_cast<char*>(&obj) + sizeof(T))
+           : obj.get_pImpl();
+}
+
+template <typename T>
+const typename T::Impl* getImplPointer(const T& obj) {
+    return (reinterpret_cast<std::uintptr_t>(obj.get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+           ? reinterpret_cast<const typename T::Impl*>(
+                 reinterpret_cast<const char*>(&obj) + sizeof(T))
+           : obj.get_pImpl();
+}
+$endif$
+
+$if(ctx.generateTypesC)$
+$ctx.typeCodesToDefine : {
+$sequences_definition(it.value)$
+}; separator="\n"$
+$endif$
+
+$definitions; separator="\n"$
+
+$if(ctx.GenBoth)$
+$if(ctx.GenerateTypeObject)$
+$if(!ctx.PureStructure)$
+$ctx.types:{ type | $if(type.inScope)$$if(type.typeCode.IsType_10)$$else$$if(type.typeCode.isStructType)$
+
+void $type.typeCode.scopednamenormal$::register_dynamic_type() {
+    register$ctx.filename$_$ctx.M_lastStructureScopedNameUnderLine$Types();
+}
+
+$endif$$endif$$endif$
+}; separator="\n"$
+$endif$
+$endif$
+$endif$
+
+$if(!ctx.Rpc)$
+$if(ctx.GenerateTypeObject)$
+$if(!ctx.PureStructure)$
+$ctx.types:{ type | $if(type.inScope)$$if(type.typeCode.IsType_10)$$else$$if(type.typeCode.isStructType)$
+
+void $type.typeCode.scopednamenormal$::register_dynamic_type() {
+    register$ctx.filename$_$ctx.M_lastStructureScopedNameUnderLine$Types();
+}
+
+$endif$$endif$$endif$
+}; separator="\n"$
+$endif$$endif$$endif$
+
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+
+>>
+
+annotation(ctx, annotation) ::= <<
+$annotation.typeDefs : {$typedef_decl_print(ctx=ctx, parent=annotation, typedefs=it)$}; separator="\n"$
+>>
+
+interface(ctx, parent, interface, export_list) ::= <<
+$export_list$
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+
+>>
+
+exception(ctx, parent, exception) ::= <<
+$if(ctx.printexception)$
+$exception.scopedname$::$exception.name$()
+    : UserException()
+{
+    $exception.members : { member |$if(member.annotationDefault)$$member_default_init(ctx=ctx, member=member, loopvar=ctx.newLoopVarName)$$else$$if(!member.annotationOptional)$$member_default_init(ctx=ctx, member=member, loopvar=ctx.newLoopVarName)$$endif$$endif$}; separator="\n"$
+}
+
+$exception.scopedname$::$exception.name$(
+        const $exception.name$& x)
+    : UserException(x)
+{
+    $exception.members : { member |$member_copy(ctx=ctx, member=member, istop=false)$}; separator="\n"$
+}
+
+$exception.scopedname$::$exception.name$(
+        $exception.name$&& x)
+    : UserException(std::move(x))
+{
+    $exception.members : { member |$member_move(member=member, ctx=ctx, istop=false)$}; separator="\n"$
+}
+
+$if(exception.Empty)$
+$else$
+$exception.scopedname$::$exception.name$(
+    $exception.members:{ member |const $member.typecode.CppTypename$& $member.Name$}; separator=",\n"$)
+    : UserException($exception.members:{$it.Name$}; separator=",\n"$)
+{
+    $exception.members:{$member_copy_by_parameters(member=it)$}; separator="\n"$
+}
+$endif$
+
+$exception.scopedname$& $exception.scopedname$::operator =(
+        const $exception.name$& x)
+{
+	UserException::operator =(x);
+if (this != &x) $left_brackets()$
+
+    $exception.members : { member |$member_copy(ctx=ctx, member=member, istop=false)$}; separator="\n"$
+$right_brackets()$
+    return *this;
+}
+
+$exception.scopedname$& $exception.scopedname$::operator =(
+        $exception.name$&& x)
+{
+	UserException::operator =(std::move(x));
+	$exception.members : { member |$member_move(member=member, ctx=ctx, istop=false)$}; separator="\n"$
+	return *this;
+}
+
+$exception.scopedname$::~$exception.name$() throw()
+{
+    $exception.members : { member |$varDel(variable=member)$}; separator="\n"$
+}
+
+void $exception.scopedname$::raise() const
+{
+	throw *this;
+}
+
+$if(!ctx.PureStructure)$
+$if(ctx.HasMutable)$
+$else$
+$if(ctx.anyCdr)$
+$big_align(ctx=ctx)$ $if(ctx.RmGlobalNP)$$exception.Scopednamenormal$$else$$exception.scopedname$$endif$::getMaxCdrSerializedSize(
+        $big_align(ctx=ctx)$ current_alignment)
+{
+$if(!ctx.Rpc)$
+    static_cast<void>(current_alignment);
+    return $exception.cScopedname$$if(ctx.UseEstimateSize)$$if(exception.IsPlain)$_max_estimate_typesize$else$_max_cdr_typesize$endif$$else$_max_cdr_typesize$endif$;
+$else$
+$if(ctx.GenBoth)$
+    static_cast<void>(current_alignment);
+    return $exception.cScopedname$$if(ctx.UseEstimateSize)$$if(exception.IsPlain)$_max_estimate_typesize$else$_max_cdr_typesize$endif$$else$_max_cdr_typesize$endif$;
+$else$
+    $big_align(ctx=ctx)$ initial_alignment = current_alignment;
+
+    $exception.members : { member |$max_serialized_size(ctx=ctx, typecode=member.typecode, var="current_alignment")$}; separator="\n"$
+
+    return current_alignment - initial_alignment;
+$endif$
+$endif$
+
+}
+
+$big_align(ctx=ctx)$ $if(ctx.RmGlobalNP)$$exception.Scopednamenormal$$else$$exception.scopedname$$endif$::getCdrSerializedSize(
+        const $exception.scopedname$& data,
+        $big_align(ctx=ctx)$ current_alignment)
+{
+    (void)data;
+    $big_align(ctx=ctx)$ initial_alignment = current_alignment;
+
+    $exception.members : { member |$serialized_size(ctx=ctx, object=member, data="data", var="current_alignment")$}; separator="\n"$
+
+    return current_alignment - initial_alignment;
+}
+
+$endif$
+
+$if(ctx.cdr)$
+void $exception.scopedname$::serialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& scdr) const
+{
+    $exception.members : { member |$object_serialization_in_types_source(ctx=ctx, member=member)$}; separator=""$
+}
+
+void $exception.scopedname$::deserialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& dcdr)
+{
+    $exception.members : { member |$object_deserialization_in_types_source(ctx=ctx, member=member)$}; separator="\n"$
+}
+
+$endif$
+
+$if(ctx.vbscdr)$
+void $exception.scopedname$::serialize(
+        vbsutil::ecdr::ECdr& scdr) const
+{
+    $exception.members : { member |$object_serialization_in_types_source(ctx=ctx, member=member)$}; separator=""$
+}
+
+void $exception.scopedname$::deserialize(
+        vbsutil::ecdr::ECdr& dcdr)
+{
+    $exception.members : { member |$object_deserialization_in_types_source(ctx=ctx, member=member)$}; separator="\n"$
+}
+
+$endif$
+$endif$
+$endif$
+
+$if(ctx.TestExample)$
+void $exception.scopedname$::updateTest(int index) {
+static_cast<void>(index);
+$exception.members : { member |
+$if(ctx.ZeroCopy)$
+    $update_member_bb_mode(member=member, istop=struct.top)$
+$else$
+    $update_member(member=member, typecode = member.typecode)$
+$endif$
+}; separator="\n    "$
+}
+$endif$
+
+$endif$
+>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<
+$if(const.parent)$
+$if(const.parent.isInterface)$
+$if(const.typeCode.isType_5)$
+const $const.typeCode.cppTypename$ $const.parent.scopedname$::$const.name$ = $const.value$;
+$elseif(const.typeCode.isType_6)$
+const $const.typeCode.cppTypename$ $const.parent.scopedname$::$const.name$ = $const.value$;
+$endif$
+$endif$
+$endif$
+$endif$
+>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<
+$typedefs :
+{ typedef |
+$if(ctx.generateTypesC)$
+$if(typedef.typedefContentTypeCode.isSequenceType)$
+$sequences_definition_impl(typecode=typedef.typedefContentTypeCode, scopedtypename=typedef.scopedname, typename=typedef.name)$
+$endif$
+$endif$
+}; separator="\n"$
+>>
+
+typedef_decl_print(ctx, parent, typedefs) ::= <<
+$typedefs :
+{ typedef |
+
+$if(ctx.CJ)$
+$else$
+$if(ctx.RmPrintHelper)$
+$else$
+
+$if(typedef.HasScope)$
+namespace $typedef.Scopenormal$ {
+$endif$
+
+    std::ostream& operator<<(std::ostream& o, const $typedef.scopedname$& sample)
+    {
+        return o << static_cast<$typedef.typedefContentTypeCode.cppTypename$>(sample)<<" ";
+    }
+
+$if(typedef.HasScope)$
+}
+$endif$
+
+$endif$
+$endif$
+
+}; separator="\n"$
+>>
+
+struct_type(ctx, parent, struct, extensions) ::= <<
+
+$if(ctx.HideInternals)$
+
+$if(struct.ScopednameList)$
+$struct.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+$if(struct.isPlain)$$if(!ctx.UsePackOne)$
+#pragma pack(push, 4)
+$endif$$endif$
+class $if(struct.PackOneAndPlain)$__attribute__((packed))$endif$ $struct.name$::Impl {
+public:
+    $struct.members:{$private_member_declaration(ctx=ctx, member=it, istop=struct.Top)$}; separator="\n"$
+
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+    $struct.BBModeMembers:{member |uint32_t m_$member.name$_size;}; separator="\n"$
+    std::vector<uint32_t*> m_big_data_size;
+    std::vector<void**> m_big_data_ptr;
+    void* m_bigbuffer;
+$endif$
+$endif$
+
+    Impl() {
+        $struct.members:{ member |$if(member.annotationDefault)$$get_init_all_member(ctx=ctx, member=member, struct=struct)$$else$$if(!member.annotationOptional)$$get_init_all_member(ctx=ctx, member=member, struct=struct)$$endif$$endif$}; separator="\n"$
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+        $struct.BBModeMembers:{member |$if(member.typecode.IsBounded)$m_$member.name$_size = $if(member.typecode.isSequenceType)$$member.typecode.Maxsize$*sizeof($member.typecode.ContentTypeCode.cppTypename$)$else$$big_data_size_get(ctx=ctx, member=member)$$endif$;$endif$}; separator="\n"$
+        m_big_data_size = {$struct.BBModeMembers:{ member |&(m_$member.name$_size)}; separator=", "$};
+        m_big_data_ptr = {$struct.BBModeMembers:{ member |$big_data_name_get(ctx=ctx, member=member, isImpl="yes")$}; separator=", "$};
+$endif$
+$endif$
+
+    }
+
+    Impl(Impl&& x) {
+        $struct.members:{$if(it.typecode.UseBBMode)$$member_move_bb_mode(member=it, ctx=ctx, istop=struct.Top, isImpl="yes")$$else$$member_move(member=it, ctx=ctx, istop=struct.Top, isImpl="yes")$$endif$}; separator="\n"$
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+        m_big_data_size = std::move(x.m_big_data_size);
+        m_big_data_ptr = {$struct.BBModeMembers:{ member |$big_data_name_get(ctx=ctx, member=member, isImpl="yes")$}; separator=", "$};
+        m_bigbuffer = std::move(x.m_bigbuffer);
+$endif$
+$endif$
+
+    }
+
+    Impl(const Impl& x) {
+        $struct.members:{$member_copy(ctx=ctx, member=it, istop=struct.Top, isImpl="yes")$}; separator="\n"$
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+        m_big_data_size = x.m_big_data_size;
+        m_big_data_ptr = {$struct.BBModeMembers:{ member |$big_data_name_get(ctx=ctx, member=member, isImpl="yes")$}; separator=", "$};
+        m_bigbuffer = std::move(x.m_bigbuffer);
+$endif$
+$endif$
+
+    }
+
+    Impl& operator =(
+        Impl&& x) {
+        if (this != &x) $left_brackets()$
+
+        $struct.members:{$member_move(ctx=ctx, member=it, istop=struct.Top, isImpl="yes")$}; separator="\n"$
+
+    $if(struct.UseBBMode)$
+    $if(struct.Top)$
+        m_big_data_size = std::move(x.m_big_data_size);
+        m_big_data_ptr = {$struct.BBModeMembers:{ member |$big_data_name_get(ctx=ctx, member=member, isImpl="yes")$}; separator=", "$};
+        m_bigbuffer = std::move(x.m_bigbuffer);
+    $endif$
+    $endif$
+    $right_brackets()$
+        return *this;
+    }
+
+    Impl& operator =(
+        const Impl& x) {
+        if (this != &x) $left_brackets()$
+
+        $struct.members:{$member_copy(ctx=ctx, member=it, istop=struct.Top, isImpl="yes")$}; separator="\n"$
+
+    $if(struct.UseBBMode)$
+    $if(struct.Top)$
+        m_big_data_size = x.m_big_data_size;
+        m_big_data_ptr = {$struct.BBModeMembers:{ member |$big_data_name_get(ctx=ctx, member=member, isImpl="yes")$}; separator=", "$};
+        m_bigbuffer = x.m_bigbuffer;
+    $endif$
+    $endif$
+    $right_brackets()$
+        return *this;
+    }
+
+    ~Impl() {
+        $struct.members:{ member |
+$if(member.NeedsPointer)$
+        if (m_$member.name$) $left_brackets()$
+$endif$
+
+            $member_destructor(ctx=ctx, member=member)$
+$if(member.NeedsPointer)$
+            m_$member.name$ = nullptr;
+        $right_brackets()$
+$endif$
+        }; separator="\n"$
+    }
+
+$if(struct.Empty)$
+$else$
+$if(ctx.ZeroCopy)$
+$else$
+    Impl(
+        $struct.members:{ member |const $member_type_declaration(ctx = ctx, member = member)$& $member.Name$}; separator=",\n"$)
+        : $struct.members:{ member | m_$member.name$($if(member.typecode.forwarded)$nullptr$else$$member.Name$$endif$)}; separator=",\n          "$ {
+            $struct.members:{ member |
+$if(member.typecode.forwarded)$
+            m_$member.name$ = new $member_type_declaration(ctx = ctx, member = member)$($member.Name$);
+$endif$
+            }; separator="\n"$
+        }
+
+$endif$
+$endif$
+
+};
+$if(struct.isPlain)$$if(!ctx.UsePackOne)$
+#pragma pack(pop)
+$endif$$endif$
+
+$if(struct.ScopednameList)$
+$struct.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+$endif$
+
+$struct.scopedname$::$struct.name$()$if(struct.inheritances)$
+    : $struct.inheritances : {$struct_inherit_default_init(it)$}; separator=",\n"$ $endif$
+{
+
+$if(ctx.HideInternals)$
+    pImpl = new Impl();
+$else$
+    $struct.members:{ member |$if(member.annotationDefault)$$get_init_all_member(ctx=ctx, member=member, struct=struct)$$else$$if(!member.annotationOptional)$$get_init_all_member(ctx=ctx, member=member, struct=struct)$$endif$$endif$}; separator="\n"$
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+    $struct.BBModeMembers:{member |$if(member.typecode.IsBounded)$m_$member.name$_size = $if(member.typecode.isSequenceType)$$member.typecode.Maxsize$*sizeof($member.typecode.ContentTypeCode.cppTypename$)$else$$big_data_size_get(ctx=ctx, member=member)$$endif$;$endif$}; separator="\n"$
+    m_big_data_size = {$struct.BBModeMembers:{ member |&(m_$member.name$_size)}; separator=", "$};
+    m_big_data_ptr = {$struct.BBModeMembers:{ member |$big_data_name_get(ctx=ctx, member=member)$}; separator=", "$};
+$endif$
+$endif$
+$endif$
+
+    $if(ctx.generateTypeObject)$
+    // Just to register all known types
+   // register$ctx.filename$_$ctx.M_lastStructureScopedNameUnderLine$Types();
+    $endif$
+
+}
+
+$struct.scopedname$::~$struct.name$()
+{
+$if(!ctx.HideInternals)$
+    $struct.members:{ member |
+$if(member.NeedsPointer)$
+if ($get_full_name(ctx=ctx, member=member)$) $left_brackets()$
+$endif$
+
+    $member_destructor(ctx=ctx, member=member)$
+$if(member.NeedsPointer)$
+    $get_full_name(ctx=ctx, member=member)$ = nullptr;
+$right_brackets()$
+$endif$
+    }; separator="\n"$
+$else$
+    if (pImpl) {
+        delete pImpl;
+        pImpl = nullptr;
+    }
+$endif$
+
+}
+
+$if(struct.UseBBMode)$
+$if(!struct.Top)$
+$struct.scopedname$::$struct.name$(
+        const $struct.name$& x)$if(struct.inheritances)$
+    : $struct.inheritances : {$struct_inherit_copy_init(it)$}; separator=",\n"$ $endif$
+{
+$if(ctx.HideInternals)$
+    pImpl = new Impl(*x.pImpl);
+$else$
+    $struct.members:{$member_copy(ctx=ctx, member=it, istop=struct.Top)$}; separator="\n"$
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+    m_big_data_size = x.m_big_data_size;
+    m_big_data_ptr = {$struct.BBModeMembers:{ member |$big_data_name_get(ctx=ctx, member=member)$}; separator=", "$};
+    m_bigbuffer = x.m_bigbuffer;
+$endif$
+$endif$
+$endif$
+
+}
+$endif$
+$else$
+$struct.scopedname$::$struct.name$(
+        const $struct.name$& x)$if(struct.inheritances)$
+    : $struct.inheritances : {$struct_inherit_copy_init(it)$}; separator=",\n"$ $endif$
+{
+$if(ctx.HideInternals)$
+    pImpl = new Impl(*x.pImpl);
+$else$
+    $struct.members:{$member_copy(ctx=ctx, member=it, istop=struct.Top)$}; separator="\n"$
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+    m_big_data_size = x.m_big_data_size;
+    m_big_data_ptr = {$struct.BBModeMembers:{ member |$big_data_name_get(ctx=ctx, member=member)$}; separator=", "$};
+    m_bigbuffer = x.m_bigbuffer;
+$endif$
+$endif$
+$endif$
+
+}
+$endif$
+
+$struct.scopedname$::$struct.name$(
+        $struct.name$&& x)$if(struct.inheritances)$
+    : $struct.inheritances : {$struct_inherit_move_init(it)$}; separator=",\n"$ $endif$
+{
+$if(ctx.HideInternals)$
+    pImpl = x.pImpl;
+    x.pImpl = nullptr;
+$else$
+    $struct.members:{$if(it.typecode.UseBBMode)$$member_move_bb_mode(member=it, ctx=ctx, istop=struct.Top)$$else$$member_move(member=it, ctx=ctx, istop=struct.Top)$$endif$}; separator="\n"$
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+    m_big_data_size = std::move(x.m_big_data_size);
+    m_big_data_ptr = {$struct.BBModeMembers:{ member |$big_data_name_get(ctx=ctx, member=member)$}; separator=", "$};
+    m_bigbuffer = std::move(x.m_bigbuffer);
+$endif$
+$endif$
+$endif$
+
+}
+
+$if(struct.Empty)$
+$else$
+$if(ctx.ZeroCopy)$
+$else$
+$struct.scopedname$::$struct.name$(
+    $struct.members:{ member |const $member_type_declaration(ctx = ctx, member = member)$& $member.Name$}; separator=",\n"$)$if(struct.inheritances)$
+    : $struct.inheritances : {$it.scopedname$()}; separator=",\n"$ $endif$
+{
+$if(ctx.HideInternals)$
+    pImpl = new Impl($struct.members:{ member |$member.Name$}; separator=", "$);
+$else$
+    $struct.members:{$member_copy_by_parameters(member=it)$}; separator="\n"$
+$endif$
+
+}
+$endif$
+$endif$
+
+$if(struct.UseBBMode)$
+$if(!struct.Top)$
+$struct.scopedname$& $struct.scopedname$::operator =(
+        const $struct.name$& x)
+{
+    $if(struct.inheritances)$    $struct.inheritances : {$it.scopedname$::operator =(x);}; separator="\n"$ $endif$
+
+if (this != &x) $left_brackets()$
+$if(ctx.HideInternals)$
+$if(ctx.ZeroCopy)$
+    const $struct.scopedname$::Impl* sourceImpl = getImplPointer(x);
+    $struct.scopedname$::Impl* thisImpl = getImplPointer(*this);
+$else$
+    const $struct.scopedname$::Impl* sourceImpl = x.get_pImpl();
+    $struct.scopedname$::Impl* thisImpl = this->get_pImpl();
+$endif$
+$endif$
+
+    $struct.members:{$member_copy(ctx=ctx, member=it, istop=struct.Top)$}; separator="\n"$
+
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+    $if(ctx.HideInternals)$thisImpl->$endif$m_big_data_size = x.$if(ctx.HideInternals)$sourceImpl->$endif$m_big_data_size;
+    $if(ctx.HideInternals)$thisImpl->$endif$m_big_data_ptr = {$struct.BBModeMembers:{ member |$big_data_name_get(ctx=ctx, member=member)$}; separator=", "$};
+    $if(ctx.HideInternals)$thisImpl->$endif$m_bigbuffer = x.$if(ctx.HideInternals)$sourceImpl->$endif$m_bigbuffer;
+$endif$
+$endif$
+$right_brackets()$
+    return *this;
+}
+$endif$
+$else$
+$struct.scopedname$& $struct.scopedname$::operator =(
+        const $struct.name$& x)
+{
+    $if(struct.inheritances)$    $struct.inheritances : {$it.scopedname$::operator =(x);}; separator="\n"$ $endif$
+
+if (this != &x) $left_brackets()$
+$if(ctx.HideInternals)$
+$if(ctx.ZeroCopy)$
+    const $struct.scopedname$::Impl* sourceImpl = getImplPointer(x);
+    $struct.scopedname$::Impl* thisImpl = getImplPointer(*this);
+$else$
+    const $struct.scopedname$::Impl* sourceImpl = x.get_pImpl();
+    $struct.scopedname$::Impl* thisImpl = this->get_pImpl();
+$endif$
+$endif$
+
+    $struct.members:{$member_copy(ctx=ctx, member=it, istop=struct.Top)$}; separator="\n"$
+
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+    $if(ctx.HideInternals)$thisImpl->$endif$m_big_data_size = x.$if(ctx.HideInternals)$sourceImpl->$endif$m_big_data_size;
+    $if(ctx.HideInternals)$thisImpl->$endif$m_big_data_ptr = {$struct.BBModeMembers:{ member |$big_data_name_get(ctx=ctx, member=member)$}; separator=", "$};
+    $if(ctx.HideInternals)$thisImpl->$endif$m_bigbuffer = x.$if(ctx.HideInternals)$sourceImpl->$endif$m_bigbuffer;
+$endif$
+$endif$
+$right_brackets()$
+    return *this;
+}
+$endif$
+
+$struct.scopedname$& $struct.scopedname$::operator =(
+        $struct.name$&& x)
+{
+    $if(struct.inheritances)$    $struct.inheritances : {$it.scopedname$::operator =(std::move(x));}; separator="\n"$ $endif$
+
+$if(ctx.HideInternals)$
+    if (this != &x) $left_brackets()$
+        if (pImpl && reinterpret_cast<std::uintptr_t>(pImpl) != ::CommonConstants::INVALID_POINTER_VALUE) {
+            delete pImpl;
+        }
+$if(ctx.ZeroCopy)$
+        pImpl = (reinterpret_cast<std::uintptr_t>(x.get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+                        ? reinterpret_cast<$struct.scopedname$::Impl*>(
+                            reinterpret_cast<char*>(&x) + sizeof($struct.scopedname$))
+                        : x.pImpl;
+$else$
+        pImpl = x.pImpl;
+$endif$
+
+        x.pImpl = nullptr;
+    $right_brackets()$
+$else$
+    $struct.members:{$if(it.typecode.UseBBMode)$$member_move_bb_mode(member=it, ctx=ctx, istop=struct.Top)$$else$$member_move(member=it, ctx=ctx, istop=struct.Top)$$endif$}; separator="\n"$
+
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+    $if(ctx.HideInternals)$pImpl->$endif$m_big_data_size = std::move(x.$if(ctx.HideInternals)$pImpl->$endif$m_big_data_size);
+    $if(ctx.HideInternals)$pImpl->$endif$m_big_data_ptr = {$struct.BBModeMembers:{ member |$big_data_name_get(ctx=ctx, member=member)$}; separator=", "$};
+    $if(ctx.HideInternals)$pImpl->$endif$m_bigbuffer = std::move(x.$if(ctx.HideInternals)$pImpl->$endif$m_bigbuffer);
+$endif$
+$endif$
+
+$endif$
+
+    return *this;
+}
+
+bool $struct.scopedname$::operator ==(
+        const $struct.name$& x) const
+{
+    $if(struct.inheritances)$    $struct.inheritances : { if ($it.scopedname$::operator !=(x)) return false;}; separator="\n"$ $endif$
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+$if(struct.BBModeMembers)$
+    if ($struct.BBModeMembers:{$if(ctx.HideInternals)$pImpl->$endif$m_$it.name$ == nullptr}; separator=" || "$) $left_brackets()$
+        throw std::runtime_error("Invalid pointer: nullptr, please execute the loan_sample function first");
+    $right_brackets()$
+$endif$
+$endif$
+$endif$
+
+    return ($if(struct.Empty)$true$else$$struct.members:{this->$it.name$() == x.$it.name$()}; separator=" &&\n"$$endif$);
+}
+
+bool $struct.scopedname$::operator !=(
+        const $struct.name$& x) const
+{
+    return !(*this == x);
+}
+
+void $struct.scopedname$::swap($struct.scopedname$& other_)
+{
+$if(ctx.HideInternals)$
+$if(ctx.ZeroCopy)$
+    $struct.scopedname$::Impl* thisImpl = getImplPointer(*this);
+    $struct.scopedname$::Impl* otherImpl = getImplPointer(other_);
+$else$
+    $struct.scopedname$::Impl* thisImpl = this->get_pImpl();
+    $struct.scopedname$::Impl* otherImpl = other_.get_pImpl();
+$endif$
+$endif$
+
+    $struct.members:{std::swap($if(struct.PackOneAndPlain)$*&$endif$$if(ctx.HideInternals)$thisImpl->$endif$m_$it.scopedname$, $if(struct.PackOneAndPlain)$*&$endif$$if(ctx.HideInternals)$otherImpl->$else$other_.$endif$m_$it.scopedname$);}; separator="\n"$
+
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+    std::swap($if(ctx.HideInternals)$pImpl->$endif$m_big_data_size, other_.$if(ctx.HideInternals)$pImpl->$endif$m_big_data_size);
+    std::swap($if(ctx.HideInternals)$pImpl->$endif$m_big_data_ptr, other_.$if(ctx.HideInternals)$pImpl->$endif$m_big_data_ptr);
+    std::swap($if(ctx.HideInternals)$pImpl->$endif$m_bigbuffer, other_.$if(ctx.HideInternals)$pImpl->$endif$m_bigbuffer);
+$endif$
+$endif$
+
+}
+
+$if(!ctx.PureStructure)$
+$if(ctx.HasMutable)$
+
+void $struct.scopedname$::serialize($ecdr_namespace_get(ctx=ctx)$Cdr& scdr) const
+{
+    vbsutil::ecdr::serialize(scdr, static_cast<const $struct.scopedname$&>(*this));
+}
+
+void $struct.scopedname$::deserialize($ecdr_namespace_get(ctx=ctx)$Cdr& scdr)
+{
+    vbsutil::ecdr::deserialize(scdr, static_cast<$struct.scopedname$&>(*this));
+}
+
+$else$
+$if(ctx.anyCdr)$
+$big_align(ctx=ctx)$ $if(ctx.RmGlobalNP)$$struct.Scopednamenormal$$else$$struct.scopedname$$endif$::getMaxCdrSerializedSize(
+        $big_align(ctx=ctx)$ current_alignment)
+{
+$if(!ctx.Rpc)$
+    static_cast<void>(current_alignment);
+    return $struct.cScopedname$$if(ctx.UseEstimateSize)$$if(struct.IsPlain)$_max_estimate_typesize$else$_max_cdr_typesize$endif$$else$_max_cdr_typesize$endif$;
+$else$
+$if(ctx.GenBoth)$
+    static_cast<void>(current_alignment);
+    return $struct.cScopedname$$if(ctx.UseEstimateSize)$$if(struct.IsPlain)$_max_estimate_typesize$else$_max_cdr_typesize$endif$$else$_max_cdr_typesize$endif$;
+$else$
+    $big_align(ctx=ctx)$ initial_alignment = current_alignment;
+    $if(struct.NotTempSize)$$big_align(ctx=ctx)$ temp2_max_serialized_size = 0;
+    static_cast<void>(temp2_max_serialized_size);$endif$
+
+    $if(struct.inheritances)$    $struct.inheritances : {current_alignment += $if(ctx.RmGlobalNP)$$it.Scopednamenormal$$else$$it.scopedname$$endif$::getMaxCdrSerializedSize(current_alignment);}; separator="\n"$ $endif$
+
+$if(struct.Top)$
+    $struct.members : { member | $if(member.typecode.UseBBMode)$$else$$if(!member.annotationNonSerialized)$$max_serialized_size(ctx=ctx, typecode=member.typecode, var="current_alignment")$$endif$$endif$}; separator="\n"$
+$else$
+    $struct.members : { member | $if(!member.annotationNonSerialized)$$max_serialized_size(ctx=ctx, typecode=member.typecode, var="current_alignment")$$endif$}; separator="\n"$
+$endif$
+
+    return current_alignment - initial_alignment;
+$endif$
+$endif$
+
+}
+
+$big_align(ctx=ctx)$ $if(ctx.RmGlobalNP)$$struct.Scopednamenormal$$else$$struct.scopedname$$endif$::getCdrSerializedSize(
+        const $struct.scopedname$& data,
+        $big_align(ctx=ctx)$ current_alignment)
+{
+    (void)data;
+    $big_align(ctx=ctx)$ initial_alignment = current_alignment;
+
+    $if(struct.inheritances)$    $struct.inheritances : {current_alignment += $if(ctx.RmGlobalNP)$$it.Scopednamenormal$$else$$it.scopedname$$endif$::getCdrSerializedSize(data, current_alignment);}; separator="\n"$ $endif$
+
+$if(struct.Top)$
+    $struct.members : { member |$if(member.typecode.UseBBMode)$$if(member.typecode.isSequenceType)$current_alignment += 4$if(ctx.cdr)$ + $ecdr_namespace_get(ctx=ctx)$Cdr::alignment(current_alignment, 4);$endif$ $endif$$else$$if(!member.annotationNonSerialized)$$serialized_size(ctx=ctx, object=member, data="data", var="current_alignment")$$endif$$endif$}; separator="\n"$
+$else$
+    $struct.members : { member |$if(!member.annotationNonSerialized)$$serialized_size(ctx=ctx, object=member, data="data", var="current_alignment")$$endif$}; separator="\n"$
+$endif$
+
+    return current_alignment - initial_alignment;
+}
+
+$big_align(ctx=ctx)$ $if(ctx.RmGlobalNP)$$struct.Scopednamenormal$$else$$struct.scopedname$$endif$::getObjectDataSize()
+{
+    $if (struct.isPlain)$
+    return sizeof($struct.scopedname$$if(ctx.HideInternals)$::Impl$endif$);
+    $else$
+    return getMaxCdrSerializedSize();
+    $endif$
+}
+
+$endif$
+
+$if(ctx.cdr)$
+void $struct.scopedname$::serialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& scdr) const
+{
+    $if(struct.inheritances)$    $struct.inheritances : {$it.scopedname$::serialize(scdr);}; separator="\n"$ $endif$
+
+$if(ctx.HideInternals)$
+$if(ctx.ZeroCopy)$
+    const $struct.scopedname$::Impl* thisImpl = getImplPointer(*this);
+$else$
+    const $struct.scopedname$::Impl* thisImpl = this->get_pImpl();
+$endif$
+$endif$
+
+$if(struct.Top)$
+    $struct.members : { member |$if(member.typecode.UseBBMode)$$if(member.typecode.isSequenceType)$$if(member.typecode.IsBounded)$$object_serialization_size_in_types_source(ctx=ctx, member=member)$$endif$$endif$$else$$if(!member.annotationNonSerialized)$$object_serialization_in_types_source(ctx=ctx, member=member)$$endif$$endif$}; separator="\n"$
+$else$
+    $struct.members : { member |$if(!member.annotationNonSerialized)$$object_serialization_in_types_source(ctx=ctx, member=member)$$endif$}; separator=""$
+$endif$
+
+}
+
+void $struct.scopedname$::deserialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& dcdr)
+{
+    $if(struct.inheritances)$    $struct.inheritances : {$it.scopedname$::deserialize(dcdr);}; separator="\n"$ $endif$
+
+$if(ctx.HideInternals)$
+$if(ctx.ZeroCopy)$
+    $struct.scopedname$::Impl* thisImpl = getImplPointer(*this);
+$else$
+    $struct.scopedname$::Impl* thisImpl = this->get_pImpl();
+$endif$
+$endif$
+
+$if(struct.Top)$
+    $struct.members : { member |$if(member.typecode.UseBBMode)$$if(member.typecode.isSequenceType)$$if(member.typecode.IsBounded)$$object_deserialization_size_in_types_source(ctx=ctx, member=member)$$endif$$endif$$else$$if(!member.annotationNonSerialized)$$object_deserialization_in_types_source(ctx=ctx, member=member)$$endif$$endif$}; separator="\n"$
+$else$
+    $struct.members : { member |$if(!member.annotationNonSerialized)$$object_deserialization_in_types_source(ctx=ctx, member=member)$$endif$}; separator="\n"$
+$endif$
+
+}
+
+$endif$
+
+$if(ctx.vbscdr)$
+void $struct.scopedname$::serialize(
+        vbsutil::ecdr::ECdr &scdr) const
+{
+$if(ctx.HideInternals)$
+$if(ctx.ZeroCopy)$
+    $struct.scopedname$::Impl* thisImpl = getImplPointer(*this);
+$else$
+    $struct.scopedname$::Impl* thisImpl = this->get_pImpl();
+$endif$
+$endif$
+
+    $if(struct.inheritances)$    $struct.inheritances : {$it.scopedname$::serialize(scdr);}; separator="\n"$ $endif$
+
+    $struct.members : { member |$if(!member.annotationNonSerialized)$$object_serialization_in_types_source(ctx=ctx, member=member)$$endif$}; separator=""$
+}
+
+void $struct.scopedname$::deserialize(
+        vbsutil::ecdr::ECdr& dcdr)
+{
+$if(ctx.HideInternals)$
+$if(ctx.ZeroCopy)$
+    $struct.scopedname$::Impl* thisImpl = getImplPointer(*this);
+$else$
+    $struct.scopedname$::Impl* thisImpl = this->get_pImpl();
+$endif$
+$endif$
+
+    $if(struct.inheritances)$    $struct.inheritances : {$it.scopedname$::deserialize(dcdr);}; separator="\n"$ $endif$
+
+    $struct.members : { member |$if(!member.annotationNonSerialized)$$object_deserialization_in_types_source(ctx=ctx, member=member)$$endif$}; separator="\n"$
+}
+
+$endif$
+$endif$
+$endif$
+
+$struct.members:{$public_member_declaration(ctx=ctx, class=struct.Scopednamenormal, member=it, istop=struct.Top)$}; separator="\n"$
+
+$if(ctx.Rpc)$
+void $struct.scopedname$::reset_all_member() {
+    $struct.members:{
+$if(it.typecode.UseBBMode)$
+    $reset_member_bb_mode(member=it)$
+$else$
+    $reset_member(member=it)$
+$endif$
+    }; separator="\n"$
+}
+$endif$
+
+$if(!ctx.PureStructure)$
+$extensions : {$it$}; separator="\n"$
+$endif$
+
+$if(!ctx.CJ)$
+
+$if(struct.ScopednameList)$
+$struct.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+$if(ctx.TestExample)$
+    $test_example_helper(member=struct)$
+$endif$
+
+$if(!ctx.RmPrintHelper)$
+
+    $print_stream_helper(member=struct)$
+
+    std::ostream& operator<<(std::ostream& o, const $struct.scopedname$& sample)
+    {
+        $if(struct.inheritances)$
+        $struct.inheritances : {o << static_cast<const $it.scopedname$&>(sample);}; separator=",\n"$
+        $endif$
+
+        $if(ctx.SingleLineOutput)$
+        o << "{"<<" ";
+         $struct.members : { member |
+$if(member.typecode.UseBBMode)$
+        $print_stream_bb_mode(member=member, istop=struct.Top, pre_name=struct.CScopedname, member_name=struct.Scope)$
+$else$
+        $print_stream(member=member, pre_name=struct.CScopedname, member_name=struct.Scope)$
+$endif$
+
+        }; separator=" "$
+
+        o << "}"<<" ";
+
+        $else$
+        o << "{\n";
+
+        $struct.members : { member |
+$if(member.typecode.UseBBMode)$
+        $print_stream_bb_mode(member=member, istop=struct.Top, pre_name=struct.CScopedname, member_name=struct.Scope)$
+$else$
+        $print_stream(member=member, pre_name=struct.CScopedname, member_name=struct.Scope, member_name=struct.Scope)$
+$endif$
+
+        }; separator="\n    "$
+
+        o << "}\n";
+        $endif$
+
+        return o;
+    }
+
+$endif$
+
+$if(struct.ScopednameList)$
+$struct.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+$endif$
+
+std::string $struct.scopednamenormal$::get_type_name() {
+    return "$struct.Scopednamenormal$";
+}
+
+std::string $struct.scopednamenormal$::to_idl_string(std::set<std::string>* processedTypesPtr, const bool is_top) const {
+    if (!processedTypesPtr && is_top) {
+        processedTypesPtr = new std::set<std::string>();
+    }
+    if (processedTypesPtr && (processedTypesPtr->find("$struct.scopednamenormal$") == processedTypesPtr->end())) {
+        processedTypesPtr->insert("$struct.scopednamenormal$");
+    } else {
+        if (!is_top) {
+            return "";
+        }
+    }
+    std::ostringstream oss;
+$struct.AllLikeStructMembers:{member |
+    $if(member.typecode.LikeEnum)$
+    $if(member.HasName)$
+    oss << $if(member.typecode.IsType_10)$$if(member.typecode.TrueContentTypeCode.HasScope)$$member.typecode.TrueContentTypeCode.Scope$::$else$::$endif$$else$$if(member.typecode.HasScope)$$member.typecode.Scope$::$else$::$endif$$endif$to_idl_string($get_full_name(ctx=ctx, member=member)$, processedTypesPtr, false) << "\n";;
+    $else$
+    $member.typecode.Scopednamenormal$* m_tmp$member.FlagName$ = new $member.typecode.Scopednamenormal$();
+    oss << $if(member.typecode.IsType_10)$$if(member.typecode.TrueContentTypeCode.HasScope)$$member.typecode.TrueContentTypeCode.Scopenormal$::$else$::$endif$$else$$if(member.typecode.HasScope)$$member.typecode.Scopenormal$::$else$::$endif$$endif$to_idl_string(*m_tmp$member.FlagName$, processedTypesPtr, false) << "\n";;
+    delete m_tmp$member.FlagName$;
+    $endif$
+
+    $else$
+    $if(member.HasName)$
+    $if(struct.Top)$
+    $if(member.typecode.UseBBMode)$
+    if ($get_full_name(ctx=ctx, member=member)$ == nullptr) {
+        throw std::runtime_error("Invalid pointer: nullptr, please execute the loan_sample function first");
+    }
+$if(ctx.HideInternals)$
+$if(member.typecode.IsType_a)$
+    else if (reinterpret_cast<std::uintptr_t>(this->get_pImpl()) != ::CommonConstants::INVALID_POINTER_VALUE) {
+        (*reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$)->get_pImpl_addr()) = reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$::Impl*>(::CommonConstants::INVALID_POINTER_VALUE);
+    }
+$endif$
+$endif$
+
+    oss << reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$)->to_idl_string(processedTypesPtr, false);
+    $else$
+    oss << ($if(member.AnnotationOptional)$*$endif$$get_full_name(ctx=ctx, member=member)$)$if(member.NeedsPointer)$->$else$.$endif$to_idl_string(processedTypesPtr, false);
+    $endif$
+    $else$
+    oss << ($if(member.AnnotationOptional)$*$endif$$get_full_name(ctx=ctx, member=member)$)$if(member.NeedsPointer)$->$else$.$endif$to_idl_string(processedTypesPtr, false);
+    $endif$
+
+    $else$
+    $member.typecode.Scopednamenormal$* m_tmp$member.FlagName$ = new $member.typecode.Scopednamenormal$();
+    oss << m_tmp$member.FlagName$->to_idl_string(processedTypesPtr, false);
+    delete m_tmp$member.FlagName$;
+    $endif$
+    $endif$
+
+}; separator="\n"$
+
+$if(struct.HasInheritance)$
+$struct.Parents:{parent |
+    oss << $if(parent.IsType_10)$$parent.TrueContentTypeCode.Scopednamenormal$$else$$parent.Scopednamenormal$$endif$::to_idl_string(processedTypesPtr, false);
+}; separator="\n"$
+$endif$
+
+$if(!struct.DefaultExtensibility)$
+    oss << "@$get_extensibility_annotation(typecode=struct)$\n";
+$endif$
+
+    oss << "struct $struct.scopednamenormal$ $if(struct.HasInheritance)$:$struct.Parents:{parent | $parent.scopednamenormal$}; separator=""$$endif${\n"
+    $struct.members:{member |
+
+$if(member.typecode.IsType_10)$
+    $get_member(ctx=ctx, type=member.typecode.TrueContentTypeCode, member=member)$
+$else$
+    $get_member(ctx=ctx, type=member.typecode, member=member)$
+$endif$
+    }; separator="\n"$
+        "};\n";
+
+    if (is_top) {
+        delete processedTypesPtr;
+    }
+    return oss.str();
+}
+
+$if(struct.UseBBMode)$
+$if(struct.Top)$
+void $struct.Scopednamenormal$::bigbuffer(void* address) {
+    uint32_t offset = 0;
+$if(ctx.HideInternals)$
+    pImpl->m_bigbuffer = address;
+    for(uint32_t i = 0; i < pImpl->m_big_data_size.size(); i++ ) {
+        *pImpl->m_big_data_ptr[i] = static_cast<char*>(pImpl->m_bigbuffer) + offset;
+        offset += *pImpl->m_big_data_size[i];
+    }
+$else$
+    m_bigbuffer = address;
+    for(uint32_t i = 0; i < m_big_data_size.size(); i++ ) {
+        *m_big_data_ptr[i] = static_cast<char*>(m_bigbuffer) + offset;
+        offset += *m_big_data_size[i];
+    }
+$endif$
+}
+
+void* $struct.Scopednamenormal$::bigbuffer() {
+$if(ctx.HideInternals)$
+    return pImpl->m_bigbuffer;
+$else$
+    return m_bigbuffer;
+$endif$
+}
+
+uint32_t $struct.Scopednamenormal$::bigbuffer_size() {
+    uint32_t total_size = 0;
+$if(ctx.HideInternals)$
+    for(uint32_t i = 0; i < pImpl->m_big_data_size.size(); i++ ) {
+        total_size += *pImpl->m_big_data_size[i];
+    }
+$else$
+    for(uint32_t i = 0; i < m_big_data_size.size(); i++ ) {
+        total_size += *m_big_data_size[i];
+    }
+$endif$
+    return total_size;
+}
+
+$endif$
+$endif$
+
+$if(ctx.TestExample)$
+void $struct.scopedname$::updateTest(int index) {
+static_cast<void>(index);
+$if(ctx.HideInternals)$
+$if(ctx.ZeroCopy)$
+    $struct.scopedname$::Impl* offset_ptr = getImplPointer(*this);
+$else$
+    $struct.scopedname$::Impl* offset_ptr = this->get_pImpl();
+$endif$
+$endif$
+
+$struct.members : { member |
+$if(ctx.ZeroCopy)$
+    $update_member_bb_mode(member=member, istop = struct.top, pre_name=struct.CScopedname)$
+$else$
+    $update_member(member=member, typecode = member.typecode, pre_name=struct.CScopedname)$
+$endif$
+}; separator="\n    "$
+}
+$endif$
+
+$if(!ctx.PureStructure)$
+$if(ctx.UseVbsFramework)$
+$if(!ctx.Rpc)$
+$if(ctx.GenerateTypeObject)$
+
+vbs::VBSDynamicType $struct.scopednamenormal$::get_vbs_dynamic_type() {
+    return vbs::Topic::dynamic_type<$struct.scopedname$>::get();
+}
+$endif$
+$else$
+$if(ctx.GenBoth)$
+$if(ctx.GenerateTypeObject)$
+
+vbs::VBSDynamicType $struct.scopednamenormal$::get_vbs_dynamic_type() {
+    return vbs::Topic::dynamic_type<$struct.scopedname$>::get();
+}
+$endif$
+$endif$
+$endif$
+$endif$
+
+$if(!ctx.NotUseVbsFramework)$
+namespace vbs {
+$if(ctx.Rpc)$
+
+bool rpc_type_support<$struct.scopedname$>::ToBuffer(const $struct.scopedname$& sample, std::vector<char>& buffer) {
+    try
+    {
+$if(!ctx.HasMutable)$
+        uint32_t len = static_cast<uint32_t>(sample.getCdrSerializedSize(*static_cast<$if (parent.IsInterface)$$parent.name$_$endif$$struct.scopedname$*>(const_cast<$struct.scopedname$*>(&sample)))) +
+                4u /*encapsulation*/;
+$else$
+        vbsutil::ecdr::CdrSizeCalculator calculator(vbsutil::ecdr::CdrVersion::XCDRv1);
+        size_t current_alignment {0};
+        uint32_t len = static_cast<uint32_t>(calculator.calculate_serialized_size(
+                    *static_cast<$if(parent.IsInterface)$$parent.name$_$endif$$struct.scopedname$*>(const_cast<$if(parent.IsInterface)$$parent.name$_$endif$$struct.scopedname$*>(&sample)), current_alignment)) +
+                4u /*encapsulation*/;
+$endif$
+
+        buffer.resize(len);
+        $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer(reinterpret_cast<char*>(buffer.data()), len);
+        vbsutil::ecdr::Cdr ser(vbsbuffer);
+        ser.serialize_encapsulation();
+        sample.serialize(ser);
+    }
+    catch (vbsutil::ecdr::exception::Exception& /*exception*/)
+    {
+        return false;
+    }
+    return true;
+}
+
+bool rpc_type_support<$struct.scopedname$>::FromBuffer($struct.scopedname$& sample, const std::vector<char>& buffer) {
+    try
+    {
+        uint32_t len = buffer.size();
+        $ecdr_namespace_get(ctx=ctx)$FastBuffer vbsbuffer(reinterpret_cast<char*>(const_cast<char*>(buffer.data())), len);
+        vbsutil::ecdr::Cdr deser(vbsbuffer);
+        deser.read_encapsulation();
+        sample.deserialize(deser);
+    }
+    catch (vbsutil::ecdr::exception::Exception& /*exception*/)
+    {
+        return false;
+    }
+    return true;
+}
+$endif$
+
+$if(!ctx.CJ)$
+$if(!ctx.RmPrintHelper)$
+std::string data_to_json_string(const $struct.scopedname$& sample, std::ostringstream* o_ptr, const bool is_need_delete, const bool include_braces) {
+    if (o_ptr == nullptr && is_need_delete) {
+        o_ptr = new std::ostringstream();
+    }
+    std::ostringstream& o = *o_ptr;
+    if (include_braces)
+            o << "{"<<"$print_stream_suffix(ctx.SingleLineOutput)$";
+    $if(struct.inheritances)$
+        $struct.inheritances : {data_to_json_string(static_cast<const $it.scopedname$&>(sample), o_ptr, false, false);}; separator="o<<\",\";\n"$
+        $endif$
+
+        $if(struct.inheritances)$
+        o<<",";
+        $endif$
+
+        $if(ctx.SingleLineOutput)$
+         $struct.members : { member |
+$if(member.typecode.UseBBMode)$
+        $print_stream_bb_mode(member=member, istop=struct.Top, is_json ="true", pre_name=struct.CScopedname, member_name=struct.Scope)$
+$else$
+        $print_stream(member=member, is_json = "true", pre_name=struct.CScopedname, member_name=struct.Scope)$
+$endif$
+
+        }; separator="o<<\",\"; "$
+        $else$
+        $struct.members : { member |
+$if(member.typecode.UseBBMode)$
+        $print_stream_bb_mode(member=member, istop=struct.Top, is_json = "true", pre_name=struct.CScopedname, member_name=struct.Scope)$
+$else$
+        $print_stream(member=member, is_json = "true", pre_name=struct.CScopedname, member_name=struct.Scope)$
+$endif$
+
+        }; separator="o<<\",\";\n    "$
+        $endif$
+        if (include_braces)
+            o << "}$print_stream_suffix(ctx.SingleLineOutput)$";
+        if(!is_need_delete)
+            return "";
+        std::string tmp_res_str = o.str();
+
+        if(o_ptr && is_need_delete) {
+            delete o_ptr;
+            o_ptr = nullptr;
+        }
+        return tmp_res_str;
+}
+$endif$
+$endif$
+
+}
+$endif$
+$endif$
+$endif$
+
+>>
+
+bitset_type(ctx, parent, bitset) ::= <<
+$bitset.scopedname$::$bitset.name$()$if(bitset.parents)$
+    : $bitset.parents : {$bitset_inherit_default_init(it)$}; separator=",\n"$ $endif$
+{
+    $if(ctx.generateTypeObject)$
+    // Just to register all known types
+    // register$ctx.filename$_$ctx.M_lastStructureScopedNameUnderLine$Types();
+    $endif$
+}
+
+$bitset.scopedname$::~$bitset.name$()
+{
+}
+
+$bitset.scopedname$::$bitset.name$(
+        const $bitset.name$& x)$if(bitset.parents)$
+    : $bitset.parents : {$bitset_inherit_copy_init(it)$}; separator=",\n"$ $endif$
+{
+    m_bitset = x.m_bitset;
+}
+
+$bitset.scopedname$::$bitset.name$(
+        $bitset.name$&& x)$if(bitset.parents)$
+    : $bitset.parents : {$bitset_inherit_move_init(it)$}; separator=",\n"$ $endif$
+{
+    m_bitset = x.m_bitset;
+}
+
+$bitset.scopedname$& $bitset.scopedname$::operator =(
+        const $bitset.name$& x)
+{
+    $if(bitset.parents)$    $bitset.parents : {$it.scopedname$::operator =(x);}; separator="\n"$ $endif$
+
+    m_bitset = x.m_bitset;
+
+    return *this;
+}
+
+$bitset.scopedname$& $bitset.scopedname$::operator =(
+        $bitset.name$&& x)
+{
+    $if(bitset.parents)$    $bitset.parents : {$it.scopedname$::operator =(std::move(x));}; separator="\n"$ $endif$
+
+    m_bitset = x.m_bitset;
+
+    return *this;
+}
+
+bool $bitset.scopedname$::operator ==(
+        const $bitset.name$& x) const
+{
+    $if(bitset.parents)$    $bitset.parents : { if ($it.scopedname$::operator !=(x)) return false;}; separator="\n"$ $endif$
+
+    return m_bitset == x.m_bitset;
+}
+
+bool $bitset.scopedname$::operator !=(
+        const $bitset.name$& x) const
+{
+    return !(*this == x);
+}
+
+$if(!ctx.PureStructure)$
+$if(ctx.HasMutable)$
+$else$
+$if(ctx.anyCdr)$
+$big_align(ctx=ctx)$ $if(ctx.RmGlobalNP)$$bitset.Scopednamenormal$$else$$bitset.scopedname$$endif$::getMaxCdrSerializedSize(
+        $big_align(ctx=ctx)$ current_alignment)
+{
+    $big_align(ctx=ctx)$ initial_alignment = current_alignment;
+    $if(bitset.NotTempSize)$$big_align(ctx=ctx)$ temp2_max_serialized_size = 0;
+    static_cast<void>(temp2_max_serialized_size); $endif$
+
+    $if(bitset.parents)$    $bitset.parents : {current_alignment += $if(ctx.RmGlobalNP)$$it.Scopednamenormal$$else$$it.scopedname$$endif$::getMaxCdrSerializedSize(current_alignment);}; separator="\n"$ $endif$
+
+    $bitset.bitfields : { member | $if(!member.annotationNonSerialized)$$if(member.name)$$max_serialized_size(ctx=ctx, typecode=member.spec.typecode, var="current_alignment")$$endif$$endif$}; separator="\n"$
+
+    return current_alignment - initial_alignment;
+}
+
+$big_align(ctx=ctx)$ $if(ctx.RmGlobalNP)$$bitset.Scopednamenormal$$else$$bitset.scopedname$$endif$::getCdrSerializedSize(
+        const $bitset.scopedname$& $if(bitset.parents)$data$endif$,
+        $big_align(ctx=ctx)$ current_alignment)
+{
+    $big_align(ctx=ctx)$ initial_alignment = current_alignment;
+
+    $if(bitset.parents)$    $bitset.parents : {current_alignment += $if(ctx.RmGlobalNP)$$it.Scopednamenormal$$else$$it.scopedname$$endif$::getCdrSerializedSize(data, current_alignment);}; separator="\n"$ $endif$
+
+    $bitset.bitfields : { member | $if(!member.annotationNonSerialized)$$if(member.name)$$serialized_size_type(ctx=ctx, typecode=member.spec.typecode, var="current_alignment")$$endif$$endif$}; separator="\n"$
+
+    return current_alignment - initial_alignment;
+}
+
+$endif$
+
+$if(ctx.cdr)$
+void $bitset.scopedname$::serialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& scdr) const
+{
+    $if(bitset.parents)$    $bitset.parents : {$it.scopedname$::serialize(scdr);}; separator="\n"$ $endif$
+
+    $bitset.bitfields : { member |$if(!member.annotationNonSerialized)$$bitfield_serialization(ctx=ctx, object=member)$$endif$}; separator="\n"$
+}
+
+void $bitset.scopedname$::deserialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& dcdr)
+{
+    $if(bitset.parents)$    $bitset.parents : {$it.scopedname$::deserialize(dcdr);}; separator="\n"$ $endif$
+
+    $bitset.bitfields : { member |$if(!member.annotationNonSerialized)$$bitfield_deserialization(ctx=ctx, object=member)$$endif$}; separator="\n"$
+}
+
+$endif$
+
+$if(ctx.vbscdr)$
+void $bitset.scopedname$::serialize(
+        vbsutil::ecdr::ECdr& scdr) const
+{
+    $if(bitset.parents)$    $bitset.parents : {$it.scopedname$::serialize(scdr);}; separator="\n"$ $endif$
+
+    $bitset.bitfields : { member |$if(!member.annotationNonSerialized)$$bitfield_serialization(ctx=ctx, object=member)$$endif$}; separator="\n"$
+}
+
+void $bitset.scopedname$::deserialize(
+        vbsutil::ecdr::ECdr& dcdr)
+{
+    $if(bitset.parents)$    $bitset.parents : {$it.scopedname$::deserialize(dcdr);}; separator="\n"$ $endif$
+
+    $bitset.bitfields : { member |$if(!member.annotationNonSerialized)$$bitfield_deserialization(ctx=ctx, object=member)$$endif$}; separator="\n"$
+}
+
+$endif$
+$endif$
+$endif$
+
+$bitset.bitfields:{$public_bitfield_definition(it)$}; separator="\n"$
+
+std::bitset<$bitset.bitSize$> $bitset.scopednamenormal$::bitset() const
+{
+    std::string str_value;
+
+    str_value = m_bitset.to_string() + str_value;
+
+    return std::bitset<$bitset.bitSize$>(str_value);
+}
+
+void $bitset.scopednamenormal$::bitset(
+        const std::bitset<$bitset.bitSize$>& bitset)
+{
+    std::string str_value {bitset.to_string()};
+    size_t base_diff {0};
+    size_t last_post {std::string::npos};
+
+    base_diff += $bitset.bitSize$;
+    m_bitset = std::bitset<$bitset.bitSize$>(str_value.substr(str_value.length() - base_diff, last_post));
+}
+
+std::bitset<$bitset.bitSize$> $bitset.scopednamenormal$::get_bitset() const
+{
+    return m_bitset;
+}
+
+$if(ctx.Rpc)$
+void $bitset.scopedname$::reset_all_member() {
+    m_bitset.reset();
+}
+$endif$
+
+$if(ctx.CJ)$
+$else$
+$if(ctx.RmPrintHelper)$
+$else$
+
+$if(bitset.ScopednameList)$
+$bitset.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+    std::ostream& operator<<(std::ostream& o, const $bitset.scopedname$& sample)
+    {
+        o << "{"<<" ";
+        $if(ctx.SingleLineOutput)$
+        o << "m_bitset " << sample.get_bitset() << " ";
+        o << "}"<<" ";
+        $else$
+        o << "\n";
+        o << "m_bitset " << sample.get_bitset() << "\n";
+        o << "}\n";
+        $endif$
+
+        return o;
+    }
+
+$if(bitset.ScopednameList)$
+$bitset.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+$endif$
+$endif$
+
+std::string $bitset.scopednamenormal$::to_idl_string(std::set<std::string>* processedTypesPtr, const bool is_top) const {
+    if (processedTypesPtr && (processedTypesPtr->find("$bitset.scopednamenormal$") == processedTypesPtr->end())) {
+        processedTypesPtr->insert("$bitset.scopednamenormal$");
+    } else {
+        return "";
+    }
+    std::ostringstream oss;
+
+$bitset.Parents:{parent |
+    oss << $if(parent.IsType_10)$$parent.TrueContentTypeCode.Scopednamenormal$$else$$parent.Scopednamenormal$$endif$::to_idl_string(processedTypesPtr, false);
+}; separator="\n"$
+
+    oss << "bitset $bitset.scopednamenormal$ $if(bitset.HasInheritance)$:$bitset.Parents:{parent | $parent.scopednamenormal$}; separator=""$$endif${\n"
+    $bitset.Bitfields:{bitfield |
+            " bitfield<$bitfield.Spec.BitSize$$if(bitfield.Spec.HasType)$, $bitfield.Spec.Typecode.IdlTypename$$endif$> $if(bitfield.Name)$$bitfield.Name$$endif$;\n"
+    }; separator="\n"$
+        "};\n";
+
+    if (is_top) {
+        delete processedTypesPtr;
+    }
+    return oss.str();
+}
+
+$if(!ctx.PureStructure)$
+$if(ctx.HasMutable)$
+
+void $bitset.scopedname$::serialize($ecdr_namespace_get(ctx=ctx)$Cdr& scdr) const
+{
+    vbsutil::ecdr::serialize(scdr, static_cast<const $bitset.scopedname$&>(*this));
+}
+
+void $bitset.scopedname$::deserialize($ecdr_namespace_get(ctx=ctx)$Cdr& scdr)
+{
+    vbsutil::ecdr::deserialize(scdr, static_cast<$bitset.scopedname$&>(*this));
+}
+$endif$
+$endif$
+
+$if(!ctx.NotUseVbsFramework)$
+namespace vbs {
+$if(!ctx.CJ)$
+$if(!ctx.RmPrintHelper)$
+$if(!bitset.forwarded)$
+template<>
+$endif$
+
+void data_to_json_string(const $bitset.scopedname$& sample,
+                std::ostringstream* o_ptr, const bool is_need_delete, const bool include_braces) {
+    (void) is_need_delete;
+    (void) include_braces;
+    std::ostringstream& o = *o_ptr;
+    o << "{"<<" ";
+    $if(ctx.SingleLineOutput)$
+    o << "\"m_bitset\": " << sample.get_bitset() << " ";
+    o << "}"<<" ";
+    $else$
+    o << "\n";
+    o << "\"m_bitset\": " << sample.get_bitset() << "\n";
+    o << "}\n";
+    $endif$
+
+    return;
+}
+$endif$
+$endif$
+
+}
+$endif$
+
+>>
+
+public_bitfield_definition(member) ::= <<
+$if(member.name)$
+void $bitset.scopedname$::$member.name$(
+        $member.spec.cppTypename$ _$member.name$)
+{
+    int base = $member.basePosition$;
+$if(member.spec.typecode.isType_7)$
+    m_bitset.set(base, _$member.name$);
+$else$
+    int size = $member.spec.bitSize$;
+    for (int i = base; i < base + size; ++i)
+    {
+        m_bitset.set(i, !!(_$member.name$ & 0x01));
+        _$member.name$ = _$member.name$ \>> 1;
+    }
+$endif$
+
+}
+
+$member.spec.cppTypename$ $bitset.scopednamenormal$::$member.name$() const
+{
+    int base = $member.basePosition$;
+$if(member.spec.typecode.isType_7)$
+    return m_bitset.test(base);
+$else$
+    int size = $member.spec.bitSize$;
+    std::bitset<$member.spec.bitSize$> aux;
+    for (int i = 0; i < size; ++i)
+    {
+        aux.set(i, m_bitset.test(i + base));
+    }
+    return static_cast<$member.spec.cppTypename$>(aux.to_ullong());
+$endif$
+
+}
+$endif$
+
+>>
+
+union_type(ctx, parent, union) ::= <<
+
+$if(ctx.HideInternals)$
+
+$if(union.ScopednameList)$
+$union.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+class $union.name$::Impl {
+public:
+    $union.discriminator.cppTypename$ m__d;
+
+    $union.members:{$private_member_declaration(ctx=ctx, member=it, istop=union.Top)$}; separator="\n"$
+
+    Impl() {
+        $if(union.defaultvalue)$
+        m__d = $union.defaultvalue$;
+        $else$
+        m__d = $first(first(union.members).labels)$;
+        $endif$
+        $union.members:{ member |$if(member.annotationDefault)$$member_default_init(ctx=ctx, member=member, loopvar=ctx.newLoopVarName)$$else$$if(!member.annotationOptional)$$member_default_init(ctx=ctx, member=member, loopvar=ctx.newLoopVarName)$$endif$$endif$}; separator="\n"$
+    }
+
+    Impl(Impl&& x) {
+        m__d = x.m__d;
+
+        switch(m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+        {
+            $union.members:{$unionmember_move(member=it, isImpl="yes")$}; separator="\n"$
+            $unionmemberdefault_move(member=union.defaultMember, isImpl="yes")$
+        }
+    }
+
+    Impl(const Impl& x) {
+        m__d = x.m__d;
+
+        switch(m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+        {
+            $union.members:{$unionmember_copy(member =it, isImpl="yes")$}; separator="\n"$
+            $unionmemberdefault_copy(member=union.defaultMember, isImpl="yes")$
+        }
+    }
+
+    Impl& operator =(
+        Impl&& x) {
+        m__d = x.m__d;
+
+        switch(m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+        {
+            $union.members:{$unionmember_move(member=it, isImpl="yes")$}; separator="\n"$
+            $unionmemberdefault_move(member=union.defaultMember, isImpl="yes")$
+        }
+
+        return *this;
+    }
+
+    Impl& operator =(
+        const Impl& x) {
+        m__d = x.m__d;
+
+        switch(m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+        {
+            $union.members:{$unionmember_copy(member=it, isImpl="yes")$}; separator="\n"$
+            $unionmemberdefault_copy(member=union.defaultMember, isImpl="yes")$
+        }
+
+        return *this;
+    }
+
+    ~Impl() {
+        $union.members:{ member |
+$if(member.NeedsPointer)$
+        if (m_$member.name$) $left_brackets()$
+$endif$
+
+            $member_destructor(ctx=ctx, member=member)$
+$if(member.NeedsPointer)$
+            m_$member.name$ = nullptr;
+        $right_brackets()$
+$endif$
+        }; separator="\n"$
+    }
+
+$if(union.Empty)$
+$else$
+$if(ctx.ZeroCopy)$
+$else$
+    Impl(
+        $union.members:{ member |const $member_type_declaration(ctx = ctx, member = member)$& $member.Name$}; separator=",\n"$)
+        : $union.members:{ member | m_$member.name$($if(member.typecode.forwarded)$nullptr$else$$member.Name$$endif$)}; separator=",\n          "$ {
+            $union.members:{ member |
+$if(member.typecode.forwarded)$
+        m_$member.name$ = new $member_type_declaration(ctx = ctx, member = member)$($member.Name$);
+$endif$
+            }; separator="\n"$
+        }
+
+$endif$
+$endif$
+
+};
+
+$if(union.ScopednameList)$
+$union.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+$endif$
+
+$union.scopedname$::$union.name$()
+{
+$if(ctx.HideInternals)$
+    pImpl = new Impl();
+$else$
+    $if(union.defaultvalue)$
+    m__d = $union.defaultvalue$;
+    $else$
+    m__d = $first(first(union.members).labels)$;
+    $endif$
+    $union.members:{ member |$if(member.annotationDefault)$$member_default_init(ctx=ctx, member=member, loopvar=ctx.newLoopVarName)$$else$$if(!member.annotationOptional)$$member_default_init(ctx=ctx, member=member, loopvar=ctx.newLoopVarName)$$endif$$endif$}; separator="\n"$
+$endif$
+
+}
+
+$union.scopedname$::~$union.name$()
+{
+$if(!ctx.HideInternals)$
+    $union.members:{ member |
+$if(member.NeedsPointer)$
+if ($get_full_name(ctx=ctx, member=member)$) $left_brackets()$
+$endif$
+
+    $member_destructor(ctx=ctx, member=member)$
+$if(member.NeedsPointer)$
+    $get_full_name(ctx=ctx, member=member)$ = nullptr;
+$right_brackets()$
+$endif$
+    }; separator="\n"$
+$else$
+    if (pImpl) {
+        delete pImpl;
+        pImpl = nullptr;
+    }
+
+$endif$
+
+}
+
+$union.scopedname$::$union.name$(
+        const $union.name$& x)
+{
+$if(ctx.HideInternals)$
+    pImpl = new Impl(*x.pImpl);
+$else$
+    $if(ctx.HideInternals)$pImpl->$endif$m__d = x.$if(ctx.HideInternals)$pImpl->$endif$m__d;
+
+    switch($if(ctx.HideInternals)$pImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{$unionmember_copy(member=it)$}; separator="\n"$
+        $unionmemberdefault_copy(union.defaultMember)$
+    }
+$endif$
+
+}
+
+$union.scopedname$::$union.name$(
+        $union.name$&& x)
+{
+$if(ctx.HideInternals)$
+    pImpl = new Impl(*x.pImpl);
+$else$
+    $if(ctx.HideInternals)$pImpl->$endif$m__d = x.$if(ctx.HideInternals)$pImpl->$endif$m__d;
+
+    switch($if(ctx.HideInternals)$pImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{$unionmember_move(member=it)$}; separator="\n"$
+        $unionmemberdefault_move(member=union.defaultMember)$
+    }
+$endif$
+
+}
+
+$union.scopedname$& $union.scopedname$::operator =(
+        const $union.name$& x)
+{
+$if(ctx.HideInternals)$
+$if(ctx.ZeroCopy)$
+    const $union.scopedname$::Impl* sourceImpl = getImplPointer(x);
+    $union.scopedname$::Impl* thisImpl = getImplPointer(*this);
+$else$
+    const $union.scopedname$::Impl* sourceImpl = x.get_pImpl();
+    $union.scopedname$::Impl* thisImpl = this->get_pImpl();
+$endif$
+$endif$
+
+    $if(ctx.HideInternals)$thisImpl->$endif$m__d = $if(ctx.HideInternals)$sourceImpl->$else$x.$endif$m__d;
+
+    switch($if(ctx.HideInternals)$thisImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{$unionmember_copy(member=it)$}; separator="\n"$
+        $unionmemberdefault_copy(member=union.defaultMember)$
+    }
+
+    return *this;
+}
+
+$union.scopedname$& $union.scopedname$::operator =(
+        $union.name$&& x)
+{
+$if(ctx.HideInternals)$
+$if(ctx.ZeroCopy)$
+    const $union.scopedname$::Impl* sourceImpl = getImplPointer(x);
+    $union.scopedname$::Impl* thisImpl = getImplPointer(*this);
+$else$
+    const $union.scopedname$::Impl* sourceImpl = x.get_pImpl();
+    $union.scopedname$::Impl* thisImpl = this->get_pImpl();
+$endif$
+$endif$
+
+    $if(ctx.HideInternals)$thisImpl->$endif$m__d = $if(ctx.HideInternals)$sourceImpl->$else$x.$endif$m__d;
+
+    switch($if(ctx.HideInternals)$thisImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{$unionmember_move(member=it)$}; separator="\n"$
+        $unionmemberdefault_move(member=union.defaultMember)$
+    }
+
+    return *this;
+}
+
+bool $union.scopedname$::operator ==(
+        const $union.name$& x) const
+{
+
+$if(ctx.HideInternals)$
+$if(ctx.ZeroCopy)$
+    const $union.scopedname$::Impl* sourceImpl = getImplPointer(x);
+    const $union.scopedname$::Impl* thisImpl = getImplPointer(*this);
+$else$
+    const $union.scopedname$::Impl* sourceImpl = x.get_pImpl();
+    const $union.scopedname$::Impl* thisImpl = this->get_pImpl();
+$endif$
+$endif$
+
+    if ($if(ctx.HideInternals)$thisImpl->$endif$m__d != $if(ctx.HideInternals)$sourceImpl->$else$x.$endif$m__d)
+    {
+        return false;
+    }
+
+    switch($if(ctx.HideInternals)$thisImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{$unionmember_compare(it)$}; separator="\n"$
+        $unionmemberdefault_compare(union.defaultMember)$
+    }
+    return false;
+}
+
+bool $union.scopedname$::operator !=(
+        const $union.name$& x) const
+{
+    return !(*this == x);
+}
+
+$union.discriminator.cppTypename$$if(union.discriminator.NeedsPointer)$*$endif$ $union.scopednamenormal$::default_discriminator()
+{
+    $if(union.defaultvalue)$
+    return $union.defaultvalue$;
+    $else$
+    return $first(first(union.members).labels)$;
+    $endif$
+}
+
+void $union.scopedname$::swap($union.scopedname$& other_)
+{
+    std::swap($if(ctx.HideInternals)$pImpl->$endif$m__d, other_.$if(ctx.HideInternals)$pImpl->$endif$m__d);
+
+    switch($if(ctx.HideInternals)$pImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{$unionmember_swap(it)$}; separator="\n"$
+        $unionmemberdefault_swap(union.defaultMember)$
+    }
+}
+
+$if(ctx.Rpc)$
+void $union.scopedname$::reset_all_member() {
+    $if(union.defaultvalue)$
+    $if(ctx.HideInternals)$pImpl->$endif$m__d = $union.defaultvalue$;
+    $else$
+    $if(ctx.HideInternals)$pImpl->$endif$m__d = $first(first(union.members).labels)$;
+    $endif$
+
+    switch($if(ctx.HideInternals)$pImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{$unionmember_reset_all_member(it)$}; separator="\n"$
+        $unionmemberdefault_reset_all_member(union.defaultMember)$
+    }
+}
+$endif$
+
+$if(!ctx.CJ)$
+
+$if(union.ScopednameList)$
+$union.ScopednameList : { namespace |
+namespace $namespace$ \{
+}; separator="\n"$
+$endif$
+
+$if(ctx.TestExample)$
+    $test_example_helper(member=union)$
+$endif$
+
+$if(!ctx.RmPrintHelper)$
+
+    $print_stream_helper(member=union)$
+
+    std::ostream& operator<<(std::ostream& o, const $union.scopedname$& sample)
+    {
+        $if(ctx.SingleLineOutput)$
+        o <<"{"<<" ";
+        switch(sample._d()$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+        {
+
+            $union.members:{member |$unionmember_op(member=member, pre_name=union.CScopedname, member_name=union.Scopenormal)$}; separator=" "$
+            $unionmemberdefault_op(member=union.defaultMember, pre_name=union.CScopedname, member_name=union.Scopenormal)$
+        }
+        o <<"}"<<" ";
+        $else$
+        o <<"{\n";
+        switch(sample._d()$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+        {
+            $union.members:{member |$unionmember_op(member=member, pre_name=union.CScopedname, member_name=union.Scopenormal)$}; separator="\n"$
+            $unionmemberdefault_op(member=union.defaultMember, pre_name=union.CScopedname, member_name=union.Scopenormal)$
+        }
+        o <<"}\n";
+        $endif$
+
+        return o;
+    }
+
+$endif$
+
+$if(union.ScopednameList)$
+$union.ScopednameList : { namespace |
+\}
+}; separator="\n"$
+$endif$
+
+$endif$
+
+std::string $union.scopednamenormal$::to_idl_string(std::set<std::string>* processedTypesPtr, const bool is_top) const {
+    if (processedTypesPtr && (processedTypesPtr->find("$union.scopednamenormal$") == processedTypesPtr->end())) {
+        processedTypesPtr->insert("$union.scopednamenormal$");
+    } else {
+        return "";
+    }
+
+    std::ostringstream oss;
+
+    $union.AllLikeStructMembers:{member |
+        $if(member.typecode.LikeEnum)$
+        $if(member.HasName)$
+        oss << $if(member.typecode.HasScope)$$member.typecode.Scope$::$else$::$endif$to_idl_string($get_full_name(ctx=ctx, member=member)$, processedTypesPtr) << "\n";;
+        $else$
+        $member.typecode.Scopednamenormal$* m_tmp$member.FlagName$ = new $member.typecode.Scopednamenormal$();
+        oss << $if(member.typecode.HasScope)$$member.typecode.Scopenormal$::$else$::$endif$to_idl_string(*m_tmp$member.FlagName$, processedTypesPtr) << "\n";;
+        delete m_tmp$member.FlagName$;
+        $endif$
+
+        $else$
+        $if(member.HasName)$
+        oss << ($if(member.AnnotationOptional)$*$endif$$get_full_name(ctx=ctx, member=member)$)$if(member.NeedsPointer)$->$else$.$endif$to_idl_string(processedTypesPtr, false) << "\n";
+        $else$
+        $member.typecode.Scopednamenormal$* m_tmp$member.FlagName$ = new $member.typecode.Scopednamenormal$();
+        oss << m_tmp$member.FlagName$->to_idl_string(processedTypesPtr, false) << "\n";
+        delete m_tmp$member.FlagName$;
+        $endif$
+        $endif$
+
+    }; separator="\n"$
+
+    oss << "union $union.scopednamenormal$ switch ($union.Discriminator.IdlTypename$) {\n"
+    $union.members : { member |
+    $member.InternalLabels : { label |
+            "case $label$:\\n"}; separator="\n"$
+            "    $member.Typecode.IdlTypename$ $member.name$;\\n"
+    }; separator="\n"$
+        "};\n";
+
+    if (is_top) {
+        delete processedTypesPtr;
+    }
+    return oss.str();
+}
+
+void $union.scopedname$::_d(
+        $union.discriminator.cppTypename$ __d)
+{
+    bool b = false;
+
+    switch($if(ctx.HideInternals)$pImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{$unionmember_discriminator_case(member=it, totallabels=union.totallabels, union=union)$}; separator="\n"$
+    }
+
+    if(!b)
+    {
+        throw $if(!ctx.PureStructure)$$empty_namespace_get(ctx=ctx)$BadParamException$else$std::invalid_argument$endif$("Discriminator doesn't correspond with the selected union member");
+    }
+
+    $if(ctx.HideInternals)$pImpl->$endif$m__d = __d;
+}
+
+$union.discriminator.cppTypename$ $union.scopednamenormal$::_d() const
+{
+    return $if(ctx.HideInternals)$pImpl->$endif$m__d;
+}
+
+$union.discriminator.cppTypename$& $union.scopednamenormal$::_d()
+{
+    return $if(ctx.HideInternals)$pImpl->$endif$m__d;
+}
+
+$union.members:{$public_unionmember_declaration(ctx=ctx, class=union.scopednamenormal, member=it, defaultvalue=union.defaultvalue, totallabels=union.totallabels, union=union)$}; separator="\n"$
+
+$if(!ctx.PureStructure)$
+$if(ctx.HasMutable)$
+$else$
+$if(ctx.anyCdr)$
+$big_align(ctx=ctx)$ $if(ctx.RmGlobalNP)$$union.Scopednamenormal$$else$$union.scopedname$$endif$::getMaxCdrSerializedSize(
+        $big_align(ctx=ctx)$ current_alignment)
+{
+    $big_align(ctx=ctx)$ initial_alignment = current_alignment;
+    $big_align(ctx=ctx)$ reset_alignment = 0;
+    $big_align(ctx=ctx)$ union_max_size_serialized = 0;
+    $if(union.NotTempSize)$$big_align(ctx=ctx)$ temp2_max_serialized_size = 0;
+    static_cast<void>(temp2_max_serialized_size);
+    $endif$
+
+    $max_serialized_size(ctx=ctx, typecode=union.discriminator, var="current_alignment")$
+
+    $union.members : { member |
+    reset_alignment = current_alignment;
+
+    $max_serialized_size(ctx=ctx, typecode=member.typecode, var="reset_alignment")$
+
+    if(union_max_size_serialized < reset_alignment)
+        union_max_size_serialized = reset_alignment;
+
+    }; separator="\n"$
+
+    return union_max_size_serialized - initial_alignment;
+}
+
+// TODO(Ricardo) Review
+$big_align(ctx=ctx)$ $if(ctx.RmGlobalNP)$$union.Scopednamenormal$$else$$union.scopedname$$endif$::getCdrSerializedSize(
+        const $union.scopedname$& data,
+        $big_align(ctx=ctx)$ current_alignment)
+{
+    (void)data;
+    $big_align(ctx=ctx)$ initial_alignment = current_alignment;
+
+    $serialized_size_type(ctx=ctx, typecode=union.discriminator, var="current_alignment")$
+
+    switch(data.$if(ctx.HideInternals)$pImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{ member |$unionmember_case_selection_sesize(ctx=ctx, member=member, data="data", var="current_alignment")$}; separator="\n"$
+        $unionmemberdefault_case_selection_sesize(ctx=ctx, member=union.defaultMember, data="data", var="current_alignment")$
+    }
+
+    return current_alignment - initial_alignment;
+}
+
+$big_align(ctx=ctx)$ $if(ctx.RmGlobalNP)$$union.Scopednamenormal$$else$$union.scopedname$$endif$::getObjectDataSize()
+{
+    $if (union.isPlain)$
+    return sizeof($union.scopedname$);
+    $else$
+    return getMaxCdrSerializedSize();
+    $endif$
+}
+
+$endif$
+
+$if(ctx.cdr)$
+void $union.scopedname$::serialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& scdr) const
+{
+    scdr << $serializeCasting(typecode=union.discriminator)$$if(ctx.HideInternals)$pImpl->$endif$m__d;
+
+    switch($if(ctx.HideInternals)$pImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{ member |$unionmember_case_selection_se(ctx=ctx, member=member)$}; separator="\n"$
+        $unionmemberdefault_case_selection_se(ctx=ctx, member=union.defaultMember)$
+    }
+}
+
+void $union.scopedname$::deserialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& dcdr)
+{
+$if(ctx.HideInternals)$
+    $deserializePossibleEnum(typecode=union.discriminator, name="pImpl->m__d")$
+$else$
+    $deserializePossibleEnum(typecode=union.discriminator, name="m__d")$
+$endif$
+
+    switch($if(ctx.HideInternals)$pImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{ member |$unionmember_case_selection_de(ctx=ctx, member=member)$}; separator="\n"$
+        $unionmemberdefault_case_selection_de(ctx=ctx, member=union.defaultMember)$
+    }
+}
+
+$endif$
+
+$if(ctx.vbscdr)$
+void $union.scopedname$::serialize(
+        vbsutil::ecdr::ECdr& scdr) const
+{
+    scdr << $serializeCasting(typecode=union.discriminator)$$if(ctx.HideInternals)$pImpl->$endif$m__d;
+
+    switch($if(ctx.HideInternals)$pImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{ member |$unionmember_case_selection_se(ctx=ctx, member=member)$}; separator="\n"$
+        $unionmemberdefault_case_selection_se(ctx=ctx, member=union.defaultMember)$
+    }
+}
+
+void $union.scopedname$::deserialize(
+        vbsutil::ecdr::ECdr& dcdr)
+{
+$if(ctx.HideInternals)$
+    $deserializePossibleEnum(typecode=union.discriminator, name="pImpl->m__d")$
+$else$
+    $deserializePossibleEnum(typecode=union.discriminator, name="m__d")$
+$endif$
+
+    switch($if(ctx.HideInternals)$pImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{ member |$unionmember_case_selection_de(ctx=ctx, member=member)$}; separator="\n"$
+        $unionmemberdefault_case_selection_de(ctx=ctx, member=union.defaultMember)$
+    }
+}
+
+$endif$
+$endif$
+$endif$
+
+$if(ctx.TestExample)$
+void $union.scopedname$::updateTest(int index) {
+    static_cast<void>(index);
+$if(ctx.HideInternals)$
+$if(ctx.ZeroCopy)$
+    $union.scopedname$::Impl* offset_ptr = getImplPointer(*this);
+$else$
+    $union.scopedname$::Impl* offset_ptr = this->get_pImpl();
+$endif$
+$endif$
+
+    switch($if(ctx.HideInternals)$offset_ptr->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{member|$unionmember_update_test(member=member, pre_name=union.CScopedname)$}; separator="\n"$
+        $unionmemberdefault_update_test(member=union.defaultMember, pre_name=union.CScopedname)$
+    }
+}
+$endif$
+
+$if(!ctx.PureStructure)$
+$if(ctx.HasMutable)$
+
+void $union.scopedname$::serialize($ecdr_namespace_get(ctx=ctx)$Cdr& scdr) const
+{
+    vbsutil::ecdr::serialize(scdr, static_cast<const $union.scopedname$&>(*this));
+}
+
+void $union.scopedname$::deserialize($ecdr_namespace_get(ctx=ctx)$Cdr& scdr)
+{
+    vbsutil::ecdr::deserialize(scdr, static_cast<$union.scopedname$&>(*this));
+}
+$endif$
+$endif$
+
+$if(!ctx.NotUseVbsFramework)$
+namespace vbs {
+$if(!ctx.CJ)$
+$if(!ctx.RmPrintHelper)$
+$if(!union.forwarded)$
+template<>
+$endif$
+
+void data_to_json_string(const $union.scopedname$& sample,
+                std::ostringstream* o_ptr, const bool is_need_delete, const bool include_braces) {
+    (void) is_need_delete;
+    (void) include_braces;
+    std::ostringstream& o = *o_ptr;
+    $if(ctx.SingleLineOutput)$
+    o <<"{"<<" ";
+    switch(sample._d()$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+
+        $union.members:{$unionmember_op(member=it, is_json="True", pre_name=union.CScopedname, member_name=union.Scope)$}; separator=" "$
+        $unionmemberdefault_op(member=union.defaultMember, is_json="True", pre_name=union.CScopedname, member_name=union.Scope)$
+    }
+    o <<"}"<<" ";
+    $else$
+    o <<"{\n";
+    switch(sample._d()$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.members:{$unionmember_op(member=it,is_json="True", pre_name=union.CScopedname, member_name=union.Scope)$}; separator="\n"$
+        $unionmemberdefault_op(member=union.defaultMember, is_json="True", pre_name=union.CScopedname, member_name=union.Scope)$
+    }
+    o <<"}\n";
+    $endif$
+
+    return;
+}
+$endif$
+$endif$
+
+}
+$endif$
+
+>>
+
+enum_type(ctx, parent, enum) ::= <<
+
+$if(ctx.CJ)$
+$else$
+$if(ctx.RmPrintHelper)$
+$else$
+    std::ostream& $if(enum.HasScope)$$enum.Scope$::$endif$operator<<(std::ostream& o, const $enum.scopedname$& sample)
+    {
+        $if(ctx.SingleLineOutput)$
+        o << "{"<<" ";
+            if(false) {}
+            $enum.members : { member |
+            else if (sample == $enum.scopedname$::$member.name$) {
+            o << "$member.name$ ";
+            }
+            }; separator=" "$
+            else {
+                o << "enum << error";
+            }
+        o << "}"<<" ";
+        $else$
+        o <<"{\n";
+            if(false) {}
+            $enum.members : { member |
+            else if (sample == $enum.scopedname$::$member.name$) {
+                o << "$member.name$\n";
+            }
+            }; separator=""$
+            else {
+                o << " enum << error";
+            }
+        o <<"}\n";
+
+        $endif$
+
+        return o;
+    }
+$endif$
+$endif$
+
+std::string $if(enum.HasScope)$$enum.Scopenormal$::$endif$to_idl_string(const $enum.scopedname$& /* sample */, std::set<std::string>* processedTypesPtr, const bool is_top)
+{
+    if (processedTypesPtr && (processedTypesPtr->find("$enum.scopednamenormal$") == processedTypesPtr->end())) {
+        processedTypesPtr->insert("$enum.scopednamenormal$");
+    } else {
+        return "";
+    }
+    std::ostringstream oss;
+    oss << "enum $enum.scopednamenormal$ {\n"
+    $enum.members : { member |
+            "    $member.name$ $if(member.HasValue)$ =$member.Value$$endif$}; separator=",\\n\"\n"$"
+        "\n"
+        "};\n";
+    if (is_top) {
+        delete processedTypesPtr;
+    }
+    return oss.str();
+}
+
+$if(!ctx.NotUseVbsFramework)$
+namespace vbs {
+$if(!ctx.CJ)$
+$if(!ctx.RmPrintHelper)$
+$if(!enum.forwarded)$
+template<>
+$endif$
+
+void data_to_json_string(const $enum.scopedname$& sample,
+                std::ostringstream* o_ptr, const bool is_need_delete, const bool include_braces) {
+    (void) is_need_delete;
+    (void) include_braces;
+    std::ostringstream& o = *o_ptr;
+    $if(ctx.SingleLineOutput)$
+        if(false) {}
+        $enum.members : { member |
+        else if (sample == $enum.scopedname$::$member.name$) {
+            o << "\"$member.name$\" ";
+        }
+        }; separator=" "$
+        else {
+            o << "enum << error";
+        }
+    $else$
+        if(false) {}
+        $enum.members : { member |
+        else if (sample == $enum.scopedname$::$member.name$) {
+            o << "\"$member.name$\"\n";
+        }
+        }; separator=""$
+        else {
+            o << " enum << error";
+        }
+
+    $endif$
+
+    return;
+}
+$endif$
+$endif$
+
+}
+$endif$
+
+>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<
+
+$if(ctx.CJ)$
+$else$
+$if(ctx.RmPrintHelper)$
+$else$
+    std::ostream& $if(bitmask.HasScope)$$bitmask.Scope$::$endif$operator<<(std::ostream& o, const $bitmask.scopedname$& sample)
+    {
+        bool found = false;
+        $if(ctx.SingleLineOutput)$
+        o<<"{ ";
+            if(false) {}
+            $bitmask.members : { member |
+            else if (sample == $bitmask.scopedname$::$member.name$) {
+                o << "$member.name$ ";
+                found = true;
+            }
+            }; separator=""$
+            if (!found) {
+                o << "No flags set or bitmask error ";
+            }
+        o<<"} ";
+        $else$
+        o<<"{\n";
+            if(false) {}
+            $bitmask.members : { member |
+            else if (sample == $bitmask.scopedname$::$member.name$) {
+                o << "$member.name$\n";
+                found = true;
+            }
+            }; separator=""$
+            if (!found) {
+                o << "No flags set or bitmask error\n";
+            }
+        o<<"}\n";
+        $endif$
+
+        return o;
+    }
+$endif$
+$endif$
+
+std::string $if(bitmask.HasScope)$$bitmask.Scopenormal$::$endif$to_idl_string(const $bitmask.scopedname$& /* sample */, std::set<std::string>* processedTypesPtr, const bool is_top)
+{
+    if (processedTypesPtr && (processedTypesPtr->find("$bitmask.scopednamenormal$") == processedTypesPtr->end())) {
+        processedTypesPtr->insert("$bitmask.scopednamenormal$");
+    } else {
+        return "";
+    }
+    std::ostringstream oss;
+$if(bitmask.Bounded)$
+    oss << "@bit_bound($bitmask.BitBound$)\\n";
+$endif$
+
+    oss << "bitmask $bitmask.scopednamenormal$ {\n"
+    $bitmask.members : { member |
+            "    @position($member.Position$) $member.name$}; separator=",\\n\"\n"$"
+        "\n"
+        "};\n";
+
+    if (is_top) {
+        delete processedTypesPtr;
+    }
+    return oss.str();
+}
+
+$if(!ctx.NotUseVbsFramework)$
+namespace vbs {
+$if(!ctx.CJ)$
+$if(!ctx.RmPrintHelper)$
+$if(!bitmask.forwarded)$
+template<>
+$endif$
+
+void data_to_json_string(const $bitmask.scopedname$& sample,
+                std::ostringstream* o_ptr, const bool is_need_delete, const bool include_braces) {
+    (void) is_need_delete;
+    (void) include_braces;
+    std::ostringstream& o = *o_ptr;
+    bool found = false;
+    $if(ctx.SingleLineOutput)$
+        if(false) {}
+        $bitmask.members : { member |
+        else if (sample == $bitmask.scopedname$::$member.name$) {
+            o << "\"$member.name$\" ";
+            found = true;
+        }
+        }; separator=""$
+        if (!found) {
+            o << "No flags set or bitmask error ";
+        }
+    $else$
+        if(false) {}
+        $bitmask.members : { member |
+        else if (sample == $bitmask.scopedname$::$member.name$) {
+            o << "\"$member.name$\"\n";
+            found = true;
+        }
+        }; separator=""$
+        if (!found) {
+            o << "No flags set or bitmask error\n";
+        }
+    $endif$
+
+    return;
+}
+$endif$
+$endif$
+
+}
+$endif$
+
+>>
+
+/***** Utils *****/
+
+public_member_declaration(ctx, class, member, istop) ::= <<
+$if(ctx.generateTypesC)$
+$if(member.typecode.isStringType)$
+$public_cstring_member_declaration(ctx = ctx, class=class, member=member)$
+$else$
+$if(ctx.ZeroCopy)$
+$public_primitive_member_declaration_seq_bb(ctx = ctx, class=class, member=member, istop=istop)$
+$else$
+$public_primitive_member_declaration(ctx = ctx, class=class, member=member)$
+$endif$
+$endif$
+$else$
+$if(ctx.ZeroCopy)$
+$public_primitive_member_declaration_seq_bb(ctx = ctx, class=class, member=member, istop=istop)$
+$else$
+$public_primitive_member_declaration(ctx = ctx, class=class, member=member)$
+$endif$
+$endif$
+>>
+//大buffer零拷贝暂时不支持前向声明和堆维护
+public_primitive_member_declaration_seq_bb(ctx, class, member, istop) ::= <<
+/*!
+ * @brief This function sets a value in member $member.name$
+ * @param _$member.name$ const reference for member $member.name$
+ */
+void $class$::$member.name$(
+        const $member_type_declaration(ctx = ctx, member = member)$& _$member.name$)
+{
+    $if(istop)$
+    $if(member.typecode.UseBBMode)$
+    if ($get_full_name(ctx=ctx, member=member)$ == nullptr) {
+        throw std::runtime_error("Invalid pointer: nullptr, please execute the loan_sample function first");
+    }
+    $if(member.typecode.isSequenceType)$
+    if ($get_full_name(ctx=ctx, member=member)$) {
+        $if(member.typecode.ContentTypeCode.IsType_7)$
+        bool* destination = static_cast<bool*>$get_full_name(ctx=ctx, member=member)$;
+        for (size_t i = 0; i < _$member.name$.size(); ++i) {
+            destination[i] = _$member.name$[i];
+        }
+        $else$
+        memcpy($get_full_name(ctx=ctx, member=member)$, const_cast<void*>(static_cast<const void*>(_$member.name$.data())), _$member.name$.size() * sizeof($member.typecode.ContentTypeCode.cppTypename$));
+        $endif$
+        $if(ctx.HideInternals)$pImpl->$endif$m_$member.name$_size = _$member.name$.size() * sizeof($member.typecode.ContentTypeCode.cppTypename$);
+    } else {
+        // Error log
+        throw std::runtime_error("m_$member.name$ is null");
+    }
+    $elseif(member.typecode.IsArrayType)$
+    if ($get_full_name(ctx=ctx, member=member)$) {
+        memcpy($get_full_name(ctx=ctx, member=member)$, const_cast<void*>(static_cast<const void*>(_$member.name$.data())), sizeof($member_type_declaration(ctx = ctx, member = member)$));
+    } else {
+        // Error log
+        throw std::runtime_error("m_$member.name$ is null");
+    }
+    $else$
+    if ($get_full_name(ctx=ctx, member=member)$) {
+$if(ctx.HideInternals)$
+$if(member.typecode.IsType_a)$
+        if (!_$member.name$.get_pImpl()) {
+            throw std::runtime_error("_$member.name$ is not init!");
+        } else if (reinterpret_cast<std::uintptr_t>(_$member.name$.get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE) {
+            memcpy(static_cast<char*>((pImpl->m_$member.name$)) + (sizeof($member_type_declaration(ctx = ctx, member = member)$)), (&_$member.name$) + (sizeof($member_type_declaration(ctx = ctx, member = member)$)), sizeof($member_type_declaration(ctx = ctx, member = member)$::Impl));
+        } else {
+            memcpy(static_cast<char*>((pImpl->m_$member.name$)) + (sizeof($member_type_declaration(ctx = ctx, member = member)$)), _$member.name$.get_pImpl(), sizeof($member_type_declaration(ctx = ctx, member = member)$::Impl));
+        }
+$else$
+        memcpy($get_full_name(ctx=ctx, member=member)$, &_$member.name$, sizeof($member_type_declaration(ctx = ctx, member = member)$));
+$endif$
+$else$
+        memcpy($get_full_name(ctx=ctx, member=member)$, &_$member.name$, sizeof($member_type_declaration(ctx = ctx, member = member)$));
+$endif$
+
+    } else {
+        // Error log
+        throw std::runtime_error("m_$member.name$ is null");
+    }
+    $endif$
+    $else$
+$if(ctx.HideInternals)$
+    ((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<$class$::Impl*>(reinterpret_cast<char*>(this) + sizeof($class$))
+        : pImpl)->m_$member.name$ = _$member.name$;
+$else$
+    m_$member.name$ = _$member.name$;
+$endif$
+    $endif$
+    $else$
+$if(ctx.HideInternals)$
+    ((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<$class$::Impl*>(reinterpret_cast<char*>(this) + sizeof($class$))
+        : pImpl)->m_$member.name$ = _$member.name$;
+$else$
+    m_$member.name$ = _$member.name$;
+$endif$
+    $endif$
+}
+
+/*!
+ * @brief This function moves the value in member $member.name$
+ * @param _$member.name$ New value to be moved in member $member.name$
+ */
+void $class$::$member.name$(
+        $member_type_declaration(ctx = ctx, member = member)$&& _$member.name$)
+{
+    $if(istop)$
+    $if(member.typecode.UseBBMode)$
+    $if(member.typecode.isSequenceType)$
+    if ($get_full_name(ctx=ctx, member=member)$) {
+        $if(member.typecode.ContentTypeCode.IsType_7)$
+        bool* destination = static_cast<bool*>$get_full_name(ctx=ctx, member=member)$;
+        for (size_t i = 0; i < _$member.name$.size(); ++i) {
+            destination[i] = _$member.name$[i];
+        }
+        $else$
+        memcpy($get_full_name(ctx=ctx, member=member)$, const_cast<void*>(static_cast<const void*>(_$member.name$.data())), _$member.name$.size() * sizeof($member.typecode.ContentTypeCode.cppTypename$));
+        $endif$
+        $if(ctx.HideInternals)$pImpl->$endif$m_$member.name$_size = _$member.name$.size() * sizeof($member.typecode.ContentTypeCode.cppTypename$);
+    } else {
+        // Error log
+        throw std::runtime_error("m_$member.name$ is null");
+    }
+    $elseif(member.typecode.IsArrayType)$
+    if ($get_full_name(ctx=ctx, member=member)$ == nullptr) {
+        throw std::runtime_error("Invalid pointer: nullptr, please execute the loan_sample function first");
+    }
+    if ($get_full_name(ctx=ctx, member=member)$) {
+        memcpy($get_full_name(ctx=ctx, member=member)$, const_cast<void*>(static_cast<const void*>(_$member.name$.data())), sizeof($member_type_declaration(ctx = ctx, member = member)$));
+    } else {
+        // Error log
+        throw std::runtime_error("m_$member.name$ is null");
+    }
+    $else$
+    if ($get_full_name(ctx=ctx, member=member)$) {
+        $if(ctx.HideInternals)$
+$if(member.typecode.IsType_a)$
+        if (!_$member.name$.get_pImpl()) {
+            throw std::runtime_error("_$member.name$ is not init!");
+        } else if (reinterpret_cast<std::uintptr_t>(_$member.name$.get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE) {
+            memcpy(static_cast<char*>((pImpl->m_$member.name$)) + (sizeof($member_type_declaration(ctx = ctx, member = member)$)), (&_$member.name$) + (sizeof($member_type_declaration(ctx = ctx, member = member)$)), sizeof($member_type_declaration(ctx = ctx, member = member)$::Impl));
+        } else {
+            memcpy(static_cast<char*>((pImpl->m_$member.name$)) + (sizeof($member_type_declaration(ctx = ctx, member = member)$)), _$member.name$.get_pImpl(), sizeof($member_type_declaration(ctx = ctx, member = member)$::Impl));
+        }
+$else$
+        memcpy($get_full_name(ctx=ctx, member=member)$, &_$member.name$, sizeof($member_type_declaration(ctx = ctx, member = member)$));
+$endif$
+$else$
+        memcpy($get_full_name(ctx=ctx, member=member)$, &_$member.name$, sizeof($member_type_declaration(ctx = ctx, member = member)$));
+$endif$
+    } else {
+        // Error log
+        throw std::runtime_error("m_$member.name$ is null");
+    }
+    $endif$
+    $else$
+$if(ctx.HideInternals)$
+    ((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<$class$::Impl*>(reinterpret_cast<char*>(this) + sizeof($class$))
+        : pImpl)->m_$member.name$ = std::move(_$member.name$);
+$else$
+    m_$member.name$ = std::move(_$member.name$);
+$endif$
+    $endif$
+    $else$
+$if(ctx.HideInternals)$
+    ((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<$class$::Impl*>(reinterpret_cast<char*>(this) + sizeof($class$))
+        : pImpl)->m_$member.name$ = std::move(_$member.name$);
+$else$
+    m_$member.name$ = std::move(_$member.name$);
+$endif$
+    $endif$
+
+}
+
+/*!
+ * @brief This function returns a reference to member $member.name$
+ * @return Reference to member $member.name$
+ */
+$member_type_declaration(ctx = ctx, member = member)$& $class$::$member.name$()
+{
+$if(istop)$
+$if(member.typecode.UseBBMode)$
+    if ($get_full_name(ctx=ctx, member=member)$ == nullptr) {
+        throw std::runtime_error("Invalid pointer: nullptr, please execute the loan_sample function first");
+    }
+    $if(ctx.HideInternals)$
+    $if(member.typecode.IsType_a)$
+    else if (reinterpret_cast<std::uintptr_t>(this->get_pImpl()) != ::CommonConstants::INVALID_POINTER_VALUE) {
+        (*reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$)->get_pImpl_addr()) = reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$::Impl*>(::CommonConstants::INVALID_POINTER_VALUE);
+    }
+    $endif$
+    $endif$
+
+    $if(member.typecode.isSequenceType)$
+    uint32_t num = $if(ctx.HideInternals)$pImpl->$endif$m_$member.name$_size / sizeof($member.typecode.ContentTypeCode.cppTypename$);
+    static $member_type_declaration(ctx = ctx, member = member)$ tmp_$member.name$;
+    if (tmp_$member.name$.size() != num) {
+        tmp_$member.name$.resize(num);
+    }
+    $if(member.typecode.ContentTypeCode.IsType_7)$
+    bool* src = static_cast<bool*>$get_full_name(ctx=ctx, member=member)$;
+    for (uint32_t i = 0; i < num; ++i) {
+        tmp_$member.name$[i] = src[i];
+    }
+    $else$
+    memcpy(tmp_$member.name$.data(), $get_full_name(ctx=ctx, member=member)$, $if(ctx.HideInternals)$pImpl->$endif$m_$member.name$_size);
+    $endif$
+    return tmp_$member.name$;
+    $else$
+    return *reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$);
+    $endif$
+    $else$
+$if(ctx.HideInternals)$
+    return ((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<$class$::Impl*>(reinterpret_cast<char*>(this) + sizeof($class$))
+        : pImpl)->m_$member.name$;
+$else$
+    return m_$member.name$;
+$endif$
+    $endif$
+    $else$
+$if(ctx.HideInternals)$
+    return ((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<$class$::Impl*>(reinterpret_cast<char*>(this) + sizeof($class$))
+        : pImpl)->m_$member.name$;
+$else$
+    return m_$member.name$;
+$endif$
+    $endif$
+}
+
+$if(member.typecode.primitive)$
+$if(ctx.RtiIdl)$
+/*!
+ * @brief This function returns a reference to member $member.name$
+ * @return Const reference to member $member.name$
+ */
+const $member_type_declaration(ctx = ctx, member = member)$& $class$::$member.name$() const
+{
+    $if(istop)$
+    $if(member.typecode.UseBBMode)$
+    if ($get_full_name(ctx=ctx, member=member)$ == nullptr) {
+        throw std::runtime_error("Invalid pointer: nullptr, please execute the loan_sample function first");
+    }
+$if(ctx.HideInternals)$
+$if(member.typecode.IsType_a)$
+    else if (reinterpret_cast<std::uintptr_t>(this->get_pImpl()) != ::CommonConstants::INVALID_POINTER_VALUE) {
+        (*reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$)->get_pImpl_addr()) = reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$::Impl*>(::CommonConstants::INVALID_POINTER_VALUE);
+    }
+$endif$
+$endif$
+
+    $if(member.typecode.isSequenceType)$
+    uint32_t num = $if(ctx.HideInternals)$pImpl->$endif$m_$member.name$_size / sizeof($member.typecode.ContentTypeCode.cppTypename$);
+    static $member_type_declaration(ctx = ctx, member = member)$ tmp_$member.name$;
+    if (tmp_$member.name$.size() != num) {
+        tmp_$member.name$.resize(num);
+    }
+    $if(member.typecode.ContentTypeCode.IsType_7)$
+    bool* src = static_cast<bool*>$get_full_name(ctx=ctx, member=member)$;
+    for (uint32_t i = 0; i < num; ++i) {
+        tmp_$member.name$[i] = src[i];
+    }
+    $else$
+    memcpy(tmp_$member.name$.data(), $get_full_name(ctx=ctx, member=member)$, $if(ctx.HideInternals)$pImpl->$endif$m_$member.name$_size);
+    $endif$
+    return tmp_$member.name$;
+    $else$
+    return *reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$);
+    $endif$
+    $else$
+$if(ctx.HideInternals)$
+    return ((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<const $class$::Impl*>(reinterpret_cast<const char*>(this) + sizeof($class$))
+        : pImpl)->m_$member.name$;
+$else$
+    return m_$member.name$;
+$endif$
+    $endif$
+    $else$
+$if(ctx.HideInternals)$
+    return ((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<const $class$::Impl*>(reinterpret_cast<const char*>(this) + sizeof($class$))
+        : pImpl)->m_$member.name$;
+$else$
+    return m_$member.name$;
+$endif$
+    $endif$
+}
+
+$else$
+/*!
+ * @brief This function returns the value of member $member.name$
+ * @return Value of member $member.name$
+ */
+$member_type_declaration(ctx = ctx, member = member)$ $class$::$member.name$() const
+{
+    $if(istop)$
+    $if(member.typecode.UseBBMode)$
+    if ($get_full_name(ctx=ctx, member=member)$ == nullptr) {
+        throw std::runtime_error("Invalid pointer: nullptr, please execute the loan_sample function first");
+    }
+$if(ctx.HideInternals)$
+$if(member.typecode.IsType_a)$
+    else if (reinterpret_cast<std::uintptr_t>(this->get_pImpl()) != ::CommonConstants::INVALID_POINTER_VALUE) {
+        (*reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$)->get_pImpl_addr()) = reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$::Impl*>(::CommonConstants::INVALID_POINTER_VALUE);
+    }
+$endif$
+$endif$
+
+    return (*reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$));
+    $else$
+$if(ctx.HideInternals)$
+    return ((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<$class$::Impl*>(reinterpret_cast<char*>(const_cast<$class$*>(this)) + sizeof($class$))
+        : pImpl)->m_$member.name$;
+$else$
+    return m_$member.name$;
+$endif$
+    $endif$
+    $else$
+$if(ctx.HideInternals)$
+    return ((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<$class$::Impl*>(reinterpret_cast<char*>(const_cast<$class$*>(this)) + sizeof($class$))
+        : pImpl)->m_$member.name$;
+$else$
+    return m_$member.name$;
+$endif$
+    $endif$
+}
+$endif$
+$else$
+
+/*!
+ * @brief This function returns a constant reference to member $member.name$
+ * @return Constant reference to member $member.name$
+ */
+const $member_type_declaration(ctx = ctx, member = member)$& $class$::$member.name$() const
+{
+    $if(istop)$
+    $if(member.typecode.UseBBMode)$
+    if ($get_full_name(ctx=ctx, member=member)$ == nullptr) {
+        throw std::runtime_error("Invalid pointer: nullptr, please execute the loan_sample function first");
+    }
+$if(ctx.HideInternals)$
+$if(member.typecode.IsType_a)$
+    else if (reinterpret_cast<std::uintptr_t>(this->get_pImpl()) != ::CommonConstants::INVALID_POINTER_VALUE) {
+        (*reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$)->get_pImpl_addr()) = reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$::Impl*>(::CommonConstants::INVALID_POINTER_VALUE);
+    }
+$endif$
+$endif$
+
+    $if(member.typecode.isSequenceType)$
+    uint32_t num = $if(ctx.HideInternals)$pImpl->$endif$m_$member.name$_size / sizeof($member.typecode.ContentTypeCode.cppTypename$);
+    static $member_type_declaration(ctx = ctx, member = member)$ tmp_$member.name$;
+    if (tmp_$member.name$.size() != num) {
+        tmp_$member.name$.resize(num);
+    }
+    $if(member.typecode.ContentTypeCode.IsType_7)$
+    bool* src = static_cast<bool*>$get_full_name(ctx=ctx, member=member)$;
+    for (uint32_t i = 0; i < num; ++i) {
+        tmp_$member.name$[i] = src[i];
+    }
+    $else$
+    memcpy(tmp_$member.name$.data(), $get_full_name(ctx=ctx, member=member)$, $if(ctx.HideInternals)$pImpl->$endif$m_$member.name$_size);
+    $endif$
+    return tmp_$member.name$;
+    $else$
+    return *reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$);
+    $endif$
+    $else$
+$if(ctx.HideInternals)$
+    return ((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<const $class$::Impl*>(reinterpret_cast<const char*>(this) + sizeof($class$))
+        : pImpl)->m_$member.name$;
+$else$
+    return m_$member.name$;
+$endif$
+    $endif$
+    $else$
+$if(ctx.HideInternals)$
+    return ((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<const $class$::Impl*>(reinterpret_cast<const char*>(this) + sizeof($class$))
+        : pImpl)->m_$member.name$;
+$else$
+    return m_$member.name$;
+$endif$
+    $endif$
+}
+$endif$
+
+$if(istop)$
+$if (member.typecode.UseBBMode)$
+$if (member.typecode.isSequenceType)$
+
+/*!
+ * @brief This function returns a pointer to member $member.name$
+ * @return pointer to member $member.name$
+ */
+ $member.typecode.ContentTypeCode.cppTypename$* $class$::$member.name$_ptr()
+ {
+    return reinterpret_cast<$member.typecode.ContentTypeCode.cppTypename$*>$get_full_name(ctx=ctx, member=member)$;
+ }
+
+/*!
+ * @brief This function set the size of member $member.name$
+ * @param _$member.name$_size the size of member $member.name$
+ */
+void  $class$::$member.name$_size(const uint32_t _$member.name$_size)
+{
+$if(ctx.HideInternals)$
+    if (reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE) {
+        return;
+    }
+    pImpl->m_$member.name$_size = sizeof($member.typecode.ContentTypeCode.cppTypename$) * _$member.name$_size;
+    if (pImpl->m_bigbuffer) {
+        uint32_t offset = 0;
+        for(uint32_t i = 0; i < pImpl->m_big_data_size.size(); i++ ) {
+            *pImpl->m_big_data_ptr[i] = static_cast<char*>(pImpl->m_bigbuffer) + offset;
+            offset += *pImpl->m_big_data_size[i];
+        }
+    }
+$else$
+    m_$member.name$_size = sizeof($member.typecode.ContentTypeCode.cppTypename$)*_$member.name$_size;
+    if (m_bigbuffer) {
+        uint32_t offset = 0;
+        for(uint32_t i = 0; i < m_big_data_size.size(); i++ ) {
+            *m_big_data_ptr[i] = static_cast<char*>(m_bigbuffer) + offset;
+            offset += *m_big_data_size[i];
+        }
+    }
+$endif$
+}
+
+/*!
+ * @brief This function returns a reference to member $member.name$
+ * @return Reference to member $member.name$
+ */
+uint32_t  $class$::$member.name$_size()
+{
+$if(ctx.HideInternals)$
+    if (reinterpret_cast<std::uintptr_t>(this->get_pImpl()) != ::CommonConstants::INVALID_POINTER_VALUE) {
+        return pImpl->m_$member.name$_size / sizeof($member.typecode.ContentTypeCode.cppTypename$);
+    }
+    return 0u;
+$else$
+    return m_$member.name$_size / sizeof($member.typecode.ContentTypeCode.cppTypename$);
+$endif$
+}
+$endif$
+$endif$
+$endif$
+
+>>
+
+public_primitive_member_declaration(ctx, class, member) ::= <<
+/*!
+ * @brief This function sets a value in member $member.name$
+ * @param _$member.name$ const reference for member $member.name$
+ */
+void $class$::$member.name$(
+        const $member_type_declaration(ctx = ctx, member = member)$& _$member.name$)
+{
+$if(member.NeedsPointer)$
+    if ($get_full_name(ctx=ctx, member=member)$) {
+        $if(member.NeedsPointer)$    *$else$    $endif$$get_full_name(ctx=ctx, member=member)$ = _$member.name$;
+    } else {
+        $get_full_name(ctx=ctx, member=member)$ = new $member_type_declaration(ctx = ctx, member = member)$(_$member.name$);
+    }
+$else$
+    $get_full_name(ctx=ctx, member=member)$ = _$member.name$;
+$endif$
+
+}
+
+/*!
+ * @brief This function moves the value in member $member.name$
+ * @param _$member.name$ New value to be moved in member $member.name$
+ */
+void $class$::$member.name$(
+        $member_type_declaration(ctx = ctx, member = member)$&& _$member.name$)
+{
+$if(member.NeedsPointer)$
+    if ($get_full_name(ctx=ctx, member=member)$) {
+        $if(member.NeedsPointer)$    *$else$    $endif$$get_full_name(ctx=ctx, member=member)$ = std::move(_$member.name$);
+    } else {
+        $get_full_name(ctx=ctx, member=member)$ = new $member_type_declaration(ctx = ctx, member = member)$(std::move(_$member.name$));
+    }
+$else$
+    $get_full_name(ctx=ctx, member=member)$ = _$member.name$;
+$endif$
+
+}
+
+/*!
+ * @brief This function returns a reference to member $member.name$
+ * @return Reference to member $member.name$
+ */
+$member_type_declaration(ctx = ctx, member = member)$& $class$::$member.name$()
+{
+    return $get_ref_full_name(ctx=ctx, member=member)$;
+}
+
+$if(member.typecode.primitive)$
+$if(ctx.RtiIdl)$
+/*!
+ * @brief This function returns a reference to member $member.name$
+ * @return Const reference to member $member.name$
+ */
+const $member_type_declaration(ctx = ctx, member = member)$& $class$::$member.name$() const
+{
+    return $get_ref_full_name(ctx=ctx, member=member)$;
+}
+$else$
+/*!
+ * @brief This function returns the value of member $member.name$
+ * @return Value of member $member.name$
+ */
+$member_type_declaration(ctx = ctx, member = member)$ $class$::$member.name$() const
+{
+    return $get_if_pointer_full_name(ctx = ctx, member = member)$;
+}
+$endif$
+$else$
+
+/*!
+ * @brief This function returns a constant reference to member $member.name$
+ * @return Constant reference to member $member.name$
+ */
+const $member_type_declaration(ctx = ctx, member = member)$& $class$::$member.name$() const
+{
+    return $get_ref_full_name(ctx=ctx, member=member)$;
+}
+$endif$
+>>
+
+public_cstring_member_declaration(ctx, class, member) ::= <<
+/*!
+ * @brief This function sets a value in member $member.name$
+ * @param _$member.name$ New value for member $member.name$
+ */
+void $class$::$member.name$(
+        const $member.typecode.cppTypename$ _$member.name$)
+{
+    free($get_full_name(ctx=ctx, member=member)$);
+    $get_full_name(ctx=ctx, member=member)$ = (char*)malloc(sizeof(char) * (strlen(_$member.name$) + 1));
+    strncpy($get_full_name(ctx=ctx, member=member)$, _$member.name$, strlen(_$member.name$) + 1);
+}
+
+/*!
+ * @brief This function returns the value of member $member.name$
+ * @return Value of member $member.name$
+ */
+const $member.typecode.cppTypename$ $class$::$member.name$() const
+{
+    return $get_if_pointer_full_name(ctx = ctx, member = member)$;
+}
+>>
+
+public_unionmember_declaration(ctx, class, member, totallabels, defaultvalue, union) ::= <<
+$if(ctx.generateTypesC)$
+$if(member.typecode.isStringType)$
+$unionmember_cstring_declaration(ctx=ctx, class=class, member=member, totallabels=totallabels, defaultvalue=defaultvalue, union = union)$
+$else$
+$public_unionmember_cpp_declaration(ctx=ctx, class=class, member=member, totallabels=totallabels, defaultvalue=defaultvalue)$
+$endif$
+$else$
+$public_unionmember_cpp_declaration(ctx=ctx, class=class, member=member, totallabels=totallabels, defaultvalue=defaultvalue)$
+$endif$
+>>
+
+unionmember_cstring_declaration(ctx, class, member, totallabels, defaultvalue, union) ::= <<
+void $class$::$member.name$(
+        const char* _$member.name$)
+{
+    free($get_full_name(ctx=ctx, member=member)$);
+    $get_full_name(ctx=ctx, member=member)$ = (char*)malloc(sizeof(char) * (strlen(_$member.name$) + 1));
+    strncpy($get_full_name(ctx=ctx, member=member)$, _$member.name$, strlen(_$member.name$));
+    $unionmember_set_discriminator(member=member, defaultvalue=defaultvalue)$
+}
+
+const char* $class$::$member.name$() const
+{
+    $unionmember_check_case_list(member=member, totallabels=totallabels, union=union)$
+
+    return $get_if_pointer_full_name(ctx = ctx, member = member)$;
+}
+>>
+
+public_unionmember_cpp_declaration(ctx, class, member, totallabels, defaultvalue) ::= <<
+
+$member_type_declaration(ctx = ctx, member = member)$& $class$::$member.name$()
+{
+    $unionmember_check_case_list(member=member, totallabels=totallabels, union=union)$
+
+    return $get_ref_full_name(ctx=ctx, member=member)$;
+}
+
+void $class$::$member.name$(
+        const $member_type_declaration(ctx = ctx, member = member)$& _$member.name$)
+{
+$if(member.NeedsPointer)$
+    if ($get_full_name(ctx=ctx, member=member)$) {
+        $if(member.NeedsPointer)$    *$else$    $endif$$get_full_name(ctx=ctx, member=member)$ = _$member.name$;
+    } else {
+        $get_full_name(ctx=ctx, member=member)$ = new $member_type_declaration(ctx = ctx, member = member)$(_$member.name$);
+    }
+$else$
+    $get_full_name(ctx=ctx, member=member)$ = _$member.name$;
+$endif$
+
+    $unionmember_set_discriminator(member=member, defaultvalue=defaultvalue)$
+}
+
+void $class$::$member.name$(
+        $member_type_declaration(ctx = ctx, member = member)$&& _$member.name$)
+{
+$if(member.NeedsPointer)$
+    if ($get_full_name(ctx=ctx, member=member)$) {
+        $if(member.NeedsPointer)$    *$else$    $endif$$get_full_name(ctx=ctx, member=member)$ = std::move(_$member.name$);
+    } else {
+        $get_full_name(ctx=ctx, member=member)$ = new $member_type_declaration(ctx = ctx, member = member)$(std::move(_$member.name$));
+    }
+$else$
+    $get_full_name(ctx=ctx, member=member)$ = std::move(_$member.name$);
+$endif$
+
+    $unionmember_set_discriminator(member=member, defaultvalue=defaultvalue)$
+}
+
+$if(member.typecode.primitive)$
+$if(ctx.RtiIdl)$
+const $member_type_declaration(ctx = ctx, member = member)$& $class$::$member.name$() const
+{
+    $unionmember_check_case_list(member=member, totallabels=totallabels, union=union)$
+
+    return $get_ref_full_name(ctx=ctx, member=member)$;
+}
+$else$
+$member_type_declaration(ctx = ctx, member = member)$ $class$::$member.name$() const
+{
+    $unionmember_check_case_list(member=member, totallabels=totallabels, union=union)$
+
+    return $get_if_pointer_full_name(ctx = ctx, member = member)$;
+}
+$endif$
+$else$
+
+const $member_type_declaration(ctx = ctx, member = member)$& $class$::$member.name$() const
+{
+    $unionmember_check_case_list(member=member, totallabels=totallabels, union=union)$
+
+    return $get_ref_full_name(ctx=ctx, member=member)$;
+}
+$endif$
+>>
+
+member_copy(ctx, member, istop, isImpl) ::= <<
+$if(member.NeedsPointer)$
+if (x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$) {
+    if (!$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$) {
+        $get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = new $member.typecode.cppTypename$(*x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$);
+    } else {
+        *$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = *x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$;
+    }
+} else if ($get_full_name(ctx=ctx, member=member, isImpl=isImpl)$) {
+    delete $get_full_name(ctx=ctx, member=member, isImpl=isImpl)$;
+    $get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = nullptr;
+}
+$elseif(ctx.generateTypesC)$
+$if(member.typecode.isStringType)$
+free($get_full_name(ctx=ctx, member=member, isImpl=isImpl)$);
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = (char*)malloc(sizeof(char) * (strlen(x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$) + 1));
+strncpy($get_full_name(ctx=ctx, member=member, isImpl=isImpl)$, x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$, strlen(x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$) + 1);
+$else$
+$if(ctx.HideInternals)$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl, offset_ptr="thisImpl")$ = $if(isImpl)$x.$endif$$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl, offset_ptr="sourceImpl")$;
+$else$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$;
+$endif$
+$endif$
+$else$
+$if(ctx.HideInternals)$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl, offset_ptr="thisImpl")$ =  $if(isImpl)$x.$endif$$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl, offset_ptr="sourceImpl")$;
+$else$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$;
+$endif$
+$endif$
+>>
+
+member_move(member, ctx, istop, isImpl) ::= <<
+$if(member.typecode.primitive)$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$;
+$else$
+$if(member.NeedsPointer)$
+if ($get_full_name(ctx=ctx, member=member, isImpl=isImpl)$) {
+    delete $get_full_name(ctx=ctx, member=member, isImpl=isImpl)$;
+}
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$;
+x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$ = nullptr;
+$else$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = std::move(x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$);
+$endif$
+$endif$
+>>
+
+member_move_bb_mode(member, ctx, istop, isImpl) ::= <<
+$if(istop)$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$;
+$else$
+$member_move(member=member, ctx=ctx, istop=istop, isImpl=isImpl)$
+$endif$
+>>
+
+member_copy_by_parameters(ctx, member) ::= <<
+$if(member.NeedsPointer)$
+$get_full_name(ctx=ctx, member=member)$ = new $member.typecode.cppTypename$();
+*$get_full_name(ctx=ctx, member=member)$ = $member.name$;
+$elseif(ctx.generateTypesC)$
+$if(member.typecode.isStringType)$
+free($get_full_name(ctx=ctx, member=member)$);
+$get_full_name(ctx=ctx, member=member)$ = (char*)malloc(sizeof(char) * (strlen($member.name$) + 1));
+strncpy($get_full_name(ctx=ctx, member=member)$, $member.name$, strlen($member.name$) + 1);
+$else$
+$get_full_name(ctx=ctx, member=member)$ = $member.name$;
+$endif$
+$else$
+$get_full_name(ctx=ctx, member=member)$ = $member.name$;
+$endif$
+>>
+
+// TODO Mirar si el default: esta delante de otros casos, el resto no se ejecuta.
+unionmember_discriminator_case(member, totallabels, union) ::= <<
+$if(member.default)$
+default:
+b = true;
+switch(__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+{
+    $totallabels:{case $it$:}; separator="\n"$
+    b = false;
+    break;
+    default:
+    break;
+}
+break;
+$else$
+$member.labels:{case $it$:}; separator="\n"$
+switch(__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+{
+    $member.labels:{case $it$:}; separator="\n"$
+    b = true;
+    break;
+    default:
+    break;
+}
+break;
+$endif$
+>>
+
+unionmember_copy(member, isImpl) ::= <<
+$if(member.labels)$
+$member.labels:{case $it$:}; separator="\n"$
+$if(member.NeedsPointer)$
+if (x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$) {
+    if (!$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$) {
+        $get_full_name(ctx=ctx, member=member)$ = new $member.typecode.cppTypename$(*x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$);
+    } else {
+        *$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = *x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$;
+    }
+} else if ($get_full_name(ctx=ctx, member=member, isImpl=isImpl)$) {
+    delete $get_full_name(ctx=ctx, member=member, isImpl=isImpl)$;
+    $get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = nullptr;
+}
+$else$
+$if(ctx.HideInternals)$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl, offset_ptr="thisImpl")$ =  $if(isImpl)$x.$endif$$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl, offset_ptr="sourceImpl")$;
+$else$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$;
+$endif$
+$endif$
+
+break;
+$endif$
+>>
+
+unionmemberdefault_copy(member, isImpl) ::= <<
+default:
+$if(member)$
+$if(member.default)$
+$if(member.NeedsPointer)$
+if ($get_full_name(ctx=ctx, member=member, isImpl=isImpl)$) {
+    delete $get_full_name(ctx=ctx, member=member, isImpl=isImpl)$;
+}
+if (x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$) {
+    $get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = new $member.typecode.cppTypename$(*x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$);
+} else {
+    $get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = nullptr;
+}
+$else$
+$if(ctx.HideInternals)$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl, offset_ptr="thisImpl")$ =  $if(isImpl)$x.$endif$$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl, offset_ptr="sourceImpl")$;
+$else$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$;
+$endif$
+$endif$
+$endif$
+$endif$
+
+break;
+>>
+
+unionmember_move(member, isImpl) ::= <<
+$if(member.labels)$
+$member.labels:{case $it$:}; separator="\n"$
+$if(member.typecode.primitive)$
+$if(ctx.HideInternals)$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl, offset_ptr="thisImpl")$ =  $if(isImpl)$x.$endif$$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl, offset_ptr="sourceImpl")$;
+$else$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$;
+$endif$
+$else$
+$if(member.NeedsPointer)$
+if ($get_full_name(ctx=ctx, member=member, isImpl=isImpl)$) {
+    delete $get_full_name(ctx=ctx, member=member, isImpl=isImpl)$;
+}
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = std::move(x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$);
+x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$ = nullptr;
+$else$
+$if(ctx.HideInternals)$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl, offset_ptr="thisImpl")$ =  std::move($if(isImpl)$x.$endif$$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl, offset_ptr="sourceImpl")$);
+$else$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = std::move(x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$);
+$endif$
+$endif$
+$endif$
+
+break;
+$endif$
+>>
+
+unionmemberdefault_move(member, isImpl) ::= <<
+default:
+$if(member)$
+$if(member.default)$
+$if(member.typecode.primitive)$
+$if(ctx.HideInternals)$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl, offset_ptr="thisImpl")$ =  $if(isImpl)$x.$endif$$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl, offset_ptr="sourceImpl")$;
+$else$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$;
+$endif$
+$else$
+$if(ctx.HideInternals)$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl, offset_ptr="thisImpl")$ = std::move( $if(isImpl)$x.$endif$$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl, offset_ptr="sourceImpl")$);
+$else$
+$get_full_name(ctx=ctx, member=member, isImpl=isImpl)$ = std::move(x.$get_full_name(ctx=ctx, member=member, flag = "false", isImpl=isImpl)$);
+$endif$
+$endif$
+$endif$
+$endif$
+
+break;
+>>
+
+unionmember_swap(member) ::= <<
+$if(member.labels)$
+$member.labels:{case $it$:}; separator="\n"$
+std::swap($get_full_name(ctx=ctx, member=member)$, other_.$get_full_name(ctx=ctx, member=member, flag = "false")$);
+break;
+$endif$
+>>
+
+unionmemberdefault_swap(member) ::= <<
+default:
+$if(member)$
+$if(member.default)$
+std::swap($get_full_name(ctx=ctx, member=member)$, other_.$get_full_name(ctx=ctx, member=member, flag = "false")$);
+$endif$
+$endif$
+
+break;
+>>
+
+unionmember_reset_all_member(member) ::= <<
+$if(member.labels)$
+$member.labels:{case $it$:}; separator="\n"$
+$if(member.typecode.UseBBMode)$
+    $reset_member_bb_mode(member=member)$
+$else$
+    $reset_member(member=member)$
+$endif$
+break;
+$endif$
+>>
+
+unionmemberdefault_reset_all_member(member) ::= <<
+default:
+$if(member)$
+$if(member.default)$
+$if(member.typecode.UseBBMode)$
+    $reset_member_bb_mode(member=member)$
+$else$
+    $reset_member(member=member)$
+$endif$
+$endif$
+$endif$
+
+break;
+>>
+
+unionmember_update_test(member, pre_name) ::= <<
+$if(member.labels)$
+$member.labels:{case $it$:}; separator="\n"$
+$if(ctx.ZeroCopy)$
+    $update_member_bb_mode(member=member, pre_name=pre_name)$
+$else$
+    $update_member(member=member, typecode = member.typecode, pre_name=pre_name)$
+$endif$
+break;
+$endif$
+>>
+
+unionmemberdefault_update_test(member, pre_name) ::= <<
+default:
+$if(member)$
+$if(member.default)$
+$if(ctx.ZeroCopy)$
+    $update_member_bb_mode(member=member, pre_name=pre_name)$
+$else$
+    $update_member(member=member, typecode = member.typecode, pre_name=pre_name)$
+$endif$
+$endif$
+$endif$
+
+break;
+>>
+
+unionmember_op(member, pre_name, is_json, member_name) ::= <<
+$if(member.labels)$
+$member.labels:{case $it$:}; separator="\n"$
+$print_stream(member=member, pre_name=pre_name, is_json=is_json, member_name=member_name)$
+break;
+$endif$
+>>
+
+unionmemberdefault_op(member, pre_name, is_json, member_name) ::= <<
+default:
+$if(member)$
+$if(member.default)$
+$print_stream(member=member, pre_name=pre_name, is_json=is_json, member_name=member_name)$
+$endif$
+$endif$
+
+break;
+>>
+
+unionmember_compare(member) ::= <<
+$if(member.labels)$
+$member.labels:{case $it$:}; separator="\n"$
+$if(ctx.HideInternals)$
+    return ($get_full_name(ctx=ctx, member=member, offset_ptr="thisImpl")$ == $get_full_name(ctx=ctx, member=member, flag = "false", offset_ptr="sourceImpl")$);
+$else$
+    return ($get_full_name(ctx=ctx, member=member)$ == x.$get_full_name(ctx=ctx, member=member, flag = "false")$);
+$endif$
+
+    break;
+$endif$
+>>
+
+unionmemberdefault_compare(member) ::= <<
+default:
+$if(member)$
+$if(member.default)$
+$if(ctx.HideInternals)$
+    return ($get_full_name(ctx=ctx, member=member, offset_ptr="thisImpl")$ == $get_full_name(ctx=ctx, member=member, flag = "false", offset_ptr="sourceImpl")$);
+$else$
+    return ($get_full_name(ctx=ctx, member=member)$ == x.$get_full_name(ctx=ctx, member=member, flag = "false")$);
+$endif$
+$endif$
+$endif$
+
+break;
+>>
+
+unionmember_set_discriminator(member, defaultvalue) ::= <<
+$if(member.default)$
+$if(ctx.HideInternals)$pImpl->$endif$m__d = $defaultvalue$;
+$else$
+$if(ctx.HideInternals)$pImpl->$endif$m__d = $first(member.labels)$;
+$endif$
+>>
+
+unionmember_check_case_list(member, totallabels, union) ::= <<
+$if(member.default)$
+bool b = true;
+
+switch($if(ctx.HideInternals)$pImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+{
+    $totallabels:{case $it$:}; separator="\n"$
+    b = false;
+    break;
+    default:
+    break;
+}
+$else$
+bool b = false;
+
+switch($if(ctx.HideInternals)$pImpl->$endif$m__d$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+{
+    $member.labels:{case $it$:}; separator="\n"$
+    b = true;
+    break;
+    default:
+    break;
+}
+$endif$
+
+if(!b)
+{
+    throw $if(!ctx.PureStructure)$$empty_namespace_get(ctx=ctx)$BadParamException$else$std::invalid_argument$endif$("This member is not been selected");
+}
+>>
+
+unionmember_case_selection_se(ctx, member) ::= <<
+$if(member.labels)$
+$member.labels:{ label |case $label$:}; separator="\n"$
+$object_serialization_in_types_source(ctx=ctx, member=member)$
+break;
+$endif$
+>>
+
+unionmemberdefault_case_selection_se(ctx, member) ::= <<
+default:
+$if(member)$
+$if(member.default)$
+$object_serialization_in_types_source(ctx=ctx, member=member)$
+$endif$
+$endif$
+
+break;
+>>
+
+unionmember_case_selection_de(ctx, member) ::= <<
+$if(member.labels)$
+$member.labels:{ label |case $label$:}; separator="\n"$
+$object_deserialization_in_types_source(ctx=ctx, member=member)$
+break;
+$endif$
+>>
+
+unionmemberdefault_case_selection_de(ctx, member) ::= <<
+default:
+$if(member)$
+$if(member.default)$
+$object_deserialization_in_types_source(ctx=ctx, member=member)$
+$endif$
+$endif$
+
+break;
+>>
+
+unionmember_case_selection_sesize(ctx, member, data, var) ::= <<
+$if(member.labels)$
+$member.labels:{ label |case $label$:}; separator="\n"$
+$serialized_size(ctx=ctx, object=member, data=data, var=var)$
+break;
+$endif$
+>>
+
+unionmemberdefault_case_selection_sesize(ctx, member, data, var) ::= <<
+default:
+$if(member)$
+$if(member.default)$
+$serialized_size(ctx=ctx, object=member, data=data, var=var)$
+$endif$
+$endif$
+
+break;
+>>
+
+print_stream(member, pre_name, is_json, member_name) ::= <<
+$if(member.annotationOptional)$
+if(sample.$member.name$().has_value()) $left_brackets()$
+
+$endif$
+
+$if(is_json)$
+$if(member.typecode.NeedPrintHelp)$
+o << "$print_stream_name(member=member, is_json=is_json)$: ";
+$member_name$::vbs_print_os$pre_name$(o,sample.$member.name$()$if(member.annotationOptional)$.value()$endif$, true);
+o << "$print_stream_suffix(ctx.SingleLineOutput)$";
+$elseif(member.typecode.IsWStringType)$
+o << "$print_stream_name(member=member, is_json=is_json)$: ";
+$member_name$::vbs_print_os$pre_name$(o,sample.$member.name$()$if(member.annotationOptional)$.value()$endif$, true);
+
+o <<"$print_stream_suffix(ctx.SingleLineOutput)$";
+$elseif(member.typecode.HasToDataStringFunc)$
+o << "$print_stream_name(member=member, is_json=is_json)$: ";
+vbs::data_to_json_string(sample.$member.name$()$if(member.annotationOptional)$.value()$endif$, o_ptr, false);
+
+o <<"$print_stream_suffix(ctx.SingleLineOutput)$";
+$else$
+o << "$print_stream_name(member=member, is_json=is_json)$: ";
+$member_name$::vbs_print_os$pre_name$(o,sample.$member.name$()$if(member.annotationOptional)$.value()$endif$, true);
+o <<"$print_stream_suffix(ctx.SingleLineOutput)$";
+$endif$
+
+$else$
+
+$if(member.typecode.NeedPrintHelp)$
+o << "$print_stream_name(member=member, is_json=is_json)$: ";
+print$pre_name$(o,sample.$member.name$()$if(member.annotationOptional)$.value()$endif$);
+o << "$print_stream_suffix(ctx.SingleLineOutput)$";
+$elseif(member.typecode.IsType_uint8)$
+o << "$print_stream_name(member=member, is_json=is_json)$: " << unsigned((sample.$member.name$()$if(member.annotationOptional)$.value()$endif$)) << "$print_stream_suffix(ctx.SingleLineOutput)$";
+$elseif(member.typecode.IsWStringType)$
+o << "$print_stream_name(member=member, is_json=is_json)$: "<< std::string(sample.$member.name$()$if(member.annotationOptional)$.value()$endif$.begin(), sample.$member.name$()$if(member.annotationOptional)$.value()$endif$.end())<<"$print_stream_suffix(ctx.SingleLineOutput)$";
+$elseif(member.typecode.IsType_d)$
+$if(member.typecode.IsBounded)$
+o << "$print_stream_name(member=member, is_json=is_json)$: "<< sample.$member.name$()$if(member.annotationOptional)$.value()$endif$.to_string()<<"$print_stream_suffix(ctx.SingleLineOutput)$";
+$else$
+o << "$print_stream_name(member=member, is_json=is_json)$: " << sample.$member.name$()$if(member.annotationOptional)$.value()$endif$<<"$print_stream_suffix(ctx.SingleLineOutput)$";
+$endif$
+$elseif(member.typecode.HasToDataStringFunc)$
+o << "$print_stream_name(member=member, is_json=is_json)$: ";
+print$pre_name$(o, sample.$member.name$()$if(member.annotationOptional)$.value()$endif$);
+
+o <<"$print_stream_suffix(ctx.SingleLineOutput)$";
+$else$
+$if(member.typecode.IsType_7)$
+o << "$print_stream_name(member=member, is_json=is_json)$: ";
+print$pre_name$(o,sample.$member.name$()$if(member.annotationOptional)$.value()$endif$);
+o << "$print_stream_suffix(ctx.SingleLineOutput)$";
+$else$
+o << "$print_stream_name(member=member, is_json=is_json)$: ";
+print$pre_name$(o,sample.$member.name$()$if(member.annotationOptional)$.value()$endif$);
+o <<"$print_stream_suffix(ctx.SingleLineOutput)$";
+$endif$
+$endif$
+$endif$
+
+$if(member.annotationOptional)$
+
+$right_brackets()$ else $left_brackets()$
+o << "$member.name$: has no value\n";
+$right_brackets()$
+$endif$
+>>
+
+print_stream_bb_mode(member, istop, pre_name, is_json, member_name) ::= <<
+$if(istop)$
+$if(member.typecode.NeedPrintHelp)$
+$print_stream(member=member,pre_name=pre_name, is_json=is_json, member_name=member_name)$
+$elseif(member.typecode.IsWStringType)$
+o << "$print_stream_name(member=member, is_json=is_json)$: "<< std::string(sample.$member.name$()$if(member.annotationOptional)$.value()$endif$.begin(), sample.$member.name$()$if(member.annotationOptional)$.value()$endif$.end())<<"$print_stream_suffix(ctx.SingleLineOutput)$";
+$elseif(member.typecode.IsType_d)$
+o << "$print_stream_name(member=member, is_json=is_json)$: "<< (sample.$member.name$()$if(member.annotationOptional)$.value()$endif$).to_string()<<"$print_stream_suffix(ctx.SingleLineOutput)$";
+$else$
+o << "$print_stream_name(member=member, is_json=is_json)$: "<<(sample.$member.name$()$if(member.annotationOptional)$.value()$endif$)<<"$print_stream_suffix(ctx.SingleLineOutput)$";
+$endif$
+$else$
+$print_stream(member=member,pre_name=pre_name, is_json=is_json, member_name=member_name)$
+$endif$
+>>
+
+update_member_change(typecode, pre_name) ::= <<
+$if(typecode.IsType_8)$
+static_cast<char>(index % 256)$elseif(typecode.IsType_7)$
+(index % 2 == 0)$elseif(typecode.IsType_9)$
+static_cast<uint8_t>(index % 256)$elseif(typecode.IsStringType)$
+int_to_string$pre_name$(index)$elseif(typecode.IsWStringType)$
+int_to_wstring$pre_name$(index)$elseif(typecode.IsType_c)$
+tmp_enum_array[index % $typecode.EnumSize$]$elseif(typecode.IsBitmaskType)$
+tmp_enum_array[index % $typecode.EnumSize$]$else$
+index$endif$>>
+
+update_member(member, typecode, pre_name) ::= <<
+$if(member.AnnotationOptional)$
+if(!$get_full_name(ctx=ctx, member=member)$$if(member.typecode.forwarded)$->$else$.$endif$has_value()) $left_brackets()$
+$if(ctx.ZeroCopy)$$if(member.typecode.isSequenceType)$$if(!struct.Top)$$member.typecode.BBCppTypename$$else$$member.typecode.cppTypename$$endif$$else$$member.typecode.BBCppTypename$$endif$$else$$member.typecode.cppTypename$$endif$ tmp_mem;
+$get_full_name(ctx=ctx, member=member)$ = tmp_mem;
+$right_brackets()$
+$endif$
+
+$if(typecode.IsType_a)$
+$update_optional_member(member = member, typecode = typecode)$
+
+$elseif(typecode.IsUnionType)$
+$update_optional_member(member = member, typecode = typecode)$
+
+$elseif(typecode.IsType_c)$
+    {
+    $typecode.scopedname$ tmp_enum_array[] = {$typecode.members:{$typecode.Scopedname$::$it.name$}; separator=","$};
+    $need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$ = $update_member_change(typecode=typecode, pre_name=pre_name)$;
+    }
+
+$elseif(typecode.IsType_e)$
+    $update_seq_member(member=member, typecode=typecode, pre_name= pre_name)$
+
+$elseif(typecode.IsType_19)$
+    $if(typecode.ValueTypeCode.IsType_a)$
+    ($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)[$update_member_change(typecode=typecode.KeyTypeCode, pre_name=pre_name)$]$if(typecode.NeedsPointer)$->$else$.$endif$updateTest($update_member_change(typecode=typecode.ValueTypeCode, pre_name=pre_name)$);
+    $elseif(typecode.ValueTypeCode.Primitive)$
+    ($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)[$update_member_change(typecode=typecode.KeyTypeCode, pre_name=pre_name)$] = $update_member_change(typecode=typecode.ValueTypeCode, pre_name=pre_name)$;
+    $else$
+    $endif$
+
+$elseif(typecode.IsType_f)$
+    $update_array_member(member=member, typecode=typecode)$
+
+$elseif(typecode.IsBitmaskType)$
+    {
+        $typecode.scopedname$ tmp_enum_array[] = {$typecode.members:{$typecode.Scopedname$::$it.name$}; separator=","$};
+        ($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$) = $update_member_change(typecode=typecode, pre_name=pre_name)$;
+    }
+
+$elseif(typecode.IsBitsetType)$
+    ($if(member.AnnotationOptional)$*$endif$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)$if(typecode.NeedsPointer)$->$else$.$endif$updateTest(index);
+
+$elseif(typecode.IsType_10)$
+    $update_member(member = member, typecode = typecode.ContentTypeCode, pre_name= pre_name)$
+
+$else$
+    ($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$) = $update_member_change(typecode=typecode, pre_name=pre_name)$;
+
+$endif$
+>>
+
+update_member_bb_mode(member, istop, pre_name) ::= <<
+$if(member.typecode.IsType_e)$
+$if(member.typecode.UseBBMode)$
+$if(istop)$
+$if(member.typecode.Unbound)$
+($if(member.NeedsPointer)$*$endif$*reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)).resize(($if(member.NeedsPointer)$*$endif$*reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)).all_capacity());
+$endif$
+
+($if(member.NeedsPointer)$*$endif$*reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$))[($if(member.NeedsPointer)$*$endif$*reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)).size() - 1] = $update_member_change(typecode=member.typecode.ContentTypeCode)$;
+$else$
+$if(member.typecode.Unbound)$
+$update_seq_member(member=member, typecode=member.typecode, pre_name= pre_name)$
+$else$
+$update_array_member(member=member, typecode=member.typecode)$
+$endif$
+$endif$
+$else$
+$if(member.typecode.Unbound)$
+$update_seq_member(member=member, typecode=member.typecode, pre_name= pre_name)$
+$else$
+$update_array_member(member=member, typecode=member.typecode)$
+$endif$
+$endif$
+
+$elseif(member.typecode.StringType)$
+$if(member.typecode.UseBBMode)$
+$if(istop)$
+std::string tmp_$member.name$ = $update_member_change(typecode=member.typecode, pre_name=pre_name)$;
+if ($get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$) {
+    memcpy($get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$ , tmp_$member.name$.c_str(), strlen(tmp_$member.name$.c_str())+1);
+}
+$else$
+($if(member.typecode.NeedsPointer)$*$endif$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$) = $update_member_change(typecode=member.typecode, pre_name=pre_name)$;
+$endif$
+$else$
+($if(member.typecode.NeedsPointer)$*$endif$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$) = $update_member_change(typecode=member.typecode, pre_name=pre_name)$;
+$endif$
+
+$elseif(member.typecode.IsType_f)$
+$if(member.typecode.UseBBMode)$
+$if(istop)$
+$member_type_declaration(ctx = ctx, member = member)$* tmp_$member.name$ = reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$);
+fillArray$pre_name$(*tmp_$member.name$, static_cast<$member.typecode.InnerContentTypeCode.cppTypename$>(index));
+$else$
+$update_array_member(member=member, typecode=member.typecode)$
+$endif$
+$else$
+$update_array_member(member=member, typecode=member.typecode)$
+$endif$
+
+$elseif(member.typecode.IsType_a)$
+$if(member.typecode.UseBBMode)$
+$if(istop)$
+$if(ctx.HideInternals)$
+if (reinterpret_cast<std::uintptr_t>(this->get_pImpl()) != ::CommonConstants::INVALID_POINTER_VALUE) {
+    (*reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)->get_pImpl_addr()) = reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$::Impl*>(::CommonConstants::INVALID_POINTER_VALUE);
+}
+$endif$
+
+reinterpret_cast<$member.typecode.scopedname$*>(($if(member.AnnotationOptional)$*$endif$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$))->updateTest(index);
+$else$
+$update_optional_member(member = member, typecode = member.typecode)$
+$endif$
+$else$
+$update_optional_member(member = member, typecode = member.typecode)$
+$endif$
+
+$else$
+$update_member(member=member, typecode = member.typecode, pre_name=pre_name)$
+$endif$
+>>
+
+update_seq_member(member, typecode,pre_name) ::= <<
+$if(typecode.ContentTypeCode.SUBS)$
+$typecode.ContentTypeCode.cppTypename$ tmp_$member.name$;
+tmp_$member.name$$if(typecode.NeedsPointer)$->$else$.$endif$updateTest(index);
+($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$).push_back(tmp_$member.name$);
+$elseif(typecode.ContentTypeCode.IsType_e)$
+$typecode.ContentTypeCode.cppTypename$ tmp_$member.name$;
+($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$).push_back(tmp_$member.name$);
+$elseif(typecode.ContentTypeCode.IsType_c)$
+{
+    $typecode.ContentTypeCode.scopedname$ tmp_enum_array[] = {$typecode.ContentTypeCode.members:{$typecode.ContentTypeCode.Scopedname$::$it.name$}; separator=","$};
+    ($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$).push_back($update_member_change(typecode=typecode.ContentTypeCode, pre_name=pre_name)$);
+}
+$elseif(typecode.ContentTypeCode.IsBitmaskType)$
+{
+    $typecode.ContentTypeCode.scopedname$ tmp_enum_array[] = {$typecode.ContentTypeCode.members:{$typecode.ContentTypeCode.Scopedname$::$it.name$}; separator=","$};
+    ($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$).push_back($update_member_change(typecode=typecode.ContentTypeCode, pre_name=pre_name)$);
+}
+$elseif(typecode.ContentTypeCode.IsType_10)$
+$typecode.ContentTypeCode.cppTypename$ tmp_$member.name$ = $update_member_change(typecode=typecode.ContentTypeCode.TrueContentTypeCode, pre_name=pre_name)$;
+($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$).push_back(tmp_$member.name$);
+$else$
+($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$).push_back($update_member_change(typecode=typecode.ContentTypeCode, pre_name=pre_name)$);
+$endif$
+
+>>
+
+update_array_member(member, typecode) ::= <<
+$if(typecode.ContentTypeCode.IsType_a)$
+$member.UpdateTestString$
+$elseif(typecode.ContentTypeCode.Primitive)$
+$if(ctx.CheckNewLetterVarName)$$endif$
+$typecode.DimensionsTrueValue:{ dim |
+$for_begin(name = ctx.NextLetterVarName, size = dim)$
+}; separator="\n"$
+$if(ctx.CheckNewLetterVarName)$$endif$
+
+$if(typecode.ContentTypeCode.IsType_c)$
+    {
+        $typecode.ContentTypeCode.scopedname$ tmp_enum_array[] = {$typecode.ContentTypeCode.members:{$typecode.ContentTypeCode.Scopedname$::$it.name$}; separator=","$};
+        ($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)$typecode.DimensionsTrueValue:{ dim |[$ctx.NextLetterVarName$]}; separator=""$ = $update_member_change(typecode=typecode.ContentTypeCode, pre_name=pre_name)$;
+    }
+$elseif(typecode.ContentTypeCode.IsBitmaskType)$
+    {
+        $typecode.ContentTypeCode.scopedname$ tmp_enum_array[] = {$typecode.ContentTypeCode.members:{$typecode.ContentTypeCode.Scopedname$::$it.name$}; separator=","$};
+        ($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)$typecode.DimensionsTrueValue:{ dim |[$ctx.NextLetterVarName$]}; separator=""$ = $update_member_change(typecode=typecode.ContentTypeCode, pre_name=pre_name)$;
+    }
+$else$
+    ($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)$typecode.DimensionsTrueValue:{ dim |[$ctx.NextLetterVarName$]}; separator=""$ = $update_member_change(typecode=typecode.ContentTypeCode, pre_name=pre_name)$;
+$endif$
+
+$typecode.DimensionsTrueValue:{ dim |
+$right_brackets()$
+}; separator="\n"$
+$elseif(typecode.ContentTypeCode.IsType_10)$
+$if(typecode.ContentTypeCode.DeepestContentTypeCode.IsType_a)$
+std::for_each(($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$).begin(), ($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$).end(), [index]( $typecode.ContentTypeCode.DeepestContentTypeCode.cppTypename$& obj) {
+    obj.updateTest($update_member_change(typecode=typecode.ContentTypeCode.DeepestContentTypeCode, pre_name=pre_name)$);
+});
+$elseif(typecode.ContentTypeCode.DeepestContentTypeCode.Primitive)$
+$if(ctx.CheckNewLetterVarName)$$endif$
+$typecode.DimensionsTrueValue:{ dim |
+$for_begin(name = ctx.NextLetterVarName, size = dim)$
+}; separator="\n"$
+$if(ctx.CheckNewLetterVarName)$$endif$
+        ($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)$typecode.DimensionsTrueValue:{ dim |[$ctx.NextLetterVarName$]}; separator=""$ = $update_member_change(typecode=typecode.ContentTypeCode.DeepestContentTypeCode, pre_name=pre_name)$;
+$typecode.DimensionsTrueValue:{ dim |
+$right_brackets()$
+}; separator="\n"$
+$elseif(typecode.ContentTypeCode.TrueContentTypeCode.IsType_e)$
+{
+    $if(ctx.CheckNewLetterVarName)$$endif$
+    $typecode.DimensionsTrueValue:{ dim |
+    $for_begin(name = ctx.NextLetterVarName, size = dim)$
+    }; separator="\n"$
+    $typecode.ContentTypeCode.TrueContentTypeCode.cppTypename$ tmp_$member.name$;
+    tmp_$member.name$.push_back($update_member_change(typecode=typecode.ContentTypeCode.ContentTypeCode, pre_name=pre_name)$);
+    $if(ctx.CheckNewLetterVarName)$$endif$
+        ($need_star_pre(member=member)$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)$typecode.DimensionsTrueValue:{ dim |[$ctx.NextLetterVarName$]}; separator=""$ = tmp_$member.name$;
+
+    $typecode.DimensionsTrueValue:{ dim |
+    $right_brackets()$
+    }; separator="\n"$
+
+}
+$else$
+$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$;
+$endif$
+$else$
+$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$;
+$endif$
+
+>>
+
+sequences_definition(typecode) ::= <<
+$sequences_definition_impl(typecode=typecode, scopedtypename=typecode.cppTypename, typename=typecode.cppTypename)$
+>>
+
+sequences_definition_impl(typecode, scopedtypename, typename) ::= <<
+
+$scopedtypename$::$typename$()
+{
+    // value_ = new $typecode.contentTypeCode.cppTypename$[maximum_];
+    value_ = nullptr;
+}
+
+$scopedtypename$::$typename$(
+        uint32_t maximum)
+    : maximum_(maximum)
+{
+    // value_ = new $typecode.contentTypeCode.cppTypename$[maximum_];
+    value_ = nullptr;
+}
+
+$scopedtypename$::$typename$(
+        uint32_t length,
+        $typecode.contentTypeCode.cppTypename$* data,
+        bool release)
+    : length_(length)
+    , value_(data)
+    , release_(release)
+{
+}
+
+$scopedtypename$::$typename$(
+        const $typename$& $typename$_)
+    : maximum_($typename$_.maximum_)
+    , length_($typename$_.length_)
+    , release_(true)
+{
+    value_ = new $typecode.contentTypeCode.cppTypename$[length_];
+    for (uint32_t i = 0; i < length_; ++i)
+    {
+        $if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$
+        strncpy(value_[i], $typename$_.value_[i], strlen($typename$_.value_[i]) + 1);
+        $else$
+        value_[i] = $typename$_.value_[i];$endif$$else$
+        value_[i] = $typename$_.value_[i];$endif$
+    }
+}
+
+$scopedtypename$& $scopedtypename$::operator =(
+        const $typename$& $typename$_)
+{
+    maximum_ = $typename$_.maximum_;
+    length_ = $typename$_.length_;
+    free_memory();
+    release_ = true;
+
+    value_ = new $typecode.contentTypeCode.cppTypename$[length_];
+    for (uint32_t i = 0; i < length_; ++i)
+    {
+        $if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$
+        strncpy(value_[i], $typename$_.value_[i], strlen($typename$_.value_[i]) + 1);
+        $else$
+        value_[i] = $typename$_.value_[i];$endif$$else$
+        value_[i] = $typename$_.value_[i];$endif$
+    }
+
+    return *this;
+}
+
+$scopedtypename$::~$typename$()
+{
+    free_memory();
+}
+
+$typecode.contentTypeCode.cppTypename$$if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$$else$&$endif$$else$&$endif$ $scopedtypename$::operator[](
+        uint32_t index)
+{
+    if (value_ == nullptr)
+    {
+        if (maximum_ == 0)
+        {
+            if (length_ != 0) // Must be set. If not, will return nullptr[index] and crash.
+            {
+                value_ = new $typecode.contentTypeCode.cppTypename$[length_];
+            }
+        }
+        else
+        {
+            value_ = new $typecode.contentTypeCode.cppTypename$[maximum_];
+        }
+
+        $if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$
+        for (uint32_t count = 0; count < length_; ++count)
+        {
+            value_[count] = nullptr;
+        }
+        $else$$endif$$else$$endif$
+    }
+
+    return value_[index];
+}
+
+const $typecode.contentTypeCode.cppTypename$$if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$$else$&$endif$$else$&$endif$ $scopedtypename$::operator[](
+        uint32_t index) const
+{
+    if (value_ == nullptr)
+    {
+        if (maximum_ == 0)
+        {
+            if (length_ != 0) // Must be set. If not, will return nullptr[index] and crash.
+            {
+                value_ = new $typecode.contentTypeCode.cppTypename$[length_];
+            }
+        }
+        else
+        {
+            value_ = new $typecode.contentTypeCode.cppTypename$[maximum_];
+        }
+
+        $if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$
+        for (uint32_t count = 0; count < length_; ++count)
+        {
+            value_[count] = nullptr;
+        }
+        $else$$endif$$else$$endif$
+    }
+
+    return value_[index];
+}
+
+void $scopedtypename$::size(
+        uint32_t size)
+{
+    if (maximum_ == 0)
+    {
+        if(value_ != nullptr && size > length_)
+        {
+            $typecode.contentTypeCode.cppTypename$* temp = new $typecode.contentTypeCode.cppTypename$[size];
+            for (uint32_t i = 0; i < length_; ++i)
+            {
+                $if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$
+                if (value_[i] != nullptr)
+                {
+                    strncpy(temp[i], value_[i], strlen(value_[i]) + 1);
+                }
+                else
+                {
+                    temp[i] = nullptr;
+                }
+                $else$
+                temp[i] = value_[i];$endif$$else$
+                temp[i] = value_[i];$endif$
+            }
+            free_memory();
+            value_ = temp;
+            release_ = true;
+        }
+    }
+    else
+    {
+        if(size > maximum_)
+        {
+            throw $if(!ctx.PureStructure)$$empty_namespace_get(ctx=ctx)$BadParamException$else$std::invalid_argument$endif$("Length is greater than maximum length of the sequence");
+        }
+    }
+
+    length_ = size;
+}
+
+uint32_t $scopedtypename$::size() const
+{
+    return length_;
+}
+
+void $scopedtypename$::length(
+        uint32_t length)
+{
+    if (maximum_ == 0)
+    {
+        if(value_ != nullptr && length > length_)
+        {
+            $typecode.contentTypeCode.cppTypename$* temp = new $typecode.contentTypeCode.cppTypename$[length];
+            for (uint32_t i = 0; i < length_; ++i)
+            {
+                $if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$
+                if (value_[i] != nullptr)
+                {
+                    strncpy(temp[i], value_[i], strlen(value_[i]) + 1);
+                }
+                else
+                {
+                    temp[i] = nullptr;
+                }
+                $else$
+                temp[i] = value_[i];$endif$$else$
+                temp[i] = value_[i];$endif$
+            }
+            free_memory();
+            value_ = temp;
+            release_ = true;
+        }
+    }
+    else
+    {
+        if(length > maximum_)
+        {
+            throw $if(!ctx.PureStructure)$$empty_namespace_get(ctx=ctx)$BadParamException$else$std::invalid_argument$endif$("Length is greater than maximum length of the sequence");
+        }
+    }
+
+    length_ = length;
+}
+
+uint32_t $scopedtypename$::length() const
+{
+    return length_;
+}
+
+uint32_t $scopedtypename$::maximum() const
+{
+    if (maximum_ == 0)
+    {
+        return length_;
+    }
+    else
+    {
+        return maximum_;
+    }
+}
+
+void $scopedtypename$::value(
+        $typecode.contentTypeCode.cppTypename$* value)
+{
+    free_memory();
+    value_ = value;
+}
+
+$typecode.contentTypeCode.cppTypename$* $scopedtypename$::value(
+        bool orphan)
+{
+    if (orphan && !release_)
+    {
+        return nullptr;
+    }
+
+    if (value_ == nullptr)
+    {
+        if (maximum_ == 0)
+        {
+            if (length_ == 0) // Not yet set
+            {
+                return nullptr; // To be coherent with accessing value[length];
+            }
+            value_ = new $typecode.contentTypeCode.cppTypename$[length_];
+        }
+        else
+        {
+            value_ = new $typecode.contentTypeCode.cppTypename$[maximum_];
+        }
+
+        $if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$
+        for (uint32_t count = 0; count < length_; ++count)
+        {
+            value_[count] = nullptr;
+        }
+        $else$$endif$$else$$endif$
+    }
+
+    if (orphan)
+    {
+        release_ = false;
+    }
+
+    return value_;
+}
+
+const $typecode.contentTypeCode.cppTypename$$if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$ const$else$$endif$$else$$endif$* $scopedtypename$::value() const
+{
+    if (value_ == nullptr)
+    {
+        if (maximum_ == 0)
+        {
+            if (length_ == 0) // Not yet set
+            {
+                return nullptr; // To be coherent with accessing value[length];
+            }
+            value_ = new $typecode.contentTypeCode.cppTypename$[length_];
+        }
+        else
+        {
+            value_ = new $typecode.contentTypeCode.cppTypename$[maximum_];
+        }
+
+        $if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$
+        for (uint32_t count = 0; count < length_; ++count)
+        {
+            value_[count] = nullptr;
+        }
+        $else$$endif$$else$$endif$
+    }
+
+    return value_;
+}
+
+void $scopedtypename$::release(
+        bool release)
+{
+    release_ = release;
+}
+
+bool $scopedtypename$::release() const
+{
+    return release_;
+}
+
+bool& $scopedtypename$::release()
+{
+    return release_;
+}
+
+$if(!ctx.PureStructure)$
+$if(ctx.HasMutable)$
+$else$
+$if(ctx.anyCdr)$
+$big_align(ctx=ctx)$ $scopedtypename$::getMaxCdrSerializedSize(
+        $big_align(ctx=ctx)$ current_alignment)
+{
+    $big_align(ctx=ctx)$ initial_alignment = current_alignment;
+    $if(typecode.NotTempSize)$$big_align(ctx=ctx)$ temp2_max_serialized_size = 0;
+    static_cast<void>(temp2_max_serialized_size); $endif$
+
+    $max_serialized_size(ctx=ctx, typecode=typecode, var="current_alignment")$
+
+    return current_alignment - initial_alignment;
+}
+
+$big_align(ctx=ctx)$ $scopedtypename$::getCdrSerializedSize(
+        const $scopedtypename$& data,
+        $big_align(ctx=ctx)$ current_alignment)
+{
+    (void)data;
+    $big_align(ctx=ctx)$ initial_alignment = current_alignment;
+
+    current_alignment += 4$if(ctx.cdr)$ + $ecdr_namespace_get(ctx=ctx)$Cdr::alignment(current_alignment, 4)$endif$;
+
+    $sequence_serialized_size(ctx=ctx, typecodeSeq=typecode, data="data", var="current_alignment", loopvar=ctx.newLoopVarName)$
+
+    return current_alignment - initial_alignment;
+}
+
+$endif$
+
+$if(ctx.cdr)$
+void $scopedtypename$::serialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& scdr) const
+{
+    scdr <<  length_;
+
+    if (value_ == nullptr && length_ > 0)
+    {
+        uint32_t size = (maximum_ == 0) ? length_ : maximum_;
+        value_ = new $typecode.contentTypeCode.cppTypename$[size];
+
+        $if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$
+        for (uint32_t count = 0; count < length_; ++count)
+        {
+            value_[count] = nullptr;
+        }
+        $else$$endif$$else$$endif$
+    }
+
+    for (uint32_t count = 0; count < length_; ++count)
+    {
+        scdr << value_[count];
+    }
+}
+
+void $scopedtypename$::deserialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& dcdr)
+{
+    uint32_t old_length = length_;
+    uint32_t new_length;
+
+    dcdr \>>  new_length;
+
+    if (maximum_ != 0 && new_length > maximum_)
+    {
+        throw $if(!ctx.PureStructure)$$empty_namespace_get(ctx=ctx)$BadParamException$else$std::invalid_argument$endif$("Deserialized length is greater than maximum length of the sequence. Incompatible \
+            sequences.");
+    }
+
+    if ((value_ == nullptr && new_length > 0) || (old_length < new_length))
+    {
+        free_memory();
+
+        uint32_t size = (maximum_ == 0) ? new_length : maximum_;
+        value_ = new $typecode.contentTypeCode.cppTypename$[size];
+    }
+
+    length_ = new_length;
+
+    for (uint32_t count = 0; count < length_; ++count)
+    {
+        $if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$
+        {
+            std::string temp;
+            dcdr \>> temp;
+            value_[count] = (char*)malloc(temp.size() + 1);
+            strncpy(value_[count], temp.c_str(), temp.size() + 1);
+        }
+        $else$
+        dcdr \>> value_[count];$endif$$else$
+        dcdr \>> value_[count];$endif$
+    }
+}
+$endif$
+$endif$
+
+void $scopedtypename$::free_memory()
+{
+    if (release_)
+    {
+        $if(ctx.generateTypesC)$$if(typecode.contentTypeCode.isStringType)$
+        for (uint32_t count = 0; count < length_; ++count)
+        {
+            free(value_[count]);
+            value_[count] = nullptr;
+        }
+        $else$$endif$$else$$endif$
+        delete[](value_);
+    }
+    value_ = nullptr;
+}
+
+$endif$
+
+>>
+
+/*UTILS*/
+ecdr_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$vbsutil::ecdr::$else$vbs::$endif$>>
+
+empty_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$$else$vbs::$endif$>>
+
+big_data_size_get(ctx, member) ::= <<sizeof($member_type_declaration(ctx = ctx, member = member)$$if(ctx.HideInternals)$$if(member.typecode.IsType_a)$::Impl$endif$$endif$)$if(ctx.HideInternals)$$if(member.typecode.IsType_a)$ + sizeof($member_type_declaration(ctx = ctx, member = member)$)$endif$$endif$>>
+
+big_data_name_get(ctx, member, isImpl) ::= <<&$get_full_name(ctx=ctx, member=member, isImpl= isImpl)$>>
+
+big_data_compare_get() ::= <<&& $if(ctx.HideInternals)$pImpl->$endif$m_big_data_size == x.$if(ctx.HideInternals)$pImpl->$endif$m_big_data_size && $if(ctx.HideInternals)$pImpl->$endif$m_buf_ptr_holder == x.$if(ctx.HideInternals)$pImpl->$endif$m_buf_ptr_holder>>
+
+get_member(ctx, type, member) ::= <<
+$if(member.AnnotationId)$
+            "    @id($member.AnnotationIdValue$)\n"
+$endif$
+
+$if(type.IsType_f)$
+            "    $get_member_annotation(member=member)$$type.IdlTypename$ $member.name$$member.typecode.ArrayExtension$;\n"
+$else$
+            "    $get_member_annotation(member=member)$$type.IdlTypename$ $member.name$;\n"
+$endif$
+>>
+
+object_serialization_in_types_source(ctx, member) ::= <<
+$if(ctx.HideInternals)$
+$if(member.PackOneAndPlain)$
+$object_serialization(ctx=ctx, object=member, preffix="*&thisImpl->m_")$
+$else$
+$object_serialization(ctx=ctx, object=member, preffix="thisImpl->m_")$
+$endif$
+$else$
+$if(member.PackOneAndPlain)$
+$object_serialization(ctx=ctx, object=member, preffix="*&m_")$
+$else$
+$object_serialization(ctx=ctx, object=member, preffix="m_")$
+$endif$
+$endif$
+
+>>
+
+object_serialization_size_in_types_source(ctx, member) ::= <<
+$if(ctx.HideInternals)$
+scdr << thisImpl->m_$member.name$_size;
+$else$
+scdr << m_$member.name$_size;
+$endif$
+>>
+
+object_deserialization_in_types_source(ctx, member) ::= <<
+$if(ctx.HideInternals)$
+$if(member.PackOneAndPlain)$
+$object_deserialization(ctx=ctx, object=member, preffix="*&thisImpl->m_")$
+$else$
+$object_deserialization(ctx=ctx, object=member, preffix="thisImpl->m_")$
+$endif$
+$else$
+$if(member.PackOneAndPlain)$
+$object_deserialization(ctx=ctx, object=member, preffix="*&m_")$
+$else$
+$object_deserialization(ctx=ctx, object=member, preffix="m_")$
+$endif$
+$endif$
+
+>>
+
+object_deserialization_size_in_types_source(ctx, member) ::= <<
+$if(ctx.HideInternals)$
+dcdr \>> thisImpl->m_$member.name$_size;
+$else$
+dcdr \>> m_$member.name$_size;
+$endif$
+
+>>
+
+get_full_name(ctx, member, flag, isImpl, offset_ptr) ::= <<
+$if(!flag)$($endif$$if(ctx.HideInternals)$$if(!isImpl)$$if(offset_ptr)$$offset_ptr$$else$pImpl$endif$->$endif$$endif$m_$member.name$$if(!flag)$)$endif$
+>>
+
+get_if_pointer_full_name(ctx, member, flag, isImpl, offset_ptr) ::= <<
+$if(member.NeedsPointer)$*$endif$$get_full_name(ctx=ctx, member=member)$
+>>
+
+get_ref_full_name(ctx, member, flag, isImpl, offset_ptr) ::= <<
+$if(member.PackOneAndPlain)$*(&$endif$$get_if_pointer_full_name(ctx = ctx, member = member)$$if(member.PackOneAndPlain)$)$endif$
+>>
+
+get_pimpl_ptr_name(ctx, member) ::= <<
+((reinterpret_cast<std::uintptr_t>(this->get_pImpl()) == ::CommonConstants::INVALID_POINTER_VALUE)
+        ? reinterpret_cast<$member.typecode.scopedname$::Impl*>(reinterpret_cast<char*>(this) + sizeof($member.typecode.scopedname$))
+        : pImpl)
+>>
+
+get_pimpl_name(ctx, member, flag, isImpl, pre, no_ptr, const) ::= <<
+$if(ctx.ZeroCopy)$$if(member.typecode.IsType_a)$ $if(!no_ptr)$*$endif$ $if(const)$const_cast<$member.typecode.cppTypename$::Impl*>($endif$$pre$$member.name$.get_pImpl()$if(const)$)$endif$$else$ $if(no_ptr)$&$endif$$pre$$member.name$$endif$$else$ $if(no_ptr)$&$endif$$pre$$member.name$$endif$
+>>
+
+// $if(ctx.ZeroCopy)$
+//     $if(member.typecode.IsType_a)$
+//         $if(!no_ptr)$
+//             *
+//         $endif$
+//         $if(const)$
+//             const_cast<$member.typecode.cppTypename$::Impl*>(
+//         $endif$
+//         $pre$$member.name$.get_pImpl()
+//         $if(const)$
+//             )
+//         $endif$
+//     $else$
+//         $if(no_ptr)$
+//             &
+//         $endif$
+//         $pre$$member.name$
+//     $endif$
+// $else$
+//     $if(no_ptr)$
+//          &
+//     $endif$
+//     $pre$$member.name$
+// $endif$
+
+reset_member(member) ::= <<
+$if(member.AnnotationOptional)$
+if($get_full_name(ctx=ctx, member=member)$$if(member.typecode.forwarded)$->$else$.$endif$has_value()) $left_brackets()$
+$endif$
+
+$if(member.NeedsPointer)$
+if ($get_full_name(ctx=ctx, member=member)$) $left_brackets()$
+$endif$
+
+$if(member.typecode.IsType_a)$
+($if(member.AnnotationOptional)$*$endif$$get_full_name(ctx=ctx, member=member)$)$if(member.NeedsPointer)$->$else$.$endif$reset_all_member();
+$elseif(member.typecode.IsType_e)$
+$if(ctx.ZeroCopy)$
+($if(member.AnnotationOptional)$*$endif$$get_if_pointer_full_name(ctx = ctx, member = member)$) = $if(ctx.ZeroCopy)$$member.typecode.BBCppTypename$$else$$member.typecode.cppTypename$$endif${};
+$else$
+$if(ctx.ZeroCopy)$$if(member.typecode.isSequenceType)$$if(!struct.Top)$$member.typecode.BBCppTypename$$else$$member.typecode.cppTypename$$endif$$else$$member.typecode.BBCppTypename$$endif$$else$$member.typecode.cppTypename$$endif$().swap(($if(member.AnnotationOptional)$*$endif$$get_if_pointer_full_name(ctx = ctx, member = member)$));
+$endif$
+
+$elseif(member.typecode.IsType_f)$
+($if(member.AnnotationOptional)$*$endif$$get_if_pointer_full_name(ctx = ctx, member = member)$) = $if(ctx.ZeroCopy)$$member.typecode.BBCppTypename$$else$$member.typecode.cppTypename$$endif${};
+$elseif(member.typecode.IsType_c)$
+($if(member.AnnotationOptional)$*$endif$$get_if_pointer_full_name(ctx = ctx, member = member)$) = $member.typecode.InitialValue$;
+$elseif(member.typecode.IsUnionType)$
+($if(member.AnnotationOptional)$*$endif$$get_full_name(ctx=ctx, member=member)$)$if(member.NeedsPointer)$->$else$.$endif$reset_all_member();
+$elseif(member.typecode.IsBitmaskType)$
+($if(member.AnnotationOptional)$*$endif$$get_if_pointer_full_name(ctx = ctx, member = member)$) = static_cast<$if(ctx.ZeroCopy)$$member.typecode.BBCppTypename$$else$$member.typecode.cppTypename$$endif$>(0);
+$elseif(member.typecode.IsBitsetType)$
+($if(member.AnnotationOptional)$*$endif$$get_full_name(ctx=ctx, member=member)$)$if(member.NeedsPointer)$->$else$.$endif$reset_all_member();
+$elseif(member.typecode.IsWStringType)$
+($if(member.AnnotationOptional)$*$endif$$get_full_name(ctx=ctx, member=member)$)$if(member.NeedsPointer)$->$else$.$endif$clear();
+$elseif(member.typecode.IsMapType)$
+$if(ctx.ZeroCopy)$$member.typecode.BBCppTypename$$else$$member.typecode.cppTypename$$endif$().swap(($if(member.AnnotationOptional)$*$endif$$get_if_pointer_full_name(ctx = ctx, member = member)$));
+$else$
+($if(member.AnnotationOptional)$*$endif$$get_if_pointer_full_name(ctx = ctx, member = member)$) = $member.typecode.InitialValue$;
+$endif$
+
+$if(member.NeedsPointer)$
+$right_brackets()$
+$endif$
+
+$if(member.AnnotationOptional)$
+$right_brackets()$
+$endif$
+
+>>
+
+reset_member_bb_mode(member) ::= <<
+$if(member.typecode.IsType_e)$
+$get_full_name(ctx=ctx, member=member)$ = $member_type_declaration(ctx = ctx, member = member)${};
+$endif$
+
+$elseif(member.typecode.StringType)$
+if ($get_full_name(ctx=ctx, member=member)$) {
+    memset($get_full_name(ctx=ctx, member=member)$, 0, sizeof($member_type_declaration(ctx = ctx, member = member)$));
+}
+$elseif(member.typecode.IsType_f)$
+if ($get_full_name(ctx=ctx, member=member)$) {
+    auto messageArray = reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$);
+    *messageArray = $member_type_declaration(ctx = ctx, member = member)${};
+}
+$elseif(member.typecode.IsType_a)$
+reinterpret_cast<$member.typecode.scopedname$*>(($if(member.AnnotationOptional)$*$endif$$get_full_name(ctx=ctx, member=member)$))->reset_all_member();
+$else$
+$reset_member(member=member)$
+$endif$
+>>
+
+/*UTILS*/
+evbs_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$evbs::edds::dds::$else$vbs::$endif$>>
+
+big_align(ctx) ::= <<$if(ctx.BigAlignment)$int64_t$else$size_t$endif$>>
+
+get_extensibility_annotation(typecode) ::= <<$if(typecode.AnnotationMutable)$mutable$elseif(typecode.AnnotationFinal)$final$elseif(typecode.AnnotationAppendable)$appendable$endif$>>
+
+get_member_annotation(member) ::= <<$if(member.annotationDefault)$@default($member.AnnotationDefaultValueForIdl$)$endif$$if(member.AnnotationKey)$@key $endif$$if(member.AnnotationOptional)$@optional $endif$>>
+
+get_init_all_member(ctx, member, struct) ::= <<$if(member.typecode.UseBBMode)$$member_default_init_bb_mode(ctx=ctx, member=member, loopvar=ctx.newLoopVarName, istop=struct.Top )$$else$$member_default_init(ctx=ctx, member=member, loopvar=ctx.newLoopVarName)$$endif$>>
+
+for_begin(name, size) ::= <<for (int $name$ = 0; $name$ < $size$; $name$++) $left_brackets()$>>
+
+update_optional_member(member, typecode) ::= <<
+$if(member.AnnotationOptional)$
+if($get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$$if(member.NeedsPointer)$->$else$.$endif$has_value()) $left_brackets()$
+($if(member.AnnotationOptional)$*$endif$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)$if(member.NeedsPointer)$->$else$.$endif$updateTest(index);
+$right_brackets()$ else $left_brackets()$
+$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$ = $member.typecode.Scopednamenormal$();
+($if(member.AnnotationOptional)$*$endif$$get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)$if(member.NeedsPointer)$->$else$.$endif$updateTest(index);
+$right_brackets()$
+$else$
+($get_full_name(ctx=ctx, member=member, offset_ptr="offset_ptr")$)$if(member.NeedsPointer)$->$else$.$endif$updateTest(index);
+$endif$
+>>
+
+left_brackets() ::= <<{>>
+
+right_brackets() ::= <<}>>
+
+private_member_declaration(ctx, member, istop) ::= <<
+$private_declaration(ctx=ctx, typecode=member.typecode, name=member.name, istop=istop, member = member)$
+>>
+
+private_declaration(ctx, typecode, name, istop, member) ::= <<
+$if(ctx.ZeroCopy)$
+$if(typecode.UseBBMode)$
+$if(istop)$
+mutable void* m_$name$;
+$else$
+$member_type_declaration(ctx = ctx, member = member)$$if(member.NeedsPointer)$*$endif$ m_$name$$if(member.NeedsPointer)$ = nullptr$endif$;
+$endif$
+$else$
+$member_type_declaration(ctx = ctx, member = member)$$if(member.NeedsPointer)$*$endif$ m_$name$$if(member.NeedsPointer)$ = nullptr$endif$;
+$endif$
+$else$
+$member_type_declaration(ctx = ctx, member = member)$$if(member.NeedsPointer)$*$endif$ m_$name$$if(member.NeedsPointer)$ = nullptr$endif$;
+$endif$
+>>
+
+check_bb_impl_ptr(ctx, member) ::= <<
+if (static_cast<void*>(reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$)->get_pImpl()) != static_cast<void*>(static_cast<char*>($get_full_name(ctx=ctx, member=member)$) + sizeof($member_type_declaration(ctx = ctx, member = member)$))) {
+    $member_type_declaration(ctx = ctx, member = member)$* tmp = reinterpret_cast<$member_type_declaration(ctx = ctx, member = member)$*>($get_full_name(ctx=ctx, member=member)$);
+    *(tmp->get_pImpl_addr()) = static_cast<$member_type_declaration(ctx = ctx, member = member)$::Impl*>(static_cast<void*>(static_cast<char*>(static_cast<void*>($get_full_name(ctx=ctx, member=member)$)) + sizeof($member_type_declaration(ctx = ctx, member = member)$)));
+}
+>>
+
+ertps_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$$if(ctx.HasMutable)$vbsutil::ecdr::$else$$if(ctx.GenBoth)$evbs::ertps::$else$$if(ctx.Rpc)$vbsutil::ecdr::$else$evbs::ertps::$endif$$endif$$endif$$else$vbs::$endif$>>
+
+inner_type_name(ctx, member) ::= <<$if(member.typecode.IsType_f)$$member.typecode.ContentTypeCode.CppTypename$$elseif(member.typecode.IsType_e)$$member.typecode.ContentTypeCode.CppTypename$$elseif(member.typecode.IsMapType)$$member.typecode.KeyTypeCode.CppTypename$, $member.typecode.ValueTypeCode.CppTypename$$else$$endif$>>
+
+need_star_pre(member) ::= <<$if(member.typecode.NeedsPointer)$*$endif$$if(member.AnnotationOptional)$*$endif$>>
+
+print_stream_helper_declaration(member) ::= <<
+template<typename T>
+    void print$member.CScopedname$(std::ostream& os, const T& t);
+$if(member.HasWstringMember)$
+    template<>
+    void print$member.CScopedname$(std::ostream& os, const std::wstring& str);
+$endif$
+
+    template<>
+    void print$member.CScopedname$(std::ostream& os, const uint8_t& value);
+
+    template<std::size_t N>
+    void print$member.CScopedname$(std::ostream& os, const $ertps_namespace_get(ctx=ctx)$fixed_string<N>& str);
+
+$if(member.HasArrayMember)$
+    template<typename T, std::size_t N>
+    void print$member.CScopedname$(std::ostream& os, const std::array<T, N>& arr);
+$endif$
+
+$if(member.HasSeqMember)$
+    template<typename T>
+    void print$member.CScopedname$(std::ostream& os, const std::vector<T>& vec);
+$endif$
+
+$if(member.HasMapMember)$
+    template<typename K, typename V>
+    void print$member.CScopedname$(std::ostream& os, const std::map<K, V>& m);
+$endif$
+
+    template<typename T>
+    void vbs_print_os$member.CScopedname$(std::ostream& os, const T& t, const bool is_json = false);
+
+    template<>
+    inline void vbs_print_os$member.CScopedname$(std::ostream& os, const std::wstring& str, const bool is_json);
+
+    template<std::size_t N>
+    void vbs_print_os$member.CScopedname$(std::ostream& os, const $ertps_namespace_get(ctx=ctx)$fixed_string<N>& str, const bool is_json = false);
+
+    template<typename K>
+    void print_json_key(std::ostream& os, const K& key);
+
+    template<typename T, std::size_t N>
+    std::ostream& vbs_print_os$member.CScopedname$(std::ostream& os, const std::array<T, N>& arr, bool is_json = false);
+
+    template<typename T, std::size_t N>
+    void print$member.CScopedname$(std::ostream& os, const std::array<T, N>& arr);
+
+    template<typename T>
+    std::ostream& vbs_print_os$member.CScopedname$(std::ostream& os, const std::vector<T>& vec, bool is_json = false);
+
+    template<typename T>
+    void print$member.CScopedname$(std::ostream& os, const std::vector<T>& vec);
+
+    template<typename K, typename V>
+    std::ostream& vbs_print_os$member.CScopedname$(std::ostream& os, const std::map<K,V>& m, const bool is_json = false);
+
+    template<typename K, typename V>
+    void print$member.CScopedname$(std::ostream& os, const std::map<K, V>& m);
+>>
+
+print_stream_helper(member) ::= <<
+    template<typename T>
+    void print$member.CScopedname$(std::ostream& os, const T& t) {
+        os << t;
+    }
+
+    template<typename T>
+    void vbs_print_os$member.CScopedname$(std::ostream& os, const T& t, const bool is_json) {
+        if (is_json) {
+            std::ostringstream oss;
+            vbs::data_to_json_string(t, &oss, false);
+            os << oss.str();
+        } else {
+            print$member.CScopedname$(os, t);
+        }
+    }
+
+$if(member.HasWstringMember)$
+    template<>
+    inline void vbs_print_os$member.CScopedname$(std::ostream& os, const std::wstring& str, const bool is_json) {
+        (void)is_json;
+        if (is_json) {
+            os<<"\""<<std::string(str.begin(), str.end())<<"\"";
+        } else {
+            os << std::string(str.begin(), str.end());
+        }
+    }
+$endif$
+
+    template<>
+    void print$member.CScopedname$(std::ostream& os, const uint8_t& value) {
+        os << static_cast<int>(value);
+    }
+
+$if(member.HasFixedStringMember)$
+    template<std::size_t N>
+    void vbs_print_os$member.CScopedname$(std::ostream& os, const $ertps_namespace_get(ctx=ctx)$fixed_string<N>& str, const bool is_json ) {
+        if (is_json) {
+            std::ostringstream oss;
+            vbs::data_to_json_string(str, &oss, false);
+            os << oss.str();
+        } else {
+            os << str.to_string();
+        }
+    }
+$endif$
+
+$if(member.HasArrayMember)$
+    template<typename T, std::size_t N>
+    std::ostream& vbs_print_os$member.CScopedname$(std::ostream& os, const std::array<T, N>& arr, bool is_json) {
+        os << "[";
+        if (!arr.empty()) {
+            auto it = arr.begin();
+            vbs_print_os$member.CScopedname$(os, *it, is_json);
+            ++it;
+            while (it != arr.end()) {
+                os << ", ";
+                vbs_print_os$member.CScopedname$(os, *it, is_json);
+                ++it;
+            }
+        }
+        os << "]";
+        return os;
+    }
+
+    template<typename T, std::size_t N>
+    void print$member.CScopedname$(std::ostream& os, const std::array<T, N>& arr) {
+        vbs_print_os$member.CScopedname$(os, arr, false);
+        return;
+    }
+$endif$
+
+$if(member.HasSeqMember)$
+
+    template<typename T>
+    std::ostream& vbs_print_os$member.CScopedname$(std::ostream& os, const std::vector<T>& vec, bool is_json) {
+        os << "[";
+        if (!vec.empty()) {
+            auto it = vec.begin();
+            vbs_print_os$member.CScopedname$(os, *it, is_json);
+            ++it;
+            while (it != vec.end()) {
+                os << ", ";
+                vbs_print_os$member.CScopedname$(os, *it, is_json);
+                ++it;
+            }
+        }
+        os << "]";
+        return os;
+    }
+
+    template<typename T>
+    void print$member.CScopedname$(std::ostream& os, const std::vector<T>& vec) {
+        vbs_print_os$member.CScopedname$(os, vec, false);
+        return;
+    }
+$endif$
+
+$if(member.HasMapMember)$
+
+    template<typename K>
+    void print_json_key$member.CScopedname$(std::ostream& os, const K& key) {
+        std::stringstream ss;
+        ss << key;
+        std::string key_str = ss.str();
+
+        os << "\"";
+        for (char c : key_str) {
+            switch (c) {
+                case '\"': os << "\\\\\\""; break;
+                case '\\\\': os << "\\\\\\\\"; break;
+                case '\b': os << "\\\b"; break;
+                case '\f': os << "\\\f"; break;
+                case '\n': os << "\\\n"; break;
+                case '\r': os << "\\\r"; break;
+                case '\t': os << "\\\t"; break;
+                default:
+                    if (static_cast<unsigned char>(c) < 0x20) {
+                        os << "\\\u" << std::hex << std::setw(4) << std::setfill('0')
+                        << static_cast<int>(c) << std::dec;
+                    } else {
+                        os << c;
+                    }
+            }
+        }
+        os << "\"";
+    }
+
+    template<typename K, typename V>
+    std::ostream& vbs_print_os$member.CScopedname$(std::ostream& os, const std::map<K,V>& m, const bool is_json) {
+        os << "{";
+        bool first = true;
+        for (const auto& kv : m) {
+            if (!first) {
+                os << ", ";
+            }
+            if (is_json) {
+                print_json_key$member.CScopedname$(os, kv.first);
+            } else {
+                vbs_print_os$member.CScopedname$(os, kv.first, is_json);
+            }
+            os << ": ";
+            vbs_print_os$member.CScopedname$(os, kv.second, is_json);
+            first = false;
+        }
+        os << "}";
+        return os;
+    }
+
+    template<typename K, typename V>
+    void print$member.CScopedname$(std::ostream& os, const std::map<K, V>& m) {
+        vbs_print_os$member.CScopedname$(os, m, false);
+        return;
+    }
+$endif$
+
+$if(ctx.UseStaticCapacity)$
+    template<typename T, size_t FixedCapacity>
+    std::ostream& vbs_print_os$member.CScopedname$(std::ostream& os, const vbs::StaticCapacityDynamicArray<T, FixedCapacity>& scda, bool is_json) {
+        os << "[";
+        if (!scda.empty()) {
+            auto it = scda.begin();
+            vbs_print_os$member.CScopedname$(os, *it, is_json);
+            ++it;
+            while (it != scda.end()) {
+                os << ", ";
+                vbs_print_os$member.CScopedname$(os, *it, is_json);
+                ++it;
+            }
+        }
+        os << "]";
+        return os;
+    }
+
+    template<typename T, size_t FixedCapacity>
+    void print$member.CScopedname$(std::ostream& os, const vbs::StaticCapacityDynamicArray<T, FixedCapacity>& scda) {
+        vbs_print_os$member.CScopedname$(os, scda, false);
+        return;
+    }
+$endif$
+>>
+
+print_vbs_data_to_json_string_declaration(ctx) ::= <<
+
+    inline void data_to_json_string(const bool& sample, std::ostringstream* o_ptr = nullptr, const bool is_need_delete = false);
+    inline void data_to_json_string(const char& sample, std::ostringstream* o_ptr = nullptr, const bool is_need_delete = false);
+    inline void data_to_json_string(const wchar_t& sample, std::ostringstream* o_ptr = nullptr, const bool is_need_delete = false);
+    inline void data_to_json_string(const std::string& sample, std::ostringstream* o_ptr = nullptr, const bool is_need_delete = false);
+
+    template<std::size_t N>
+    inline void data_to_json_string(const $ertps_namespace_get(ctx=ctx)$fixed_string<N>& str, std::ostringstream* o_ptr = nullptr, const bool is_json = false);
+
+    inline void data_to_json_string(const int8_t& sample, std::ostringstream* o_ptr = nullptr, const bool is_json = false);
+
+    inline void data_to_json_string(const uint8_t& sample, std::ostringstream* o_ptr = nullptr, const bool is_json = false);
+
+    inline void data_to_json_string(const float& sample, std::ostringstream* o_ptr = nullptr, const bool is_need_delete = false);
+
+    inline void data_to_json_string(const double& sample, std::ostringstream* o_ptr = nullptr, const bool is_need_delete = false);
+
+    template<typename T>
+    void data_to_json_string(const T& sample, std::ostringstream* o_ptr = nullptr, const bool is_need_delete = true, const bool include_braces = true);
+
+>>
+
+print_vbs_data_to_json_string_definition() ::= <<
+
+    inline void data_to_json_string(const bool& sample, std::ostringstream* o_ptr, const bool is_need_delete) {
+        (void) is_need_delete;
+        *o_ptr << (sample ? "true" : "false");
+        return;
+    }
+
+    inline void data_to_json_string(const char& sample, std::ostringstream* o_ptr, const bool is_need_delete) {
+        (void) is_need_delete;
+        unsigned char uvalue = static_cast<unsigned char>(sample);
+        *o_ptr << "\"\\\\u" << std::setw(4) << std::setfill('0') << std::hex << static_cast<int>(uvalue) << "\"";
+        return;
+    }
+
+    inline void data_to_json_string(const wchar_t& sample, std::ostringstream* o_ptr, const bool is_need_delete) {
+        (void) is_need_delete;
+        unsigned char uvalue = static_cast<unsigned char>(sample);
+        *o_ptr << "\"\\\\u" << std::setw(4) << std::setfill('0') << std::hex << static_cast<int>(uvalue) << "\"";
+        return;
+    }
+
+    inline void data_to_json_string(const std::string& sample, std::ostringstream* o_ptr, const bool is_need_delete) {
+        (void) is_need_delete;
+        *o_ptr << "\"" << sample << "\"";
+        return;
+    }
+
+    template<std::size_t N>
+    inline void data_to_json_string(const $ertps_namespace_get(ctx=ctx)$fixed_string<N>& str, std::ostringstream* o_ptr, const bool is_json) {
+        (void) is_json;
+        *o_ptr << "\"" << str.to_string() << "\"";
+    }
+
+    inline void data_to_json_string(const int8_t& sample, std::ostringstream* o_ptr, const bool is_json) {
+        (void) is_json;
+        *o_ptr << static_cast<int>(sample);
+    }
+
+    inline void data_to_json_string(const uint8_t& sample, std::ostringstream* o_ptr, const bool is_json) {
+        (void) is_json;
+        *o_ptr << static_cast<int>(sample);
+    }
+
+    inline void data_to_json_string(const float& sample, std::ostringstream* o_ptr, const bool is_need_delete) {
+        (void)is_need_delete;
+        *o_ptr << std::setprecision(16);
+
+        if (std::isnan(sample)) {
+            *o_ptr << "nan";
+        } else if (std::isinf(sample)) {
+            *o_ptr << "inf";
+        } else {
+            float abs_sample = std::abs(sample);
+            if (abs_sample >= 1e16f || (sample != 0.0f && abs_sample < 1e-16f)) {
+                *o_ptr << std::scientific << sample;
+            } else {
+                *o_ptr << sample;
+            }
+        }
+    }
+
+    inline void data_to_json_string(const double& sample, std::ostringstream* o_ptr, const bool is_need_delete) {
+        (void)is_need_delete;
+        *o_ptr << std::setprecision(16);
+
+        if (std::isnan(sample)) {
+            *o_ptr << "nan";
+        } else if (std::isinf(sample)) {
+            *o_ptr << "inf";
+        } else {
+            double abs_sample = std::abs(sample);
+            if (abs_sample >= 1e16 || (sample != 0.0 && abs_sample < 1e-16)) {
+                *o_ptr << std::scientific << sample;
+            } else {
+                *o_ptr << sample;
+            }
+        }
+    }
+
+    template<typename T>
+    void data_to_json_string(const T& sample, std::ostringstream* o_ptr, const bool is_need_delete, const bool include_braces) {
+        (void) is_need_delete;
+        (void) include_braces;
+        *o_ptr << sample;
+        return;
+    }
+
+ >>
+
+test_example_helper(member) ::= <<
+  //array fill
+  template<typename T, std::size_t N>
+  void fillArray$member.CScopedname$(std::array<T, N>& arr, const T& value) {
+      std::fill(arr.begin(), arr.end(), value);
+  }
+
+  template<typename T, std::size_t N>
+  void fillArray$member.CScopedname$(std::array<std::array<T, N>, N>& arr, const T& value) {
+      for (auto& subArray : arr) {
+          fillArray$member.CScopedname$(subArray, value);
+      }
+  }
+
+  template<typename T, std::size_t N, typename U>
+  void fillArray$member.CScopedname$(std::array<T, N>& arr, const U& value) {
+      for (auto& subArray : arr) {
+          fillArray$member.CScopedname$(subArray, value);
+      }
+  }
+
+  std::wstring int_to_wstring$member.CScopedname$(int index) {
+      std::wstringstream ss;
+      ss << index;
+      return ss.str();
+  }
+
+  std::string int_to_string$member.CScopedname$(int index) {
+      std::stringstream ss;
+      ss << index;
+      return ss.str();
+  }
+>>
+
+print_stream_name(member, is_json) ::= <<$if(is_json)$\"$endif$$member.name$$if(is_json)$\"$endif$>>
+
+print_stream_suffix(is_singleline) ::= <<$if(is_singleline)$ $else$\n$endif$>>

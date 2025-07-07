@@ -1,0 +1,83 @@
+// Copyright 2016 Proyectos y Sistemas de Mantenimiento SL (eProsima).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ------------------------------------------------------------------
+// Modification history:
+// 2023-09 ~ 2025-05: Enhancement of idlgen: rpc build fix, tostring/get_type_name interfaces, xcdr, fixed string support, uint64_t type adjustment, zero copy support for variable length seq, cleanup of fast related content, etc.
+// ------------------------------------------------------------------
+
+group Types;
+
+type_5() ::= <<float>>
+
+type_6() ::= <<double>>
+
+type_13() ::= <<double>>
+
+type_1() ::= <<int16_t>>
+
+type_2() ::= <<int32_t>>
+
+type_11() ::= <<int64_t>>
+
+type_3() ::= <<uint16_t>>
+
+type_4() ::= <<uint32_t>>
+
+type_12(ctx) ::= <<$if(ctx.RtiIdl)$unsigned long long$else$uint64_t$endif$>>
+
+type_8() ::= <<char>>
+
+type_14() ::= <<wchar_t>>
+
+type_7() ::= <<bool>>
+
+type_9() ::= <<uint8_t>>
+
+type_d(ctx, max_size, isnotusevbs) ::= <<$if(max_size)$$ertps_namespace_get(ctx=ctx, isnotusevbs=isnotusevbs)$fixed_string<$max_size$>$else$std::string$endif$>>
+
+type_15(ctx, max_size, isnotusevbs) ::= <<std::wstring>>
+
+type_19(key, value, maxsize, empty) ::= <<std::map<$key$, $value$>$empty$>>
+
+type_f_first(prev) ::= <<std::array<$prev$>>
+type_f_second(prev, size) ::= <<, $size$>$prev$>>
+type_f(firs, secon, type) ::= <<$firs$$type$$secon$>>
+
+type_a(name) ::= <<$name$>>
+
+type_b(name) ::= <<$name$>>
+
+type_c(name) ::= <<$name$>>
+
+type_10(name) ::= <<$name$>>
+
+// TODO Para que sirve empty en VBSBuffers?
+type_e(ctx, type, contenttype, maxsize, empty) ::= <<$if(ctx.UseStaticCapacity)$$if(maxsize)$std::vector<$type$>$else$vbs::StaticCapacityDynamicArray<$type$, $ctx.StaticCapacity$>$endif$$else$std::vector<$type$>$endif$$empty$>>
+
+type_1a(name, type) ::= <<$name$>>
+
+type_1b(name) ::= <<$name$>>
+
+type_1d(name) ::= <<int8_t>>
+
+type_1e(name) ::= <<uint8_t>>
+
+initialValues ::= [
+        "type_d":"\"\"",
+        "type_15":"\"\"",
+        default: // not basic type.
+]
+
+/*UTILS*/
+ertps_namespace_get(isnotusevbs, ctx) ::= <<$if(isnotusevbs)$$if(ctx.HasMutable)$vbsutil::ecdr::$else$$if(ctx.Rpc)$vbsutil::ecdr::$else$evbs::ertps::$endif$$endif$$else$vbs::$endif$>>

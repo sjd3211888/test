@@ -1,0 +1,296 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group ClientExample;
+
+main(ctx, definitions) ::= <<
+$fileVBSHeader(ctx=ctx,  file=[ctx.filename, "ClientExample.h"], description=["This header file contains an example of the declaration of a servant."])$
+
+#include "$ctx.filename$Client.$if(ctx.GenHpp)$hpp$else$h$endif$"
+#include "$ctx.filename$ClientFactory.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+#include <unistd.h>
+
+$if(ctx.TestExample)$
+using namespace vbs::rpc;
+
+#define TEST_CNT    10
+
+int8_t AD_pass = 0;
+int8_t EEA_pass = 0;
+int8_t OS_pass = 0;
+int32_t AD_index = -1;
+int32_t AD_success_cnt = 0;
+int32_t add_index = -1;
+int32_t add_success_cnt = 0;
+int32_t empty_success_cnt = 0;
+int32_t invalue_success_cnt = 0;
+int32_t outvalue_success_cnt = 0;
+
+// void AD_test_handle(int32_t ret, RpcMessageType *response)
+// {
+
+//     if (ret != ReturnMessage::OK) {
+//         std::cout << "AD test: async response fail: " << ret << std::endl;
+//         AD_pass = -1;
+//         return;
+//     }
+//     if (response != NULL) {
+//         module_test::res_CompleteStruct *res = static_cast<module_test::res_CompleteStruct *>(response);
+//         std::ostringstream oss;
+//         oss << ((*res).basic_member());
+//         if ((*res).member_string() != oss.str()) {
+//             std::cout << "AD test: async response fail: " << oss.str() << std::endl;
+//             AD_pass = -1;
+//             return;
+//         }
+//         AD_success_cnt++;
+//         std::cout << "AD test: async response success: " << oss.str() << std::endl;
+//     }
+//     else {
+//         std::cout << "AD test: async response is null " << std::endl;
+//         AD_pass = -1;
+//     }
+// }
+
+   $definitions; separator="\n"$
+
+// bool AD_test()
+// {
+//     RpcClient *ADClient = client::RpcClientFactory::CreateRpcClient<module_test::CompleteStruct, module_test::res_CompleteStruct>("RpcIDLProfile.xml", "ComplexData_AD");
+//     if (ADClient == nullptr) {
+//         std::cout << "create AD client fail\n";
+//         return false;
+//     }
+
+//     int32_t ret;
+
+//     module_test::CompleteStruct req;
+//     module_test::res_CompleteStruct res;
+//     std::chrono::nanoseconds nsDuration(static_cast<int64_t>(5000) * 1000 * 1000);
+//     //AD add sync
+//     for (int32_t i = 0; i < TEST_CNT; i++) {
+//         ret = ADClient->sync_send(&req, &res, nsDuration);
+//         if (ret != ReturnMessage::OK) {
+//             std::cout << "AD test: sync response fail: " << ret << std::endl;
+//             client::RpcClientFactory::DestroyRpcClient(ADClient);
+//             return false;
+//         }
+//         std::cout << "AD test: sync response success: " << res.member_string() << std::endl;
+//     }
+
+//     std::cout << "AD sync test pass " << std::endl;
+
+//     //AD add async
+//     for (int32_t i = 0; i < TEST_CNT; i++) {
+//         std::function<void(int32_t, RpcMessageType *)>func = AD_test_handle;
+//         ret = ADClient->async_send(&req, func, nsDuration);
+//         if (ret != ReturnMessage::OK) {
+//             std::cout << "AD test: async response fail: " << ret << std::endl;
+//             client::RpcClientFactory::DestroyRpcClient(ADClient);
+//             return false;
+//         }
+//     }
+
+//     while(1) {
+//         usleep(200000);
+//         if (AD_success_cnt >= TEST_CNT) {
+//             std::cout << "AD async test pass " << std::endl;
+//             break;
+//         }
+//         if (AD_pass == -1) {
+//             client::RpcClientFactory::DestroyRpcClient(ADClient);
+//             return false;
+//         }
+//     }
+
+//     std::cout << "RpcAD test over" << std::endl;
+//     client::RpcClientFactory::DestroyRpcClient(ADClient);
+
+//     return true;
+// }
+
+int main () {
+    bool success = true;
+
+    // success &= AD_test();
+
+$ctx.Interfaces:{ interface |
+    success &= $interface.name$_test();
+}; separator="\n"$
+
+    if (success) {
+        std::cout << "RPC pass" << std::endl;
+    } else {
+        std::cout << "RPC fail" << std::endl;
+    }
+}
+$else$
+int main () {}
+$endif$
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+/*!
+ * The export_list will be the definition of synchronize functions.
+ */
+interface(ctx, parent, interface, export_list) ::= <<
+$interface.all_operations : {operation|
+//add TEST usr handle
+void add_test_$operation.name$_handle(int32_t ret, RpcMessageType *response)
+{
+
+    if (ret != ReturnMessage::OK) {
+        std::cout << "$operation.name$ test: async response fail: " << ret << std::endl;
+        EEA_pass = -1;
+        return;
+    }
+    if (response != NULL) {
+$if(operation.HasOutput)$
+        $operation.Outputparam : {param |$param.Typecode.CppTypename$ *res = static_cast<$param.Typecode.CppTypename$ *>(response);}$
+        std::ostringstream oss;
+        oss << ((*res).basic_member());
+        if ((*res).member_string() != oss.str()) {
+            std::cout << "$operation.name$ test: async response fail: "<< std::endl;
+            std::cout<< "=======oss.str()======="<<std::endl;
+            std::cout << oss.str() << std::endl;
+            std::cout<< "=======(*res).member_string()======="<<std::endl;
+            std::cout << (*res).member_string() << std::endl;
+$if(!operation.HasInput)$
+            if ((*res).member_string() != "1") {
+                EEA_pass = -1;
+            }
+$else$
+            EEA_pass = -1;
+$endif$
+
+            return;
+        }
+        add_success_cnt++;
+        std::cout << "$operation.name$ test: async response success: " << oss.str() << std::endl;
+$endif$
+
+    }
+    else {
+        std::cout << "$operation.name$ test: async response is null " << std::endl;
+$if(operation.HasOutput)$
+        EEA_pass = -1;
+$endif$
+
+    }
+}
+}; separator="\n"$
+
+bool $interface.name$_test()
+{
+    $ctx.filename$Factory testFactory;
+    int32_t ret;
+
+    //$interface.name$ TEST
+    RpcClient *Client = testFactory.CreateRpcClient("RpcIDLProfile.xml", "$interface.CScopedname$");
+    $interface.Scopedname$Client* EEAClient = static_cast<$interface.Scopedname$Client*>(Client);
+    if (EEAClient == nullptr) {
+        std::cout << "create EEA client fail\n";
+        return false;
+    }
+    $interface.Scopedname$ServerObj *ServerObj = EEAClient->get_serverobj();
+
+$interface.all_operations : {operation|
+
+    $operation.Inputparam : {param |$param.Typecode.CppTypename$ $operation.name$_$param.name$_sync;}; separator="\n"$
+    $operation.Outputparam : {param |$param.Typecode.CppTypename$ $operation.name$_$param.name$_sync;}; separator="\n"$
+    //add sync
+    for (int32_t i = 0; i < TEST_CNT; i++) {
+        $operation.Inputparam : {param |$operation.name$_$param.name$_sync.updateTest(i);}; separator="\n"$
+        $operation.Outputparam : {param |$operation.name$_$param.name$_sync.updateTest(i);}; separator="\n"$
+        ret = ServerObj->$operation.name$($if(operation.HasInput)$$operation.Inputparam : {param |&$operation.name$_$param.name$_sync}$, $endif$$if(operation.HasOutput)$$operation.Outputparam : {param |&$operation.name$_$param.name$_sync}$, $endif$5000);
+        if (ret != ReturnMessage::OK) {
+            std::cout << "$operation.name$ test: sync response fail: " << ret << std::endl;
+            client::RpcClientFactory::DestroyRpcClient(EEAClient);
+            return false;
+        }
+        std::cout << "$operation.name$ test: sync response success: " << $if(operation.HasOutput)$$operation.Outputparam : {param |$operation.name$_$param.name$_sync}$.member_string() <<$endif$ std::endl;
+    }
+
+    std::cout << "$operation.name$ sync test pass " << std::endl;
+
+    //add async
+    $operation.Inputparam : {param |$param.Typecode.CppTypename$ $operation.name$_$param.name$_async;}; separator="\n"$
+    for (int32_t i = 0; i < TEST_CNT; i++) {
+
+        $operation.Inputparam : {param |$operation.name$_$param.name$_async.updateTest(i);}; separator="\n"$
+        std::function<void(int32_t, RpcMessageType *)>func = add_test_$operation.name$_handle;
+
+        ret = ServerObj->$operation.name$($if(operation.HasInput)$&$operation.Inputparam : {param |$operation.name$_$param.name$_async}$, $endif$func, 5000);
+        if (ret != ReturnMessage::OK) {
+            std::cout << "$operation.name$ test: async response fail: " << ret << std::endl;
+            client::RpcClientFactory::DestroyRpcClient(EEAClient);
+            return false;
+        }
+    }
+
+    while(1) {
+        usleep(200000);
+        if (EEA_pass == -1) {
+            client::RpcClientFactory::DestroyRpcClient(EEAClient);
+            return false;
+        }
+        if (add_success_cnt >= TEST_CNT) {
+            std::cout << "$operation.name$ async test pass " << std::endl;
+            break;
+        }
+    }
+}; separator="\n"$
+
+    std::cout << "$interface.CScopedname$ test over" << std::endl;
+    client::RpcClientFactory::DestroyRpcClient(EEAClient);
+
+    return true;
+}
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct) ::= <<>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+/*UTILS*/
+evbs_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$vbs$else$vbs$endif$>>

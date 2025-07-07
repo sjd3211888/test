@@ -1,0 +1,169 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group DDSPublisherHeader2to2;
+
+main(ctx, definitions) ::= <<
+
+#ifndef _EDDS_GENERATED$if(!ctx.NotUseRandom)$_$ctx.RandomNumber$$endif$_$ctx.headerGuardName$_PUBLISHER_H_
+#define _EDDS_GENERATED$if(!ctx.NotUseRandom)$_$ctx.LastRandomNumber$$endif$_$ctx.headerGuardName$_PUBLISHER_H_
+
+#include "$ctx.filename$$if(ctx.RtiIdl)$$else$PubSubTypes$endif$.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+#include <mutex>
+$if(ctx.UseVbsFramework)$
+#include <vbs/DomainParticipant.hpp>
+#include <vbs/DataWriter.hpp>
+#include <vbs/DataWriterListener.hpp>
+#include <vbs/Global.hpp>
+#include <vbs/DataWriterQos.hpp>
+
+$else$
+#include <edds/dds/domain/DomainParticipant.hpp>
+#include <edds/dds/publisher/DataWriter.hpp>
+#include <edds/dds/publisher/DataWriterListener.hpp>
+#include <edds/dds/publisher/Publisher.hpp>
+#include <deps/common/TypeSupport.hpp>
+#include <edds/dds/publisher/qos/DataWriterQos.hpp>
+$endif$
+
+class $ctx.filename$Publisher
+{
+public:
+
+    $ctx.filename$Publisher();
+
+    virtual ~$ctx.filename$Publisher();
+
+    bool init(bool use_env);
+
+    bool publish(
+            int msgsent,
+            bool waitForListener = true);
+
+    void run(
+        uint32_t number,
+        uint32_t sleep);
+$if(ctx.TestExample)$
+    static void writeToFile(const std::string& filename, const $ctx.m_lastStructureScopedName$& data);
+
+    static std::mutex file_mutex;
+$endif$
+
+private:
+
+    $ctx.m_lastStructureScopedName$ st_;
+
+    $if(ctx.UseVbsFramework)$
+    $if(ctx.GenerateTypeObject)$
+    $ctx.m_lastStructureScopedName$::register_dynamic_type();
+    $ctx.m_lastStructureScopedName$::get_vbs_dynamic_type();
+    $endif$
+    $endif$
+
+    $namespace_get(ctx=ctx)$DomainParticipant* participant_;
+    $if(ctx.NotUseVbsFramework)$evbs::edds::dds::Publisher* publisher_;$endif$
+    $namespace_get(ctx=ctx)$Topic* topic_;
+    $namespace_get(ctx=ctx)$DataWriter* writer_;
+    $namespace_get(ctx=ctx)$DataWriter* writer_2;
+    $namespace_get(ctx=ctx)$TypeSupport type_;
+
+    bool stop_;
+
+    $if(ctx.NotUseVbsFramework)$
+    // QoS Profiles
+    evbs::edds::dds::DataWriterQos dw_qos_;
+    $endif$
+    class PubListener : public $namespace_get(ctx=ctx)$DataWriterListener
+    {
+    public:
+
+        PubListener()
+            : matched_(0)
+            , firstConnected_(false)
+        {
+        }
+
+        ~PubListener() override
+        {
+        }
+
+        void on_publication_matched(
+                $namespace_get(ctx=ctx)$DataWriter* writer,
+                const $namespace_get(ctx=ctx)$PublicationMatchedStatus& info) override;
+
+        void on_offered_deadline_missed($namespace_get(ctx=ctx)$DataWriter* writer, const $namespace_get(ctx=ctx)$OfferedDeadlineMissedStatus& status) {}
+
+        void on_liveliness_lost($namespace_get(ctx=ctx)$DataWriter* writer, const $namespace_get(ctx=ctx)$LivelinessLostStatus& status) {}
+
+        int matched_;
+
+        bool firstConnected_;
+    }
+    listener_;
+
+    void runThread(
+            uint32_t number,
+            uint32_t sleep);
+};
+
+#endif // _EDDS_GENERATED$if(!ctx.NotUseRandom)$_$ctx.LastRandomNumber$$endif$_$ctx.headerGuardName$_PUBLISHER_H_
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list) ::= <<
+$export_list$
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct) ::= <<>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+bitset_type(ctx, parent, bitset) ::= <<>>
+
+/*UTILS*/
+namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$evbs::edds::dds::$else$vbs::$endif$>>

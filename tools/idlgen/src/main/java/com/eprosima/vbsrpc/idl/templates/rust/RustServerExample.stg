@@ -1,0 +1,147 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group RustServerExample;
+
+main(ctx, definitions) ::= <<
+#![allow(non_upper_case_globals)]
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
+$if(ctx.package)$
+mod $ctx.OnlyPackage$;
+use $ctx.OnlyPackage$::*;
+$endif$
+
+use std::ffi::CString;
+use std::os::raw::{c_char, c_int, c_void};
+use std::{
+    collections::BTreeMap,
+    error::Error,
+    rc::Rc,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
+use vbs::{RpcServer, RpcServerFactory};
+include!(concat!(env!("OUT_DIR"), "/typesbindings.rs"));
+
+// struct RpcServerListenerTest2;
+$definitions; separator="\n"$
+fn main() {
+    println!("Rpc test begin....");
+    let mut AsyncStream_count = 10;
+    let mut factory = RpcServerFactory::new();
+
+    // let mut server2 = factory.create_server("ServiceXML2.xml", "Service");
+    // let listener2 = Box::new(RpcServerListenerTest2);
+    // let mut impl_eea2 = data_collector::ServiceImpl::new("Service", listener2);
+    // server2.server_register_impl(impl_eea2.ptr as *mut c_void);
+    $ctx.Interfaces : { interface |
+    let mut server = factory.create_server("ServiceXML.xml", "$interface.CScopedname$");
+    let listener = Box::new($interface.cScopedname$_RpcServerListenerTest);
+    let mut impl_eea = $interface.Scopedname$Impl::new("$interface.CScopedname$", listener);
+    server.server_register_impl(impl_eea.ptr as *mut c_void);
+    }; separator="\n"$
+    loop {
+        unsafe {
+            if AsyncStream_count > 0 {
+                AsyncStream_count -= 1;
+            } else {
+                break
+            }
+
+            thread::sleep(Duration::from_millis(100));
+        }
+    }
+    println!("Rpc test successfully.");
+}
+
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list) ::= <<
+
+struct $interface.cScopedname$_RpcServerListenerTest;
+impl $interface.scopedname$_RpcServerListenerInterface for $interface.cScopedname$_RpcServerListenerTest {
+$interface.all_operations : {operation|
+    fn on_$operation.name$(
+        &self,
+        conn_id: u32,
+$if(operation.HasMethod)$        req_id: u32,$endif$
+        req_mode: i32,
+        $operation.Parameters : {param |$param.name$: &mut $param.Typecode.scopednamenormal$,}; separator="\n"$
+    ) {
+        println!("$operation.Inputparam : {param |$param.Typecode.RustTypename$}; separator=""$ content: {:?}", $operation.Inputparam : {param |$param.name$}; separator=""$);
+
+        match serde_json::to_string(request) {
+            Ok(serialized_request) => {
+                if req_mode == 0 {
+                    println!("BasicStruct is in SYNC mode.");
+                    response.basic_member = request.clone();
+                    response.member_string = serialized_request;
+
+                    println!("Serialized response string: {:?}", response.member_string);
+                } else {
+                    println!("Unsupported request mode: {}", req_mode);
+                }
+            }
+            Err(err) => {
+                println!("Failed to serialize request: {:?}", err);
+            }
+        }
+    }
+}; separator="\n"$
+}
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct) ::= <<>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+bitset_type(ctx, parent, bitset) ::= <<>>
+
+/*UTILS*/
+namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$evbs::edds::dds::$else$vbs::$endif$>>

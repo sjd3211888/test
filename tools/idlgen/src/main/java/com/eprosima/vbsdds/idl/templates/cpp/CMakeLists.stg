@@ -1,0 +1,203 @@
+// Copyright 2016 Proyectos y Sistemas de Mantenimiento SL (eProsima).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ------------------------------------------------------------------
+// Modification history:
+// 2023-08 ~ 2025-05: idlgen optimization: code detection, multi-platform compilation support, header file updates, super large heap support, open source content refinement, etc.
+// ------------------------------------------------------------------
+
+group CMakeLists;
+
+cmakelists(solution, test, pure_flag) ::= <<
+
+$if(pure_flag)$
+cmake_minimum_required(VERSION 3.10)
+project(MyLibrary)
+
+set(LIBRARY_NAME mylibrary)
+
+file(GLOB SOURCES CONFIGURE_DEPENDS "\${CMAKE_CURRENT_SOURCE_DIR}/*.cxx")
+
+file(GLOB HEADERS CONFIGURE_DEPENDS "\${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
+
+add_library(\${LIBRARY_NAME} STATIC \${SOURCES} \${HEADERS})
+
+target_include_directories(\${LIBRARY_NAME} PUBLIC \${CMAKE_CURRENT_SOURCE_DIR})
+
+set_target_properties(\${LIBRARY_NAME} PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES)
+$else$
+cmake_minimum_required(VERSION 2.8.12)
+
+project("generated_code")
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+$if(solution.HasMutable)$
+add_definitions(-DXCDRV2)
+$endif$
+
+# Find requirements
+find_library(lib_livbs
+    NAMES livbs
+    HINTS \${THIRD_LIB_PATH}
+    PATHS \${THIRD_LIB_PATH}
+    REQUIRED)
+find_library(lib_ecdr
+    NAMES ecdr
+    HINTS \${THIRD_LIB_PATH}
+    PATHS \${THIRD_LIB_PATH}
+    REQUIRED)
+# find_library(lib_ertps
+#     NAMES ertps
+#     HINTS \${LIB_PATH}
+#     PATHS \${LIB_PATH}
+#     REQUIRED)
+#
+# find_library(lib_common
+#     NAMES common
+#     HINTS \${LIB_PATH}
+#     PATHS \${LIB_PATH}
+#     REQUIRED)
+#
+# find_library(lib_elog
+#     NAMES elog
+#     HINTS \${LIB_PATH}
+#     PATHS \${LIB_PATH}
+#     REQUIRED)
+#
+# find_library(lib_xmlparser
+#     NAMES xmlparser
+#     HINTS \${LIB_PATH}
+#     PATHS \${LIB_PATH}
+#     REQUIRED)
+#
+# $if(solution.GenBoth)$
+# find_library(lib_erpc
+#     NAMES erpc
+#     HINTS \${LIB_PATH}
+#     PATHS \${LIB_PATH}
+#     REQUIRED)
+# $endif$
+#
+# $if(solution.UseVbsFramework)$
+# find_library(lib_dsfdds
+#     NAMES dsfdds
+#     HINTS \${LIB_PATH}
+#     PATHS \${LIB_PATH}
+#     REQUIRED)
+#
+# find_library(VBSFramework
+#     NAMES VBSFramework
+#     HINTS \${LIB_PATH}
+#     PATHS \${LIB_PATH}
+#     REQUIRED)
+#
+# $if(solution.ZeroCopy)$
+# find_library(lib_mbuf
+#     NAMES membuf
+#     HINTS \${LIB_PATH}
+#     PATHS \${LIB_PATH}
+#     REQUIRED
+#     NO_DEFAULT_PATH)
+# $endif$
+
+add_definitions(-DDSF_OPEN=1)
+$endif$
+
+$if(solution.TestExample)$
+
+configure_file(\${PROJECT_SOURCE_DIR}/test_xml_pub.xml
+\${PROJECT_SOURCE_DIR}/build/test_xml_pub.xml
+COPYONLY)
+
+configure_file(\${PROJECT_SOURCE_DIR}/test_xml_sub.xml
+\${PROJECT_SOURCE_DIR}/build/test_xml_sub.xml
+COPYONLY)
+
+configure_file(\${PROJECT_SOURCE_DIR}/start.sh
+\${PROJECT_SOURCE_DIR}/build/start.sh
+COPYONLY)
+$endif$
+
+$if(solution.StaticXml)$
+configure_file(\${PROJECT_SOURCE_DIR}/StaticPublisher.xml
+\${PROJECT_SOURCE_DIR}/build/StaticPublisher.xml
+COPYONLY)
+
+configure_file(\${PROJECT_SOURCE_DIR}/StaticSubscriber.xml
+\${PROJECT_SOURCE_DIR}/build/StaticSubscriber.xml
+COPYONLY)
+$endif$
+
+$if(!solution.RmPrintHelper)$
+# Create templates library
+#add_library(templates_lib $if(solution.GenSharedLib)$SHARED $endif$ContainerPrintHelpers.cxx)
+#target_link_libraries(\${lib_ecdr} \${lib_ertps} \${lib_common} )
+$endif$
+
+$solution.projects : {$pub_sub_execs(project=it, libraries=solution.libraries, test=test)$}; separator="\n"$
+$endif$
+>>
+
+pub_sub_execs(project, libraries, test) ::= <<
+
+message(STATUS "Configuring $project.name$...")
+add_library($project.name$_lib $if(solution.GenSharedLib)$SHARED $endif$$project.commonSrcFiles : {$it$}; separator=" "$)
+#target_link_libraries($project.name$_lib $solution.libraries : {\${lib_$it$}}; separator=" "$ \${lib_ecdr} \${lib_ertps} \${lib_common} \${lib_elog} \${lib_xmlparser}  dl)
+target_link_libraries($project.name$_lib $solution.libraries : {\${lib_$it$}}; separator=" "$ \${lib_livbs} \${lib_ecdr} dl)
+
+$if(project.ProjectSrcFilesEmpty)$
+$else$
+add_executable($project.name$ $project.projectSrcFiles : {$it$}; separator=" "$)
+$if(solution.UseVbsFramework)$
+target_link_libraries($project.name$ $solution.libraries : {\${lib_$it$}}; separator=" "$
+        $project.name$_lib $project.dependencies : {$it$_lib}; separator=" "$ \${lib_livbs} \${lib_ecdr} $if(solution.TestExample)$pthread$endif$)
+# target_link_libraries($project.name$ $solution.libraries : {\${lib_$it$}}; separator=" "$
+#         $project.name$_lib $project.dependencies : {$it$_lib}; separator=" "$ \${lib_ecdr} \${lib_ertps} \${lib_common}  \${lib_dsfdds} $if(solution.GenBoth)$\${lib_erpc}$endif$ \${VBSFramework} \${lib_elog} \${lib_xmlparser} $if(solution.ZeroCopy)$\${lib_mbuf}$endif$ $if(solution.TestExample)$pthread$endif$)
+target_compile_options($project.name$ PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
+target_link_options($project.name$ PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
+$else$
+target_link_libraries($project.name$ $solution.libraries : {\${lib_$it$}}; separator=" "$
+        $project.name$_lib $project.dependencies : {$it$_lib}; separator=" "$ \${lib_livbs} \${lib_ecdr} $if(solution.TestExample)$pthread$endif$)
+# target_link_libraries($project.name$ $solution.libraries : {\${lib_$it$}}; separator=" "$
+#         $project.name$_lib $project.dependencies : {$it$_lib}; separator=" "$ \${lib_ecdr} \${lib_ertps} \${lib_common}  \${lib_elog} \${lib_xmlparser} $if(solution.TestExample)$pthread$endif$)
+target_compile_options($project.name$ PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
+target_link_options($project.name$ PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
+$endif$
+$endif$
+
+$if(test)$
+# $project.name$ Serialization Test
+add_executable($project.name$SerializationTest $project.name$SerializationTest.cpp
+        $project.name$Serialization.cpp
+        $project.dependencies : {$it$Serialization.cpp}; separator=" "$
+        $project.name$PubSubTypes.cxx)
+$if(solution.UseVbsFramework)$
+target_link_libraries($project.name$SerializationTest $solution.libraries :  {\${lib_$it$}}; separator=" "$
+        $project.name$_lib $project.dependencies : {$it$_lib}; separator=" "$ \${lib_livbs} \${lib_ecdr} $if(solution.TestExample)$pthread$endif$)
+#target_link_libraries($project.name$SerializationTest $solution.libraries :  {\${lib_$it$}}; separator=" "$
+#        $project.name$_lib $project.dependencies : {$it$_lib}; separator=" "$ \${lib_ecdr} \${lib_ertps} \${lib_common}  \${lib_dsfdds} $if(solution.GenBoth)$\${lib_erpc}$endif$ \${VBSFramework} \${lib_elog} \${lib_xmlparser} $if(solution.ZeroCopy)$\${lib_mbuf}$endif$ $if(solution.TestExample)$pthread$endif$)
+target_compile_options($project.name$ PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
+target_link_options($project.name$ PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
+$else$
+target_link_libraries($project.name$SerializationTest $solution.libraries :  {\${lib_$it$}}; separator=" "$
+        $project.name$_lib $project.dependencies : {$it$_lib}; separator=" "$ \${lib_livbs} \${lib_ecdr} $if(solution.TestExample)$pthread$endif$)
+#target_link_libraries($project.name$SerializationTest $solution.libraries :  {\${lib_$it$}}; separator=" "$
+#        $project.name$_lib $project.dependencies : {$it$_lib}; separator=" "$ \${lib_ecdr} \${lib_ertps} \${lib_common}  \${lib_elog} \${lib_xmlparser} $if(solution.TestExample)$pthread$endif$)
+target_compile_options($project.name$ PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
+target_link_options($project.name$ PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
+$endif$
+$endif$
+
+>>

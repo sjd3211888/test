@@ -1,0 +1,576 @@
+// Copyright 2016 Proyectos y Sistemas de Mantenimiento SL (eProsima).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ------------------------------------------------------------------
+// Modification history:
+// 2023-05 ~ 2025-05: idlgen optimization: support pubsub mode java/jni code generation, java stg update, java typedef/seq class optimization, equals method fix, etc.
+// ------------------------------------------------------------------
+
+group RPCJavaType;
+
+main(ctx, definitions, package) ::= <<
+$if(package)$
+package $package$;
+$endif$
+
+import VBSFramework.RPC.utils.RpcMessageType;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.lang.reflect.Array;
+import java.util.BitSet;
+import java.util.Map;
+import java.util.HashMap;
+import java.lang.String;
+
+$definitions$
+>>
+
+interface(ctx, parent, interface, exports, extension) ::= <<>>
+
+struct_type(ctx, parent, struct, extension, module_name) ::= <<
+public class $ctx.filename$$if(module_name)$_$module_name$$endif$_$struct.name$ extends RpcMessageType
+{
+    private native long native_init();
+    private native void native_deinit(long ptr);
+    private native void native_copy_data_from_cpp(long ptr);
+    private native void native_copy_data_to_cpp(long ptr);
+
+    public $ctx.filename$$if(module_name)$_$module_name$$endif$_$struct.name$()
+    {
+        long ptr = 0;
+        ptr = native_init();
+        if (ptr == 0) {
+            System.out.println("allocate native $ctx.filename$$if(module_name)$_$module_name$$endif$_$struct.name$ memory failed\n");
+            return;
+        }
+        this.setNativePtr(ptr);
+        this.owned = true;
+$struct.members : { member |
+$if(!member.typecode.primitive)$
+$if(member.typecode.IsType_10)$
+$if(member.typecode.IsMapType)$
+        $member.name$_ = new HashMap<>();
+$elseif(member.typecode.IsType_f)$
+        $member.name$_ = new $member.typecode.javaTypename$;
+$elseif(member.typecode.isType_e)$
+        $member.name$_ = new ArrayList<>();
+$elseif(member.typecode.isType_a)$
+        $member.name$_ = new $ctx.Package$$ctx.filename$_$member.typecode.ContentTypeCode.CScopednamenormal$();
+$else$
+        $member.name$_ = new $member.typecode.ContentTypeCode.javaTypename$();
+$endif$
+$else$
+$if(member.typecode.IsMapType)$
+        $member.name$_ = new HashMap<>();
+$elseif(member.typecode.IsType_f)$
+        $member.name$_ = new $member.typecode.javaTypename$;
+$elseif(member.typecode.isType_e)$
+        $member.name$_ = new ArrayList<>();
+$elseif(member.typecode.isType_a)$
+        $member.name$_ = new $ctx.Package$$ctx.filename$_$member.typecode.CScopednamenormal$();
+$else$
+        $member.name$_ = new $member.typecode.javaTypename$();
+$endif$
+$endif$
+$endif$
+}; separator="\n"$
+    }
+
+    public $ctx.filename$$if(module_name)$_$module_name$$endif$_$struct.name$(long ptr, boolean owned) {
+        this.setNativePtr(ptr);
+        this.owned = owned;
+$struct.members : { member |
+$if(!member.typecode.primitive)$
+$if(member.typecode.IsType_10)$
+$if(member.typecode.IsMapType)$
+        $member.name$_ = new HashMap<>();
+$elseif(member.typecode.IsType_f)$
+        $member.name$_ = new $member.typecode.javaTypename$;
+$elseif(member.typecode.isType_e)$
+        $member.name$_ = new ArrayList<>();
+$elseif(member.typecode.isType_a)$
+        $member.name$_ = new $ctx.Package$$ctx.filename$_$member.typecode.ContentTypeCode.CScopednamenormal$();
+$else$
+        $member.name$_ = new $member.typecode.ContentTypeCode.javaTypename$();
+$endif$
+$else$
+$if(member.typecode.IsMapType)$
+        $member.name$_ = new HashMap<>();
+$elseif(member.typecode.IsType_f)$
+        $member.name$_ = new $member.typecode.javaTypename$;
+$elseif(member.typecode.isType_e)$
+        $member.name$_ = new ArrayList<>();
+$elseif(member.typecode.isType_a)$
+        $member.name$_ = new $ctx.Package$$ctx.filename$_$member.typecode.CScopednamenormal$();
+$else$
+        $member.name$_ = new $member.typecode.javaTypename$();
+$endif$
+$endif$
+$endif$
+}; separator="\n"$
+        copy_data_from_cpp();
+    }
+
+    public $ctx.filename$$if(module_name)$_$module_name$$endif$_$struct.name$($ctx.filename$$if(module_name)$_$module_name$$endif$_$struct.name$ data)
+    {
+        long ptr = 0;
+        ptr = native_init();
+        if (ptr == 0) {
+            System.out.println("allocate native $ctx.filename$$if(module_name)$_$module_name$$endif$_$struct.name$ memory failed\n");
+            return;
+        }
+
+        this.owned = true;
+$struct.members : { member |
+        this.set$member.javaName$(data.get$member.javaName$());
+}; separator="\n"$
+
+        this.setNativePtr(ptr);
+        copy_data_to_cpp();
+    }
+
+    protected void finalize() throws Throwable {
+        if (nativePtr != 0 && this.owned) {
+            native_deinit(this.getNativePtr());
+        }
+        setNativePtr(0);
+    }
+
+$struct.members : { member |
+$if(member.typecode.IsType_10)$
+$if(member.typecode.IsType_f)$
+    public void set$member.javaName$($member.typecode.ContentTypeCodeJavaTypename$$member.typecode.EmptyArrayExtension$ $member.name$)
+$else$
+$if(member.typecode.IsType_a)$
+    public void set$member.javaName$($ctx.Package$$ctx.filename$_$member.typecode.ContentTypeCode.CScopednamenormal$ $member.name$)
+$elseif(member.typecode.IsMapType)$
+    public void set$member.javaName$($member.typecode.javaTypename$ $member.name$)
+$elseif(member.typecode.ContainerTypeCode)$
+    public void set$member.javaName$($member.typecode.javaTypename$ $member.name$)
+$else$
+    public void set$member.javaName$($member.typecode.ContentTypeCode.javaTypename$ $member.name$)
+$endif$
+$endif$
+$else$
+$if(member.typecode.IsType_f)$
+    public void set$member.javaName$($member.typecode.ContentTypeCodeJavaTypename$$member.typecode.EmptyArrayExtension$ $member.name$)
+$else$
+$if(member.typecode.IsType_a)$
+    public void set$member.javaName$($ctx.Package$$ctx.filename$_$member.typecode.CScopednamenormal$ $member.name$)
+$else$
+    public void set$member.javaName$($member.typecode.javaTypename$ $member.name$)
+$endif$
+$endif$
+$endif$
+
+    {
+$if(member.typecode.IsType_d)$
+$if(ctx.DynamicLengthString)$
+$if(member.typecode.IsBounded)$
+        $string_sub(ctx=ctx, parent=struct, member=member)$
+$else$
+        $member.name$_ = $member.name$;
+$endif$
+$else$
+        $string_sub(ctx=ctx, parent=struct, member=member)$
+$endif$
+$else$
+        $member.name$_ = $member.name$;
+$endif$
+
+    }
+$if(member.typecode.IsType_10)$
+$if(member.typecode.IsType_f)$
+    public $member.typecode.ContentTypeCodeJavaTypename$$member.typecode.EmptyArrayExtension$ get$member.javaName$()
+$else$
+$if(member.typecode.IsType_a)$
+    public $ctx.Package$$ctx.filename$_$member.typecode.ContentTypeCode.CScopednamenormal$ get$member.javaName$()
+$elseif(member.typecode.IsMapType)$
+    public $member.typecode.javaTypename$ get$member.javaName$()
+$elseif(member.typecode.ContainerTypeCode)$
+    public $member.typecode.javaTypename$ get$member.javaName$()
+$else$
+    public $member.typecode.ContentTypeCode.javaTypename$ get$member.javaName$()
+$endif$
+$endif$
+$else$
+$if(member.typecode.IsType_f)$
+    public $member.typecode.ContentTypeCodeJavaTypename$$member.typecode.EmptyArrayExtension$ get$member.javaName$()
+$else$
+$if(member.typecode.IsType_a)$
+    public $ctx.Package$$ctx.filename$_$member.typecode.CScopednamenormal$ get$member.javaName$()
+$else$
+    public $member.typecode.javaTypename$ get$member.javaName$()
+$endif$
+$endif$
+$endif$
+
+    {
+        return $member.name$_;
+    }
+
+}; separator="\n"$
+
+    @Override
+    public boolean equals(Object other)
+    {
+        if(other == null) return false;
+        if(other == this) return true;
+        if(!(other instanceof $ctx.filename$$if(module_name)$_$module_name$$endif$_$struct.name$)) return false;
+        $ctx.filename$$if(module_name)$_$module_name$$endif$_$struct.name$ otherMyClass = ($ctx.filename$$if(module_name)$_$module_name$$endif$_$struct.name$)other;
+        boolean returnedValue = true;
+
+        $struct.members : { member |
+        $if(member.typecode.primitive)$
+$if(member.typecode.FloatOrDouble)$
+returnedValue &= nearlyEqual(this.$member.name$_, otherMyClass.$member.name$_, 1E-6f);
+$else$
+returnedValue &= this.$member.name$_ == otherMyClass.$member.name$_;
+$endif$
+        $elseif(member.typecode.IsArrayType)$
+$if(member.typecode.ContentTypeCode.FloatOrDouble)$
+returnedValue &= compareFloatingPointArrays(this.$member.name$_, otherMyClass.$member.name$_);
+$else$
+$if(member.typecode.ObjectArray)$
+returnedValue &= Arrays.deepEquals(this.$member.name$_, otherMyClass.$member.name$_);
+$else$
+returnedValue &= Arrays.equals(this.$member.name$_, otherMyClass.$member.name$_);
+$endif$
+$endif$
+        $else$returnedValue &= this.$member.name$_.equals(otherMyClass.$member.name$_);
+        $endif$
+        }; separator="\n"$
+
+        return returnedValue;
+    }
+
+    @Override
+    public void copy_data_from_cpp()
+    {
+        native_copy_data_from_cpp(this.getNativePtr());
+    }
+
+    @Override
+    public void copy_data_to_cpp()
+    {
+        native_copy_data_to_cpp(this.getNativePtr());
+    }
+
+    private static boolean nearlyEqual(float a, float b, float epsilon) {
+        if (Float.compare(a, b) == 0) {
+            return true;
+        }
+        return Math.abs(a - b) <= epsilon;
+    }
+
+    private static boolean nearlyEqual(double a, double b, double epsilon) {
+        if (Double.compare(a, b) == 0) {
+            return true;
+        }
+        return Math.abs(a - b) <= epsilon;
+    }
+
+    public static boolean compareFloatingPointArrays(Object arr1, Object arr2) {
+        if (arr1.getClass() != arr2.getClass() || !arr1.getClass().isArray()) {
+            return false;
+        }
+
+        int length = Array.getLength(arr1);
+        if (length != Array.getLength(arr2)) {
+            return false;
+        }
+
+        for (int i = 0; i < length; i++) {
+            Object item1 = Array.get(arr1, i);
+            Object item2 = Array.get(arr2, i);
+
+            if (item1.getClass().isArray()) {
+                if (!compareFloatingPointArrays(item1, item2)) {
+                    return false;
+                }
+            } else {
+                if (item1 instanceof Double) {
+                    if (!nearlyEqual((Double)item1, (Double)item2, 0.000001)) {
+                        return false;
+                    }
+                } else if (item1 instanceof Float) {
+                    if (!nearlyEqual((Float)item1, (Float)item2, 0.0001f)) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+$struct.members : { member |
+    $if(member.typecode.IsType_10)$
+        $if(member.typecode.IsType_f)$
+        private $member.typecode.ContentTypeCodeJavaTypename$$member.typecode.EmptyArrayExtension$ $member.name$_;
+        $elseif(member.typecode.IsType_d)$
+        private $member.typecode.javaTypename$ $member.name$_;
+        private int $member.name$_max_size_ = $member.typecode.ContentTypeCode.MaxsizeInt$;
+        $elseif(member.typecode.IsType_a)$
+        private $ctx.Package$$ctx.filename$_$member.typecode.ContentTypeCode.CScopednamenormal$ $member.name$_;
+        $elseif(member.typecode.IsMapType)$
+        private $member.typecode.javaTypename$ $member.name$_;
+        $elseif(member.typecode.ContainerTypeCode)$
+        private $member.typecode.javaTypename$ $member.name$_;
+        $else$
+        private $member.typecode.ContentTypeCode.javaTypename$ $member.name$_;
+        $endif$
+    $else$
+        $if(member.typecode.IsType_f)$
+        private $member.typecode.ContentTypeCodeJavaTypename$$member.typecode.EmptyArrayExtension$ $member.name$_;
+        $elseif(member.typecode.IsType_d)$
+        private $member.typecode.javaTypename$ $member.name$_;
+        private int $member.name$_max_size_ = $member.typecode.MaxsizeInt$;
+        $elseif(member.typecode.IsType_a)$
+        private $ctx.Package$$ctx.filename$_$member.typecode.CScopednamenormal$ $member.name$_;
+        $else$
+        private $member.typecode.javaTypename$ $member.name$_;
+        $endif$
+    $endif$
+}; separator="\n"$
+
+    $extension$
+}
+>>
+
+bitset_type(ctx, parent, bitset) ::= <<>>
+
+public_bitfield_definition(member) ::= <<
+$if(member.name)$
+public void $member.name$(
+        $member.spec.javaTypename$ _$member.name$)
+{
+    int base = $member.basePosition$;
+$if(member.spec.typecode.isType_7)$
+    m_bitset.set(base, _$member.name$);
+$else$
+    int size = $member.spec.bitSize$;
+    for (int i = base; i < base + size; ++i)
+    {
+        m_bitset.set(i, ((_$member.name$ & 0x01) != 0));
+        _$member.name$ = ($member.spec.javaTypename$)(((_$member.name$ & 0xff) \>> 1) & 0xff);
+    }
+$endif$
+
+}
+
+public final $member.spec.javaTypename$ $member.name$()
+{
+    int base = $member.basePosition$;
+$if(member.spec.typecode.isType_7)$
+    return m_bitset.get(base);
+$else$
+    int size = $member.spec.bitSize$;
+    BitSet aux = new BitSet($member.spec.bitSize$);
+    for (int i = 0; i < size; ++i)
+    {
+        aux.set(i, m_bitset.get(i + base));
+    }
+    long array = aux.toLongArray()[0];
+    return ($member.spec.javaTypename$)array;
+$endif$
+
+}
+$endif$
+
+>>
+
+union_type(ctx, parent, union, extension) ::= <<
+public class $union.name$
+{
+    public $union.name$()
+    {
+        $if(union.javaDefaultvalue)$
+        d__ = $union.javaDefaultvalue$;
+        $else$
+        d__ = $first(first(union.members).javaLabels)$;
+        $endif$
+
+        $union.members : { member |
+        $if(member.typecode.IsType_10)$
+        $if(!member.typecode.primitive)$
+        $member.name$_ = new $member.typecode.ContentTypeCode.javaTypename$();
+        $elseif(member.typecode.isType_a)$
+        $member.name$_ = new $member.typecode.ContentTypeCode.javaTypename$();
+        $endif$
+        $endif$
+        $else$
+        $if(!member.typecode.primitive)$
+        $member.name$_ = new $member.typecode.javaTypename$();
+        $endif$
+        $endif$
+        }; separator="\n"$
+    }
+
+    public $union.discriminator.javaTypename$ getDiscriminator()
+    {
+        return d__;
+    }
+
+    $union.members : { member |
+    $if(!member.typecode.isType_e)$
+$if(member.typecode.IsType_10)$
+    public void set$member.javaName$($member.typecode.ContentTypeCode.javaTypename$ $member.name$)
+$else$
+    public void set$member.javaName$($member.typecode.javaTypename$ $member.name$)
+$endif$
+    {
+        $member.name$_ = $member.name$;
+
+        $if(member.default)$
+            d__ = $union.javaDefaultvalue$;
+        $else$
+            d__ = $first(member.javaLabels)$;
+        $endif$
+    }
+
+$if(member.typecode.IsType_10)$
+    public void set$member.javaName$($union.discriminator.javaTypename$ discriminator, $member.typecode.ContentTypeCode.javaTypename$ $member.name$)
+$else$
+    public void set$member.javaName$($union.discriminator.javaTypename$ discriminator, $member.typecode.javaTypename$ $member.name$)
+$endif$
+        throws Exception
+    {
+        $if(member.default)$
+        if($[union.javaDefaultvalue, member.javaLabels] : {label | discriminator == $label$}; separator=" || "$)
+        $else$
+        if($member.javaLabels : {label | discriminator == $label$}; separator=" || "$)
+        $endif$
+        {
+            $member.name$_ = $member.name$;
+            d__ = discriminator;
+            return;
+        }
+
+        throw new Exception("Given discriminator is not a valid value for member $member.name$");
+    }
+    $endif$
+
+$if(member.typecode.IsType_10)$
+    public $member.typecode.ContentTypeCode.javaTypename$ get$member.javaName$()
+$else$
+    public $member.typecode.javaTypename$ get$member.javaName$()
+$endif$
+        throws Exception
+    {
+        $if(member.default)$
+        if($[union.javaDefaultvalue, member.javaLabels] : {label | d__ == $label$}; separator=" || "$)
+        $else$
+        if($member.javaLabels : {label | d__ == $label$}; separator=" || "$)
+        $endif$
+            return $member.name$_;
+
+        throw new Exception("Union member not selected by discriminator");
+    }
+
+    }; separator="\n"$
+
+    @Override
+    public boolean equals(Object other)
+    {
+        if(other == null) return false;
+        if(other == this) return true;
+        if(!(other instanceof $union.name$)) return false;
+        $union.name$ otherMyClass = ($union.name$)other;
+
+        if(this.d__ == otherMyClass.d__)
+        {
+            $union.members : { member |
+                $if(member.default)$
+                if($[union.javaDefaultvalue, member.javaLabels] : {label | d__ == $label$}; separator=" || "$)
+                $else$
+                if($member.javaLabels : {label | d__ == $label$}; separator=" || "$)
+                $endif$
+                {
+                    if(this.$member.name$_ == otherMyClass.$member.name$_)
+                        return true;
+                    else
+                        return false;
+                }
+        }; separator="\n"$
+        }
+
+        return false;
+    }
+
+    $union.discriminator.javaTypename$ d__;
+
+    $union.members : { member |private $if(member.typecode.IsType_10)$$if(member.typecode.isType_a)$$member.typecode.ContentTypeCode.javaTypename$$else$$member.typecode.javaTypename$$endif$$else$$member.typecode.javaTypename$$endif$ $member.name$_; }; separator="\n"$
+
+    $extension$
+}
+>>
+
+enum_type(ctx, parent, enum, extension) ::= <<
+public class $enum.name$
+{
+    $enum.members:{ member |
+        public static final int _$member.name$ = $i$ - 1;
+
+        public static final $enum.name$ $member.name$ = new $enum.name$(_$member.name$);
+
+    }; separator="\n"$
+
+    public int value()
+    {
+        return value_;
+    }
+
+    public static $enum.name$ from_int(int value)
+    {
+        return new $enum.name$(value);
+    }
+
+    protected $enum.name$(int value)
+    {
+        value = value_;
+    }
+
+    @Override
+    public boolean equals(Object other)
+    {
+        if(other == null) return false;
+        if(other == this) return true;
+        if(!(other instanceof $enum.name$)) return false;
+        $enum.name$ otherMyClass = ($enum.name$)other;
+
+        return this.value_ == otherMyClass.value_;
+    }
+
+    private int value_ = 0;
+
+    $extension$
+}
+>>
+
+bitmask_type(ctx, parent, bitmask, extension) ::= <<>>
+
+public_bitset_inheritances(parent) ::= <<$parent.scopedname$>>
+
+/** Utils **/
+string_sub(ctx, parent, member) ::= <<
+int str_length = $member.name$.length();
+if (str_length < $member.name$_max_size_) {
+    $member.name$_ = $member.name$.substring(0, str_length);
+} else {
+    System.out.println("The incoming string is longer than the maximum length of "+ $member.name$_max_size_+"\n");
+    $member.name$_ = $member.name$.substring(0, $member.name$_max_size_);
+}
+>>

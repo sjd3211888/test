@@ -1,0 +1,128 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group ClientFactory;
+
+main(ctx, definitions) ::= <<
+$fileVBSHeader(ctx=ctx,  file=[ctx.filename, "ClientFactory.h"], description=["This header file contains the declaration of the server for all interfaces."])$
+
+#ifndef _$ctx.filename;format="toUpper"$CLIENTFACTORY$if(!ctx.NotUseRandom)$_$ctx.RandomNumber$$endif$_H_
+#define _$ctx.filename;format="toUpper"$CLIENTFACTORY$if(!ctx.NotUseRandom)$_$ctx.LastRandomNumber$$endif$_H_
+
+$if(ctx.NotUseVbsFramework)$
+#include <erpc/utils/Utilities.h>
+#include <erpc/client/RpcClient.h>
+#include <erpc/client/RpcClientFactory.h>
+$else$
+$endif$
+
+#include "$ctx.filename$$if(ctx.RtiIdl)$Base$else$$endif$.$if(ctx.GenHpp)$hpp$else$h$endif$"
+#include "$ctx.filename$Client.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+class $ctx.filename$Factory : public $evbs_namespace_get(ctx=ctx)$rpc::client::RpcClientFactory
+{
+public:
+
+    $evbs_namespace_get(ctx=ctx)$rpc::RpcClient* CreateRpcClient(const std::string& profile_file_name, const std::string& profile_name) override
+    {
+        $evbs_namespace_get(ctx=ctx)$rpc::rpcxml::RpcXMLParser rpcConfig(profile_file_name);
+        rpcConfig.RpcXML_Init_Client(profile_name);
+        if (rpcConfig.RpcXML_Init_Client(profile_name) != $evbs_namespace_get(ctx=ctx)$rpc::ReturnMessage::OK)
+        {
+            RpcLogError(RPC_CLIENT, "load xml err in client init")
+            return NULL;
+        }
+
+        std::string Proxy_Name = rpcConfig.RpcXML_Client_get_proxy();
+        $evbs_namespace_get(ctx=ctx)$rpc::ProxyMB *ProxyMB_Obj = nullptr;
+        ProxyMB_Obj = CreateRpcProxyMB(Proxy_Name);
+        if (ProxyMB_Obj == nullptr)
+        {
+            ProxyMB_Obj = new $evbs_namespace_get(ctx=ctx)$rpc::ProxyMB(rpcConfig);
+            std::function<$evbs_namespace_get(ctx=ctx)$rpc::ProxyMB*()> func = [ProxyMB_Obj]() { return ProxyMB_Obj; };
+            RegisterRpcProxyMB(Proxy_Name, func);
+            ProxyMB_Obj = CreateRpcProxyMB(Proxy_Name);
+        }
+
+        std::string interface_cfg = rpcConfig.RpcXML_Client_get_class();
+
+        if (false) {}$definitions; separator="\n"$
+        return NULL;
+    }
+};
+#endif // _$ctx.filename;format="toUpper"$CLIENTFACTORY$if(!ctx.NotUseRandom)$_$ctx.LastRandomNumber$$endif$_H_
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+/*!
+ * The export_list will be the definition of synchronize functions.
+ */
+interface(ctx, parent, interface, export_list) ::= <<
+        else if (interface_cfg == "$interface.CScopedname$")
+        {
+            $evbs_namespace_get(ctx=ctx)$rpc::RpcClient *RetRpcClient = ProxyMB_Obj->CreateRpcClient(interface_cfg);
+            if (RetRpcClient == nullptr)
+            {
+                RetRpcClient = new $interface.Scopedname$Client(*ProxyMB_Obj->transport, interface_cfg);
+                std::function<$evbs_namespace_get(ctx=ctx)$rpc::RpcClient*()> client_func = [RetRpcClient]() { return RetRpcClient; };
+                RetRpcClient->set_proxyMB(ProxyMB_Obj);
+                ProxyMB_Obj->RegisterRpcClient(interface_cfg, client_func);
+            }
+
+            std::string operation_name;
+            std::string register_name;
+$interface.all_operations : {operation|
+$if(operation.HasOutput)$
+            operation_name = "$operation.name$";
+            register_name = interface_cfg + operation_name;
+            ProxyMB_Obj->registerClass<$operation.FirstOutputparam.Typecode.cppTypename$>(register_name);
+$endif$
+}; separator="\n"$
+            return RetRpcClient;
+        }
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct) ::= <<>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+/*UTILS*/
+evbs_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$vbs::$else$vbs::$endif$>>

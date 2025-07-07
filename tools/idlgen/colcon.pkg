@@ -1,0 +1,5 @@
+{
+    "name": "vbsddsgen",
+    "type": "gradle",
+    "test-dependencies" : ["vbsrtps"]
+}

@@ -1,0 +1,66 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group CMakeListsForCJ;
+
+cmakelists(solution, test, pure_flag) ::= <<
+
+cmake_minimum_required(VERSION 3.7.1)
+
+# Declares and names the project.
+
+project("$solution.FileName$_JNI_Library")
+
+set(PROJECT_NAME "$solution.FileName$PubSubIDLJNI")
+
+message(STATUS "JAVA_HOME dir : \$ENV{JAVA_HOME}")
+
+set(ARCH "android-arm64")
+
+add_compile_definitions(ANDROID)
+
+file(GLOB
+	SRC_FILES
+	*.cpp
+	*.cxx
+)
+
+add_library(\${PROJECT_NAME} SHARED \${SRC_FILES})
+
+target_link_directories(\${PROJECT_NAME}
+	PUBLIC
+	\${CMAKE_CURRENT_SOURCE_DIR}/../VBS/\${ARCH}/lib
+)
+
+target_include_directories(\${PROJECT_NAME}
+	PUBLIC
+	\${CMAKE_CURRENT_SOURCE_DIR}/../VBS/\${ARCH}/include
+	\${CMAKE_CURRENT_SOURCE_DIR}/../VBS/\${ARCH}/include/xmlparser
+	\${CMAKE_CURRENT_SOURCE_DIR}/../VBS/\${ARCH}/include/vbs
+	\${CMAKE_CURRENT_SOURCE_DIR}/../VBS/\${ARCH}/include/vbs/implementation
+)
+
+target_include_directories(\${PROJECT_NAME}
+	PUBLIC
+	\${ANDROID_NDK_HOME}/sysroot/usr/include
+)
+target_link_libraries(\${PROJECT_NAME}
+	PUBLIC
+	livbs
+	log
+)
+
+>>

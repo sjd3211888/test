@@ -1,0 +1,6 @@
+@extensibility(APPENDABLE)
+struct Client
+{
+	unsigned long index;
+	string message;
+};

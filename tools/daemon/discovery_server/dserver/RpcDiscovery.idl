@@ -1,0 +1,10 @@
+struct RpcDiscovery
+{
+    string       service_name;
+    string       interface_name;
+    string       ip_address_port;
+    unsigned long transport_type;
+    unsigned long hostid;
+    unsigned short operating_mode;
+};
+

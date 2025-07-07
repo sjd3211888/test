@@ -1,0 +1,40 @@
+<dds xmlns="http://www.evbs.com/XMLSchemas/fastRTPS_Profiles">
+    <profiles>
+        <!-- Begin: Using loopback for DDS -->
+        <transport_descriptors>
+            <transport_descriptor>
+                <transport_id>Udp4LoTransport</transport_id>
+                <type>UDPv4</type>
+                <interfaceWhiteList>
+                    <address>lo</address>
+                </interfaceWhiteList>
+            </transport_descriptor>
+        </transport_descriptors>
+        <!-- End: Using loopback for DDS -->
+
+        <participant profile_name="test_xml_pub.xml_profile">
+            <domainId>0</domainId>
+            <rtps>
+                <transport_type>UDP</transport_type>
+                <useBuiltinTransports>false</useBuiltinTransports>
+                <!-- Begin: Using loopback for DDS -->
+                <userTransports>
+                    <transport_id>Udp4LoTransport</transport_id>
+                </userTransports>
+                <!-- End: Using loopback for DDS -->
+            </rtps>
+        </participant>
+        <topic profile_name="HelloWorldTopicProfilePub" is_default_profile="true">
+        </topic>
+        <data_writer profile_name="test_writer_prof" is_default_profile="true">
+        </data_writer>
+    </profiles>
+    <types>
+        <type>
+            <struct name="HelloWorld">
+                <member name="index" type="uint32"/>
+                <member name="message" type="string"/>
+            </struct>
+        </type>
+    </types>
+</dds>

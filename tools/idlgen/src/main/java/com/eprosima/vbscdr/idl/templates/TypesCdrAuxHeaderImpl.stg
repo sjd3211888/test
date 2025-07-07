@@ -1,0 +1,500 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group TypesCdrAuxHeaderImpl;
+
+main(ctx, definitions, extensions) ::= <<
+$fileVBSHeader(ctx=ctx, file=[ctx.filename, "CdrAux.ipp"], description=["This source file contains some declarations of CDR related functions."])$
+
+#ifndef _EDDS_GENERATED$if(!ctx.NotUseRandom)$_$ctx.RandomNumber$$endif$_$ctx.headerGuardName$CDRAUX_IPP_
+#define _EDDS_GENERATED$if(!ctx.NotUseRandom)$_$ctx.LastRandomNumber$$endif$_$ctx.headerGuardName$CDRAUX_IPP_
+
+#include "$ctx.filename$CdrAux.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+$if(ctx.NotUseVbsFramework)$
+$if(ctx.cdr)$
+#include <ecdr/Cdr.h>
+#include <ecdr/CdrSizeCalculator.hpp>
+
+$endif$
+
+#include <ecdr/exceptions/BadParamException.h>
+$endif$
+
+namespace vbsutil {
+namespace ecdr {
+
+$definitions; separator="\n"$
+
+} // namespace ecdr
+} // namespace vbsutil
+
+#endif // _EDDS_GENERATED$if(!ctx.NotUseRandom)$_$ctx.LastRandomNumber$$endif$_$ctx.headerGuardName$CDRAUX_IPP_
+$"\n"$
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list) ::= <<
+$export_list$
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+
+>>
+
+fwd_decl(ctx, parent, type) ::= <<>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list, operation_type) ::= <<
+
+$operation_type$
+$param_list$
+
+>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter, parameter_type) ::= <<
+
+$parameter_type$
+
+>>
+
+const_decl(ctx, parent, const, const_type) ::= <<
+
+$const_type$
+
+>>
+
+typedef_decl(ctx, parent, typedefs, typedefs_type, declarator_type) ::= <<
+
+$declarator_type$
+$typedefs_type$
+
+>>
+
+struct_type(ctx, parent, struct, extensions, member_list) ::= <<
+$member_list$
+$if(ctx.anyCdr)$
+template<>
+vbs_user_DllExport size_t calculate_serialized_size(
+        vbsutil::ecdr::CdrSizeCalculator& calculator,
+        const $struct.scopedname$& data,
+        size_t& current_alignment)
+{
+    $if(!struct.scope.empty)$
+    using namespace $struct.scope$;
+    $endif$
+
+    static_cast<void>(data);
+    (void)calculator;
+    (void)current_alignment;
+$if(!struct.AnnotationFinalOrAppendable)$
+    vbsutil::ecdr::EncodingAlgorithmFlag previous_encoding = calculator.get_encoding();
+    size_t calculated_size {calculator.begin_calculate_type_serialized_size(
+                                vbsutil::ecdr::CdrVersion::XCDRv2 == calculator.get_cdr_version() ?
+                                $if(struct.annotationFinal)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR2$elseif(struct.annotationAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::DELIMIT_CDR2$elseif(struct.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR2$endif$ :
+                                $if(struct.AnnotationFinalOrAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR$elseif(struct.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR$endif$,
+                                current_alignment)};
+$else$
+    size_t calculated_size {0};
+$endif$
+
+    $struct.allMembers : { member | $if(!member.annotationNonSerialized)$
+    calculated_size += calculator.$if(struct.HasAnnotationOptional)$calculate_member_serialized_size$else$$if(!struct.AnnotationFinalOrAppendable)$calculate_member_serialized_size$else$calculate_serialized_size$endif$$endif$($if(struct.HasAnnotationOptional)$vbsutil::ecdr::MemberId($if(struct.annotationMutable)$$member.id$$else$$member.index$$endif$),$else$$if(!struct.AnnotationFinalOrAppendable)$vbsutil::ecdr::MemberId($if(struct.annotationMutable)$$member.id$$else$$member.index$$endif$),$endif$$endif$
+        data.$member.name$(), current_alignment);
+    $endif$}; separator="\n"$
+
+$if(!struct.AnnotationFinalOrAppendable)$
+    calculated_size += calculator.end_calculate_type_serialized_size(previous_encoding, current_alignment);
+$endif$
+
+    return calculated_size;
+}
+$endif$
+
+$if(ctx.cdr)$
+vbs_user_DllExport void serialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& scdr,
+        const $struct.scopedname$& data)
+{
+    $if(!struct.scope.empty)$
+    using namespace $struct.scope$;
+    $endif$
+
+$if(!struct.AnnotationFinalOrAppendable)$
+    $ecdr_namespace_get(ctx=ctx)$Cdr::state current_state(scdr);
+    scdr.begin_serialize_type(current_state,
+            $ecdr_namespace_get(ctx=ctx)$Cdr::CdrType::XCDRv2 == scdr.get_cdr_version() ?
+            $if(struct.annotationFinal)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR2$elseif(struct.annotationAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::DELIMIT_CDR2$elseif(struct.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR2$endif$ :
+            $if(struct.AnnotationFinalOrAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR$elseif(struct.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR$endif$);
+$endif$
+
+    $if(struct.allMembers)$
+    $struct.allMembers : { member | $if(!member.annotationNonSerialized)$
+        $if(struct.AnnotationFinalOrAppendable)$
+        $if(member.AnnotationOptional)$
+        scdr << vbsutil::ecdr::MemberId($if(struct.annotationMutable)$$member.id$$else$$member.index$$endif$) <<data.$member.name$();
+        $else$
+        scdr.serialize(data.$member.name$());
+        $endif$
+        $else$
+        scdr << vbsutil::ecdr::MemberId($if(struct.annotationMutable)$$member.id$$else$$member.index$$endif$) <<data.$member.name$();
+        $endif$
+    $endif$
+    }; separator=""$;
+    $else$
+    static_cast<void>(data);
+    (void)scdr;
+    $endif$
+
+$if(!struct.AnnotationFinalOrAppendable)$
+    scdr.end_serialize_type(current_state);
+$endif$
+
+}
+
+vbs_user_DllExport void deserialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& cdr,
+        $struct.scopedname$& data)
+{
+    $if(!struct.scope.empty)$
+    using namespace $struct.scope$;
+    $endif$
+    (void)cdr;
+    (void)data;
+    cdr.deserialize_type($ecdr_namespace_get(ctx=ctx)$Cdr::CdrType::XCDRv2 == cdr.get_cdr_version() ?
+            $if(struct.annotationFinal)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR2$elseif(struct.annotationAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::DELIMIT_CDR2$elseif(struct.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR2$endif$ :
+            $if(struct.AnnotationFinalOrAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR$elseif(struct.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR$endif$,
+            [&data]($ecdr_namespace_get(ctx=ctx)$Cdr& dcdr, const vbsutil::ecdr::MemberId& mid) -> bool
+            {
+                bool ret_value = true;
+                switch (mid.id)
+                {
+                    $if(!struct.allMembers)$
+                    static_cast<void>(dcdr);
+                    $endif$
+                    $struct.allMembers : { member |
+                    case $if(struct.annotationMutable)$$member.id$$else$$member.index$$endif$:
+                        $if(!member.annotationNonSerialized)$
+                            dcdr \>> data.$member.name$();
+                        $endif$
+                        break;
+                    }; separator="\n"$
+                    default:
+                        ret_value = false;
+                        break;
+                }
+                return ret_value;
+            });
+}
+
+void serialize_key(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& scdr,
+        const $struct.scopedname$& data)
+{
+    $if(!struct.scope.empty)$
+    using namespace $struct.scope$;
+    $endif$
+
+    static_cast<void>(scdr);
+    static_cast<void>(data);
+    $if(struct.hasKey)$
+        $struct.members : { member |
+            $if(member.annotationKey)$
+                $if(member.typecode.isStructType)$
+                    $if(member.typecode.hasKey)$
+                        serialize_key(scdr, data.$member.name$());
+                    $else$
+                        scdr << data.$member.name$();
+                    $endif$
+                $else$
+                    scdr << data.$member.name$();
+                $endif$
+            $endif$
+        }; separator="\n"$
+    $endif$
+}
+
+$endif$
+
+>>
+
+member_type(ctx, member, type_member, declarators) ::= <<
+
+$type_member$
+$declarators$
+
+>>
+
+bitset_type(ctx, parent, bitset) ::= <<
+$if(ctx.anyCdr)$
+template<>
+vbs_user_DllExport size_t calculate_serialized_size(
+        vbsutil::ecdr::CdrSizeCalculator& calculator,
+        const $bitset.scopedname$& data,
+        size_t& current_alignment)
+{
+    $if(!bitset.scope.empty)$
+    using namespace $bitset.scope$;
+    $endif$
+
+    size_t calculated_size {0};
+
+    $bitset.Parents:{ parent |calculated_size += calculator.calculate_serialized_size(data.$parent.Name$::bitset(), current_alignment);}; separator="\n"$
+
+    calculated_size += calculator.calculate_serialized_size(data.bitset(), current_alignment);
+    return calculated_size;
+}
+$endif$
+
+$if(ctx.cdr)$
+vbs_user_DllExport void serialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& scdr,
+        const $bitset.scopedname$& data)
+{
+    $if(!bitset.scope.empty)$
+    using namespace $bitset.scope$;
+    $endif$
+
+    $bitset.Parents:{ parent |scdr << data.$parent.Name$::bitset();}; separator="\n"$
+
+    scdr << data.bitset();
+}
+
+vbs_user_DllExport void deserialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& dcdr,
+        $bitset.scopedname$& data)
+{
+    $if(!bitset.scope.empty)$
+    using namespace $bitset.scope$;
+    $endif$
+
+    $bitset.Parents:{ parent |
+        {
+        std::bitset<$parent.bitSize$> $parent.Name$_bitset;
+        dcdr \>> $parent.Name$_bitset;
+        data.$parent.Name$::bitset($parent.Name$_bitset);
+        }
+    }; separator="\n"$
+
+    std::bitset<$bitset.bitSize$> bitset;
+    dcdr \>> bitset;
+    data.bitset(bitset);
+}
+$endif$
+>>
+
+public_bitfield_definition(member) ::= <<>>
+
+union_type(ctx, parent, union, switch_type) ::= <<
+$switch_type$
+$if(ctx.anyCdr)$
+template<>
+vbs_user_DllExport size_t calculate_serialized_size(
+        vbsutil::ecdr::CdrSizeCalculator& calculator,
+        const $union.scopedname$& data,
+        size_t& current_alignment)
+{
+    $if(!union.scope.empty)$
+    using namespace $union.scope$;
+    $endif$
+
+    static_cast<void>(data);
+$if(!union.AnnotationFinalOrAppendable)$
+    vbsutil::ecdr::EncodingAlgorithmFlag previous_encoding = calculator.get_encoding();
+    size_t calculated_size {calculator.begin_calculate_type_serialized_size(
+                                vbsutil::ecdr::CdrVersion::XCDRv2 == calculator.get_cdr_version() ?
+                                $if(union.annotationFinal)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR2$elseif(union.annotationAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::DELIMIT_CDR2$elseif(union.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR2 $endif$ :
+                                $if(union.AnnotationFinalOrAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR$elseif(union.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR $endif$,
+                                current_alignment)};
+$else$
+    size_t calculated_size {0};
+$endif$
+
+    calculated_size += calculator.$if(union.HasAnnotationOptional)$calculate_member_serialized_size$else$$if(!union.AnnotationFinalOrAppendable)$calculate_member_serialized_size$else$calculate_serialized_size$endif$$endif$($if(union.HasAnnotationOptional)$vbsutil::ecdr::MemberId(0), $else$$if(!union.AnnotationFinalOrAppendable)$vbsutil::ecdr::MemberId(0), $endif$$endif$data._d(),
+                    current_alignment);
+
+    switch (data._d()$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.membersDefaultAtEnd:{ member | $if(member.printable)$$member.labels:{ label |case $label$:}; separator="\n"$
+        $if(member.default)$default:$endif$
+            calculated_size += calculator.$if(union.HasAnnotationOptional)$calculate_member_serialized_size$else$$if(!union.AnnotationFinalOrAppendable)$calculate_member_serialized_size$else$calculate_serialized_size$endif$$endif$($if(union.HasAnnotationOptional)$vbsutil::ecdr::MemberId($if(union.annotationMutable)$$member.id$$else$$member.index$$endif$),$else$$if(!union.AnnotationFinalOrAppendable)$vbsutil::ecdr::MemberId($if(union.annotationMutable)$$member.id$$else$$member.index$$endif$),$endif$$endif$
+                data.$member.name$(), current_alignment);
+            break;
+        $endif$
+        }; separator="\n"$
+        $if(!union.defaultMember)$
+        default:
+            break;
+        $endif$
+    }
+$if(!union.AnnotationFinalOrAppendable)$
+    calculated_size += calculator.end_calculate_type_serialized_size(previous_encoding, current_alignment);
+$endif$
+
+    return calculated_size;
+}
+
+$endif$
+
+$if(ctx.cdr)$
+
+vbs_user_DllExport void serialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& scdr,
+        const $union.scopedname$& data)
+{
+    $if(!union.scope.empty)$
+    using namespace $union.scope$;
+    $endif$
+
+$if(!union.AnnotationFinalOrAppendable)$
+    $ecdr_namespace_get(ctx=ctx)$Cdr::state current_state(scdr);
+    scdr.begin_serialize_type(current_state,
+            $ecdr_namespace_get(ctx=ctx)$Cdr::CdrType::XCDRv2 == scdr.get_cdr_version() ?
+            $if(union.annotationFinal)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR2$elseif(union.annotationAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::DELIMIT_CDR2$elseif(union.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR2$endif$ :
+            $if(union.AnnotationFinalOrAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR$elseif(union.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR$endif$);
+$endif$
+
+    scdr << $if(union.HasAnnotationOptional)$vbsutil::ecdr::MemberId(0) <<$else$$if(!union.AnnotationFinalOrAppendable)$vbsutil::ecdr::MemberId(0) <<$endif$$endif$data._d();
+
+    switch (data._d()$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+        $union.membersDefaultAtEnd:{ member | $if(member.printable)$
+        $member.labels:{ label |case $label$:}; separator="\n"$
+        $if(member.default)$default:$endif$
+            $if(union.AnnotationFinalOrAppendable)$
+            $if(member.AnnotationOptional)$
+            scdr << vbsutil::ecdr::MemberId($if(union.annotationMutable)$$member.id$$else$$member.index$$endif$) << data.$member.name$();
+            $else$
+            scdr.serialize(data.$member.name$());
+            $endif$
+            $else$
+            scdr << vbsutil::ecdr::MemberId($if(union.annotationMutable)$$member.id$$else$$member.index$$endif$) << data.$member.name$();
+            $endif$
+            break;
+        $endif$
+        }; separator="\n"$
+        $if(!union.defaultMember)$
+        default:
+            break;
+        $endif$
+    }
+$if(!union.AnnotationFinalOrAppendable)$
+    scdr.end_serialize_type(current_state);
+$endif$
+
+}
+
+vbs_user_DllExport void deserialize(
+        $ecdr_namespace_get(ctx=ctx)$Cdr& cdr,
+        $union.scopedname$& data)
+{
+    $if(!union.scope.empty)$
+    using namespace $union.scope$;
+    $endif$
+
+    cdr.deserialize_type($ecdr_namespace_get(ctx=ctx)$Cdr::CdrType::XCDRv2 == cdr.get_cdr_version() ?
+            $if(union.annotationFinal)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR2$elseif(union.annotationAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::DELIMIT_CDR2$elseif(union.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR2$endif$ :
+            $if(union.AnnotationFinalOrAppendable)$vbsutil::ecdr::EncodingAlgorithmFlag::PLAIN_CDR$elseif(union.annotationMutable)$vbsutil::ecdr::EncodingAlgorithmFlag::PL_CDR$endif$,
+            [&data]($ecdr_namespace_get(ctx=ctx)$Cdr& dcdr, const vbsutil::ecdr::MemberId& mid) -> bool
+            {
+                bool ret_value = true;
+                switch (mid.id)
+                {
+                    case 0:
+                        dcdr \>> data._d();
+                        break;
+                    default:
+                        switch (data._d()$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+                        {
+                            $union.membersDefaultAtEnd:{ member | $if(member.printable)$
+                            $member.labels:{ label |case $label$:}; separator="\n"$
+                            $if(member.default)$default:$endif$
+                                $if(union.AnnotationMutableOrOptional)$
+                                if (mid != $member.Id$)
+                                $left_brackets()$
+                                    throw vbsutil::ecdr::exception::BadParamException("Deserializing union member $member.name$ the MemberId doesn't match");
+                                $right_brackets()$
+                                $endif$
+                                dcdr \>> data.$member.name$();
+                                break;
+                            $endif$
+                            }; separator="\n"$
+                            $if(!union.defaultMember)$
+                            default:
+                                break;
+                            $endif$
+                        }
+                        $if(!union.annotationMutable)$ret_value = false;$endif$
+                        break;
+                }
+                return ret_value;
+            });
+}
+$endif$
+>>
+
+element_type(ctx, element, type_element, declarator) ::= <<
+
+$type_element$
+$declarator$
+
+>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+sequence_type(ctx, sequence, type_sequence) ::= <<
+
+$type_sequence$
+
+>>
+
+map_type(ctx, map, key_type, value_type) ::= <<
+
+$key_type$
+$value_type$
+
+>>
+
+string_type(ctx, string) ::= <<>>
+
+wide_string_type(ctx, wstring) ::= <<>>
+
+array_declarator(ctx, array, array_type) ::= <<>>
+
+/*UTILS*/
+right_angle_brackets() ::= << \>> >>
+
+ecdr_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$vbsutil::ecdr::$else$vbs::$endif$>>
+
+right_brackets() ::= <<}>>
+
+left_brackets() ::= <<{>>

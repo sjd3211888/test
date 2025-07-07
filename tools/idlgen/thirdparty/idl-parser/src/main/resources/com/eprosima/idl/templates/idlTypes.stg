@@ -1,0 +1,71 @@
+// Copyright 2016 Proyectos y Sistemas de Mantenimiento SL (eProsima).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ------------------------------------------------------------------
+// Modification history:
+// 2024-01 ~ 2025-05: Enhancement of idlgen: added tostring/get_type_name interfaces, support for enum as length assignment, type validation, etc.
+// ------------------------------------------------------------------
+
+group idlTypes;
+
+type_5() ::= <<float>>
+
+type_6() ::= <<double>>
+
+type_13() ::= <<long double>>
+
+type_1() ::= <<short>>
+
+type_2() ::= <<long>>
+
+type_11() ::= <<long long>>
+
+type_3() ::= <<unsigned short>>
+
+type_4() ::= <<unsigned long>>
+
+type_12() ::= <<unsigned long long>>
+
+type_8() ::= <<char>>
+
+type_14() ::= <<wchar>>
+
+type_7() ::= <<boolean>>
+
+type_9() ::= <<octet>>
+
+type_d(maxsize) ::= <<string$if(maxsize)$<$maxsize$>$endif$>>
+
+type_15(maxsize) ::= <<wstring$if(maxsize)$<$maxsize$>$endif$>>
+
+type_f(package, firs, secon, type) ::= <<$firs$$type$>>
+
+type_a(name) ::= <<$name$>>
+
+type_b(name) ::= <<$name$>>
+
+type_c(name) ::= <<$name$>>
+
+type_10(name) ::= <<$name$>>
+
+type_1e(name) ::= <<uint8>>
+
+type_1a(name, type) ::= <<$name$>>
+
+type_1b(name) ::= <<$name$>>
+
+type_1d(name) ::= <<int8>>
+
+type_e(type, maxsize, empty) ::= <<sequence<$type$$if(maxsize)$, $maxsize$$endif$ >$empty$>>
+
+type_19(key, value, maxsize, empty) ::= <<map<$key$, $value$$if(maxsize)$, $maxsize$$endif$>$empty$>>

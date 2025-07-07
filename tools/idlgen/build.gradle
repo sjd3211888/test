@@ -1,0 +1,192 @@
+
+apply plugin: 'java-library'
+apply plugin: 'eclipse' // Eclipse integration
+
+description = """"""
+def version_str = "2.2.0"
+
+import org.apache.tools.ant.taskdefs.condition.Os;
+import org.gradle.api.tasks.options.Option;
+
+/**
+ * Task class to install vbsddsgen in a specific path
+ * @author eProsima
+ * @author Nuno Marques <nuno.marques@dronesolutions.io>
+ * @author Miguel Company <MiguelCompany@eprosima.com>
+ * @version 2.0.0
+ * @since 2020-03-31
+ */
+public class InstallPath extends DefaultTask {
+    private String path = "";
+
+    /**
+     * Setter for the install path
+     * @param path install path given by the task option "install_path"
+     */
+    @Option(option = "install_path", description = "Absolute path to the install dir")
+    public void setInstallPath(String path) {
+        this.path = path;
+    }
+
+    /**
+     * Getter of the install path
+     */
+    @Input
+    public String getInstallPath() {
+        return path;
+    }
+
+    /**
+     * Uses Gradle project Copy() to copy files
+     * @param input file to copy
+     * @param ouput destination directory
+     */
+    private void copy(String input, String output) {
+        project.copy {
+            from project.file(input)
+            into project.file(output)
+        }
+    }
+
+    /**
+     * Install Task Action that copies the script and jar files
+     */
+    @TaskAction
+    private void install() {
+        if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+            final String install_path = (path != null && !path.isEmpty()) ? path : "C:\\Program Files\\idlgen\\";
+
+            // Copy script
+            copy("scripts\\idlgen.bat", new File(install_path, "bin\\").getAbsolutePath())
+            // Copy jar
+            copy("share\\idlgen\\java\\idlgen.jar", new File(install_path, "share\\idlgen\\java\\").getAbsolutePath())
+
+        } else if (Os.isFamily(Os.FAMILY_UNIX) || Os.isFamily(Os.FAMILY_MAC)) {
+            final String install_path = (path != null && !path.isEmpty()) ? path : "/usr/local/";
+
+            // Copy script
+            copy("scripts/idlgen", new File(install_path, "bin/").getAbsolutePath())
+            // Copy jar
+            copy("share/idlgen/java/idlgen.jar", new File(install_path, "share/idlgen/java/").getAbsolutePath())
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation files('thirdparty/idl-parser/build/libs/idlparser-1.4.0.jar')
+    testImplementation('org.junit.jupiter:junit-jupiter-api:5.5.2')
+    testRuntimeOnly('org.junit.jupiter:junit-jupiter-engine:5.5.2')
+    implementation 'org.apache.commons:commons-jexl3:3.1'
+}
+
+configurations { antxr }
+
+dependencies {
+    implementation group: 'com.javadude', name: 'antxr', version:'0.9.0'
+    implementation files('thirdparty/idl-parser/build/libs/idlparser-1.4.0.jar')
+    implementation 'org.apache.commons:commons-jexl3:3.1'
+}
+
+
+task vbsrpcgenJar(type: Jar) {
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+    baseName = 'vbsrpcgen'
+    destinationDir = file(new File(projectDir, 'share/vbsrpc'))
+    manifest {
+        attributes("Created-By": "eProsima", "Main-Class": "com.eprosima.vbsrpc.vbsrpcgen")
+    }
+}
+
+task submodulesUpdate(type: Exec) {
+    description 'Updates (and inits) git submodules'
+    commandLine 'git', 'submodule', 'update', '--init'
+}
+
+task buildIDLParser(type: GradleBuild) {
+    dir = 'thirdparty/idl-parser'
+    tasks = ['clean', 'build']
+}
+//buildIDLParser.dependsOn submodulesUpdate
+
+task copyResources {
+    // Copy platforms file
+    File outputDir = file(new File("${project.buildDir}", "resources/main"))
+    outputDir.exists() || outputDir.mkdirs()
+    File versionFile = new File("${project.buildDir}/resources/main/version")
+    outputs.file versionFile
+    doLast {
+        // Create version file
+        Properties pversion = new Properties()
+        project.hasProperty('customversion')
+            ? pversion.setProperty('version', project.customversion.toString())
+            : pversion.setProperty('version', version_str)
+        versionFile.withWriter {
+            pversion.store(it, null)
+        }
+    }
+
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src/main/java'
+            srcDir 'thirdparty/vbscdr/src/java'
+            srcDir 'build/generated-src'
+        }
+
+        resources {
+            srcDir 'src/main/java'
+            include '**/*.stg'
+            srcDir 'src'
+            include '**/*.stg'
+            srcDir 'thirdparty/vbscdr/src/java'
+            include '**/*.stg'
+        }
+    }
+
+    test {
+        java {
+            srcDir 'src/test/java'
+        }
+    }
+}
+
+jar {
+    duplicatesStrategy 'exclude'
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    archiveBaseName = 'idlgen'
+    manifest {
+        attributes("Created-By": "eProsima", "Main-Class": "com.eprosima.vbsdds.vbsddsgen")
+    }
+
+    def targetDir = file(System.getenv("IDLGEN_OUTPUT_PATH"))
+
+    doFirst {
+        if (!targetDir.exists()) {
+            targetDir.mkdirs()
+        }
+    }
+    destinationDirectory = targetDir
+}
+
+compileJava.dependsOn buildIDLParser,copyResources
+compileJava {
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+    options.compilerArgs.add('-Xlint:deprecation')
+    options.compilerArgs.add('-Xlint:unchecked')
+}
+
+task install(type: InstallPath, group: "Install", description: "Install vbsddsgen script and idlgen.jar")
+
+test {
+    useJUnitPlatform()
+    testLogging.showStandardStreams = true
+    systemProperties = System.getProperties()
+}

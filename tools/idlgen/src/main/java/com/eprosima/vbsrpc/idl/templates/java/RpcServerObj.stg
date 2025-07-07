@@ -1,0 +1,128 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group RpcServerObj;
+
+main(ctx, definitions, package, module_name) ::= <<
+$fileVBSHeader(ctx=ctx,  file=[ctx.filename, "RpcServerObj.java"], description=["This header file contains the declaration of the proxy for all interfaces."])$
+
+package $ctx.OnlyPackage$;
+
+import VBSFramework.RPC.Client.RpcServerObj;
+
+import VBSFramework.RPC.utils.*;
+
+$ctx.AllModuleList : {struct_module_name|
+import $ctx.OnlyPackage$.$struct_module_name$;
+}; separator="\n"$
+
+$definitions; separator="\n"$
+
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definitions; separator="\n"$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+/*!
+ * The export_list will be the definition of synchronize functions.
+ */
+interface(ctx, parent, interface, export_list, module_name) ::= <<
+public class $ctx.filename$$if(module_name)$_$module_name$$endif$_$interface.name$_RpcServerObj extends RpcServerObj {
+
+    private native void native_register_parameter_type(long ptr$interface.AllOperationsStruct : {structname|, Object $structname$}; separator=""$);
+
+$interface.all_operations : {operation|
+    private native int native_sync_$operation.name$(long ptr$operation.Parameters : {param |, long $param.name$_ptr}; separator=""$, int expire);
+
+    private native int native_async_$operation.name$(long ptr$operation.Inputparam : {param |, long $param.name$_ptr}; separator=""$, Object callback, int expire);
+}; separator="\n"$
+
+    public $ctx.filename$$if(module_name)$_$module_name$$endif$_$interface.name$_RpcServerObj(long ptr) {
+        super(ptr);
+        register_request_response_parameter_type();
+    }
+
+    private void register_request_response_parameter_type()
+    {
+$interface.AllOperationsStruct : {structname|
+    $ctx.filename$_$structname$ $structname$ = new $ctx.filename$_$structname$();
+}; separator="\n"$
+        native_register_parameter_type(nativePtr$interface.AllOperationsStruct : {structname|, $structname$}; separator=""$);
+    }
+
+$interface.all_operations : {operation|
+    public int $operation.name$($operation.Parameters : {param |RpcMessageType $param.name$, }; separator=""$int expire) {
+$if(operation.HasOutput)$
+        int ret = 0;
+$endif$
+
+$operation.Inputparam : {param |
+        $param.name$.copy_data_to_cpp();
+}; separator="\n"$
+
+$if(operation.HasOutput)$
+        ret = native_sync_$operation.name$(nativePtr$operation.Parameters : {param |, $param.name$.getNativePtr()}; separator=""$, expire);
+$operation.Outputparam : {param |
+        $param.name$.copy_data_from_cpp();
+}; separator="\n"$
+        return ret;
+$else$
+        return native_sync_$operation.name$(nativePtr$operation.Parameters : {param |, $param.name$.getNativePtr()}; separator=""$, expire);
+$endif$
+
+    }
+
+    public int $operation.name$($operation.Inputparam : {param |RpcMessageType $param.name$, }; separator=""$RpcClient_AsyncCallback cb, int expire) {
+$operation.Inputparam : {param |
+        $param.name$.copy_data_to_cpp();
+}; separator="\n"$
+        return native_async_$operation.name$(nativePtr$operation.Inputparam : {param |, $param.name$.getNativePtr()}; separator=""$, cb, expire);
+    }
+}; separator="\n"$
+
+    protected void finalize() throws Throwable {
+        /*native C++ instance will be destroied by deconstruct function*/
+        setNativePtr(0);
+    }
+}
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct) ::= <<>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>

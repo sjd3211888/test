@@ -1,0 +1,161 @@
+
+// internal plugins
+apply plugin: 'java-library'
+apply plugin: 'maven-publish'
+apply plugin: 'eclipse' // Eclipse integration
+apply plugin: 'antlr'
+
+description = """"""
+
+ext {
+    publishURL = project.hasProperty('publishURL') ? project.publishURL.toString() : ''
+    publishUsername = project.hasProperty('publishUsername') ? project.publishUsername.toString() : ''
+    publishPassword = project.hasProperty('publishPassword') ? project.publishPassword.toString() : ''
+}
+
+repositories {
+    //mavenCentral()
+    maven {
+        url 'https://artifactory.ep.chehejia.com/artifactory/jcenter/'
+        credentials {
+            username = "$artifactory_user"
+            password = "$artifactory_password"
+        }
+    }
+
+    maven {
+        url 'https://artifactory.ep.chehejia.com/artifactory/google/dl/android/maven2/'
+        credentials {
+            username = "$artifactory_user"
+            password = "$artifactory_password"
+        }
+    }
+
+    maven {
+        url 'https://artifactory.ep.chehejia.com/artifactory/maven'
+        credentials {
+            username = "$artifactory_user"
+            password = "$artifactory_password"
+        }
+    }
+}
+
+dependencies {
+    antlr('org.antlr:antlr4:4.5') {
+        exclude group: 'org.antlr', module:'antlr-runtime'
+        exclude group: 'org.antlr', module:'ST4'
+    }
+    implementation group: 'org.antlr', name: 'stringtemplate', version:'3.2'
+    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter', version: '5.8.1'
+    implementation 'org.apache.commons:commons-jexl3:3.1'
+}
+
+generateGrammarSource {
+    arguments += ["-long-messages", "-package", "com.eprosima.idl.parser.grammar"]
+}
+
+compileJava {
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+    options.compilerArgs.add('-Xlint:deprecation')
+    options.compilerArgs.add('-Xlint:unchecked')
+}
+
+// add the generated source files to the list of java sources
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src/main/java'
+            srcDir 'src/it/java' //integration tests
+        }
+    }
+}
+
+group = "com.eprosima"
+version = "1.4.0"
+
+//general properties
+jar {
+    duplicatesStrategy 'exclude'
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    archiveBaseName = 'idlparser'
+    manifest {
+        attributes("Created-By": "eProsima", "Main-Class": "com.eprosima.idl.test.TestIDLParser")
+    }
+}
+
+task sourceJar(type: Jar, dependsOn: classes) {
+   classifier = 'sources'
+   from sourceSets.main.allJava
+}
+
+/**
+ * Set up publishing. User must set the following properties
+ * in ~/.gradle/gradle.properties or pass via -Pproperty=value
+ * on command line.
+ *
+ * publishUsername=yourusername
+ * publishPassword=yourpassword
+ * publishUrl=https://some.url/maven/orgname/reponame/projectname
+ */
+publishing {
+   publications {
+      mavenJava(MavenPublication) {
+         artifactId = "idl-parser"
+         from components.java
+
+         artifact sourceJar {
+            classifier 'sources'
+         }
+      }
+   }
+   repositories {
+    maven {
+        url publishURL
+        credentials.username = publishUsername
+        credentials.password = publishPassword
+    }
+   }
+}
+
+buildscript {
+    // ...其他配置...
+    repositories {
+        maven {
+            url 'https://artifactory.ep.chehejia.com/artifactory/jcenter/'
+            credentials {
+                username = "${artifactory_user}"
+                password = "${artifactory_password}"
+            }
+        }
+        // ...其他可能的仓库...
+    }
+    // ...其他配置...
+}
+
+repositories {
+    maven {
+        url 'https://artifactory.ep.chehejia.com/artifactory/maven'
+        credentials {
+            username = "${artifactory_user}"
+            password = "${artifactory_password}"
+        }
+    }
+}
+
+dependencies {
+    // 使用公司内部仓库的依赖方式
+    antlr('org.antlr:antlr4:4.5') {
+        exclude group: 'org.antlr', module: 'antlr-runtime'
+        exclude group: 'org.antlr', module: 'ST4'
+    }
+    // ...其他依赖项...
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// ...其他配置...
+

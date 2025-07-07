@@ -1,0 +1,149 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group ServerExample;
+
+main(ctx, definitions) ::= <<
+
+#include "$ctx.filename$ServerImpl.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+$if(ctx.TestExample)$
+using namespace vbs::rpc;
+
+RpcServer *SRV_AD = nullptr;
+static int server_update_index = 0;
+
+$ctx.Interfaces:{ def |
+$def.ScopednameList:{ module_name |
+namespace $module_name$ $left_brackets()$
+};separator="\n"$
+    extern bool $def.name$_closed;
+$def.ScopednameList:{
+$right_brackets()$
+};separator="\n"$
+}; separator="\n"$
+
+// void add(uint32_t conn_id, vbs::rpc::RequestMode req_mode, RpcMessageType *request, RpcMessageType *response)
+// {
+//     module_test::CompleteStruct *req = dynamic_cast<module_test::CompleteStruct*>(request);
+//     std::ostringstream oss;
+//     req->updateTest(server_update_index++);
+//     oss << (*req);
+//     if (req_mode == vbs::rpc::RequestMode::SYNC) {
+//         module_test::res_CompleteStruct *res_sync = dynamic_cast<module_test::res_CompleteStruct*>(response);
+//         res_sync->basic_member(*req);
+//         res_sync->member_string(oss.str());
+//     } else {
+//         module_test::res_CompleteStruct res_async;
+//         res_async.basic_member(*req);
+//         res_async.member_string(oss.str());
+//         SRV_AD->send_async(conn_id, &res_async, StreamStatus::COMPLETE);
+//     }
+// }
+
+bool server_test() {
+    RpcServerFactory factory;
+
+$ctx.Interfaces:{ def |
+    RpcServer *$def.CScopedname$_rpc_server = factory.CreateRpcServer("RpcIDLProfile.xml", "$def.CScopedname$");
+    if ($def.CScopedname$_rpc_server == nullptr) {
+        std::cout << "create EEA server fail\n";
+        return false;
+    }
+    $def.Scopedname$_Impl *$def.CScopedname$_rpc_impl = new $def.Scopedname$_Impl("$def.CScopedname$");
+    $def.CScopedname$_rpc_server->register_impl($def.CScopedname$_rpc_impl);
+}; separator="\n"$
+
+    // SRV_AD = RpcServerFactory::CreateRpcServer<module_test::CompleteStruct, module_test::res_CompleteStruct>("RpcIDLProfile.xml", "ComplexData_AD");
+    // if (SRV_AD == nullptr) {
+    //     std::cout << "create AD server fail\n";
+    //     return false;
+    // }
+
+    // SRV_AD->register_impl(std::bind(&add, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+
+    while (1) {
+        vbs::rpc::sleep(1000);
+        if ($ctx.Interfaces:{ def |$def.Scopedname$_closed}; separator="&&"$) {
+            break;
+        }
+    }
+
+    return true;
+}
+
+int main()
+{
+    (void)server_update_index;
+    bool success = true;
+
+    success &= server_test();
+    if (success) {
+        std::cout << "RPC pass" << std::endl;
+    } else {
+        std::cout << "RPC fail" << std::endl;
+    }
+
+    return 0;
+}
+$else$
+int main () {}
+$endif$
+
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+/*!
+ * The export_list will be the definition of synchronize functions.
+ */
+interface(ctx, parent, interface, export_list) ::= <<>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct) ::= <<>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+/*UTILS*/
+evbs_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$vbs$else$vbs$endif$>>
+
+left_brackets() ::= <<{>>
+
+right_brackets() ::= <<}>>

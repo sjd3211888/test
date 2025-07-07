@@ -1,0 +1,17 @@
+// $ANTXR : wadl.antxr -> WADLParserTokenTypes.txt$
+WADLParser    // output token vocab name
+"<application>"=4
+XML_END_TAG=5
+"<doc>"=6
+PCDATA=7
+"<grammars>"=8
+"<resources>"=9
+"<resource>"=10
+"<method>"=11
+"<include>"=12
+"<param>"=13
+"<request>"=14
+"<response>"=15
+"<representation>"=16
+"<resource_type>"=17
+OTHER_TAG=18

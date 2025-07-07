@@ -1,0 +1,84 @@
+// Copyright 2016 Proyectos y Sistemas de Mantenimiento SL (eProsima).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ------------------------------------------------------------------
+// Modification history:
+// 2023-05 ~ 2025-05: Enhancement of idlgen: support for pubsub mode java/jni code generation, Java unsigned type, Java typedef, tostring/get_type_name interfaces, cleanup of fast related content, etc.
+// ------------------------------------------------------------------
+
+group JavaTypes;
+
+type_5(package) ::= <<float>>
+
+type_6(package) ::= <<double>>
+
+type_13(package) ::= <<double>>
+
+type_1(package) ::= <<short>>
+
+type_2(package) ::= <<int>>
+
+type_11(package) ::= <<long>>
+
+type_3(package) ::= <<int>>
+
+type_4(package) ::= <<long>>
+
+type_12(package) ::= <<long>>
+
+type_8(package) ::= <<char>>
+
+type_14(package) ::= <<wchar_t>>
+
+type_7(package) ::= <<boolean>>
+
+type_9(package) ::= <<short>>
+
+type_d(package) ::= <<String>>
+
+type_15(package) ::= <<String>>
+
+type_19(package, key, value, empty, maxsize) ::= <<Map<$key$, $value$>$empty$>>
+
+type_f(package, firs, secon, type) ::= <<$firs$$type$$secon$>>
+
+type_a(package, name) ::= <<$package$$name$>>
+
+type_b(package, name) ::= <<$package$$name$>>
+
+type_c(package, name) ::= <<$package$$name$>>
+
+type_10(package, name) ::= <<$name$>>
+
+// TODO Para que sirve empty en VBSBuffers?
+type_e(package, type, maxsize, empty) ::= <<ArrayList<$if(type_e_content_types.(type))$$type_e_content_types.(type)$$else$$type$$endif$>$empty$>>
+
+type_1a(package, name, type) ::= <<$package$$name$>>
+
+type_1b(package, name) ::= <<$package$$name$>>
+
+type_1d(package, name) ::= <<byte>>
+
+type_1e(package, name) ::= <<short>>
+
+type_e_content_types ::= [
+    "int":"Integer",
+    default:
+]
+
+initialValues ::= [
+    "type_d":"\"\"",
+    "type_15":"\"\"",
+    default: // not basic type.
+]
+

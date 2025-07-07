@@ -1,0 +1,245 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group XmlType;
+
+main(ctx, definitions, module_name) ::= <<
+$definitions; separator="\n"$
+
+>>
+
+interface(ctx, parent, interface, exports, extension, module_name) ::= <<
+public class $interface.name$
+{
+    $extension$
+
+    $exports$
+}
+>>
+
+typedef_decl(ctx, parent, typedefs, module_name) ::= <<
+<type>
+    $if(typedefs.TypedefContentTypeCode.Default)$
+    $if(typedefs.TypedefContentTypeCode.LikeStruct)$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="nonBasic" nonBasicTypeName="$if(typedefs.TypedefContentTypeCode.Scopednamenormal)$$typedefs.TypedefContentTypeCode.Scopednamenormal$$endif$"/>
+    $else$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="$if(typedefs.TypedefContentTypeCode.XmlTypename)$$typedefs.TypedefContentTypeCode.XmlTypename$$endif$" $if(typedefs.TypedefContentTypeCode.StringType)$$if(!typedefs.TypedefContentTypeCode.Unbound)$stringMaxLength="$typedefs.TypedefContentTypeCode.XMLMaxsize$"$endif$$endif$/>
+    $endif$
+    $elseif(typedefs.TypedefContentTypeCode.IsType_a)$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="nonBasic" nonBasicTypeName="$if(typedefs.TypedefContentTypeCode.Scopednamenormal)$$typedefs.TypedefContentTypeCode.Scopednamenormal$$endif$"/>
+    $elseif(typedefs.TypedefContentTypeCode.IsArrayType)$
+    $if(!typedefs.TypedefContentTypeCode.ContentTypeCode.Default)$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="nonBasic" nonBasicTypeName="$if(typedefs.TypedefContentTypeCode.ContentTypeCode.Scopednamenormal)$$typedefs.TypedefContentTypeCode.ContentTypeCode.Scopednamenormal$$endif$" arrayDimensions="$typedefs.TypedefContentTypeCode.DimensionsInXml$"/>
+    $else$
+    $if(!typedefs.TypedefContentTypeCode.ContentTypeCode.LikeStruct)$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="$typedefs.TypedefContentTypeCode.ContentTypeCode.XmlTypename$" arrayDimensions="$typedefs.TypedefContentTypeCode.DimensionsInXml$" $if(typedefs.TypedefContentTypeCode.ContentTypeCode.StringType)$$if(!typedefs.TypedefContentTypeCode.ContentTypeCode.Unbound)$stringMaxLength="$typedefs.TypedefContentTypeCode.ContentTypeCode.XMLMaxsize$"$endif$$endif$/>
+    $else$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="nonBasic" nonBasicTypeName="$if(typedefs.TypedefContentTypeCode.ContentTypeCode.Scopednamenormal)$$typedefs.TypedefContentTypeCode.ContentTypeCode.Scopednamenormal$$endif$" arrayDimensions="$typedefs.TypedefContentTypeCode.DimensionsInXml$"/>
+    $endif$
+    $endif$
+    $elseif(typedefs.TypedefContentTypeCode.IsMapType)$
+    $if(!typedefs.TypedefContentTypeCode.ValueTypeCode.Default)$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="nonBasic" nonBasicTypeName="$if(typedefs.TypedefContentTypeCode.ValueTypeCode.Scopednamenormal)$$typedefs.TypedefContentTypeCode.ValueTypeCode.Scopednamenormal$$endif$"  key_type="$typedefs.TypedefContentTypeCode.KeyTypeCode.XmlTypename$" mapMaxLength="$if(!typedefs.TypedefContentTypeCode.Unbound)$$typedefs.TypedefContentTypeCode.XMLMaxsize$$else$0$endif$"/>
+    $else$
+    $if(!typedefs.TypedefContentTypeCode.ValueTypeCode.LikeStruct)$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="$typedefs.TypedefContentTypeCode.ValueTypeCode.XmlTypename$" key_type="$typedefs.TypedefContentTypeCode.KeyTypeCode.XmlTypename$" mapMaxLength="$if(!typedefs.TypedefContentTypeCode.Unbound)$$typedefs.TypedefContentTypeCode.XMLMaxsize$$else$0$endif$"/>
+    $else$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="nonBasic" nonBasicTypeName="$if(typedefs.TypedefContentTypeCode.ValueTypeCode.Scopednamenormal)$$typedefs.TypedefContentTypeCode.ValueTypeCode.Scopednamenormal$$endif$"  key_type="$typedefs.TypedefContentTypeCode.KeyTypeCode.XmlTypename$" mapMaxLength="$if(!typedefs.TypedefContentTypeCode.Unbound)$$typedefs.TypedefContentTypeCode.XMLMaxsize$$else$0$endif$"/>
+    $endif$
+    $endif$
+    $elseif(typedefs.TypedefContentTypeCode.isType_e)$
+    $if(!typedefs.TypedefContentTypeCode.ContentTypeCode.Default)$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="nonBasic" nonBasicTypeName="$if(typedefs.TypedefContentTypeCode.ContentTypeCode.Scopednamenormal)$$typedefs.TypedefContentTypeCode.ContentTypeCode.Scopednamenormal$$endif$" sequenceMaxLength="$if(!typedefs.TypedefContentTypeCode.Unbound)$$typedefs.TypedefContentTypeCode.XMLMaxsize$$else$0$endif$"/>
+    $else$
+    $if(!typedefs.TypedefContentTypeCode.ContentTypeCode.LikeStruct)$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="$typedefs.TypedefContentTypeCode.ContentTypeCode.XmlTypename$" sequenceMaxLength="$if(!typedefs.TypedefContentTypeCode.Unbound)$$typedefs.TypedefContentTypeCode.XMLMaxsize$$else$0$endif$" $if(typedefs.TypedefContentTypeCode.ContentTypeCode.StringType)$$if(!typedefs.TypedefContentTypeCode.ContentTypeCode.Unbound)$stringMaxLength="$typedefs.TypedefContentTypeCode.ContentTypeCode.XMLMaxsize$"$endif$$endif$/>
+    $else$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="nonBasic" nonBasicTypeName="$if(typedefs.TypedefContentTypeCode.ContentTypeCode.Scopednamenormal)$$typedefs.TypedefContentTypeCode.ContentTypeCode.Scopednamenormal$$endif$" sequenceMaxLength="$if(!typedefs.TypedefContentTypeCode.Unbound)$$typedefs.TypedefContentTypeCode.XMLMaxsize$$else$0$endif$"/>
+    $endif$
+    $endif$
+    $else$
+    <typedef name="$if(module_name)$$module_name$::$endif$$typedefs.name$" type="nonBasic" nonBasicTypeName="$if(typedefs.TypedefContentTypeCode.Scopednamenormal)$$typedefs.TypedefContentTypeCode.Scopednamenormal$$endif$"/>
+    $endif$
+$definitions; separator="\n"$
+</type>
+>>
+
+struct_type(ctx, parent, struct, extension, module_name) ::= <<
+$get_bounded_typedef(ctx=ctx, memberedtype=struct)$
+
+<type>
+<struct name="$if(module_name)$$module_name$::$endif$$struct.name$" $if(struct.HasStructAnnotation)$ extensibility="$get_extensibility_annotation(typecode=struct)$"$endif$ $if(struct.inheritances)$baseType="$struct.inheritances : {parent | $if(parent.Scopednamenormal)$$parent.Scopednamenormal$$endif$}; separator=", "$" $endif$>
+$struct.members : { member |
+    $get_xml_member(member=member)$
+}; separator="\n"$
+$definitions; separator=""$
+</struct>
+</type>
+>>
+
+bitset_type(ctx, parent, bitset, module_name) ::= <<
+$get_bounded_typedef(ctx=ctx, memberedtype=bitset)$
+
+<type>
+<bitset name="$if(module_name)$$module_name$::$endif$$bitset.name$" $if(bitset.Parents)$baseType="$bitset.Parents : {parent | $if(parent.Scopednamenormal)$$parent.Scopednamenormal$$endif$}; separator=", "$" $endif$>
+$bitset.Bitfields : { member |
+    $if(member.Spec.typecode)$
+    $if(!member.Spec.typecode.Default)$
+    <bitfield $if(member.name)$name="$member.name$"$endif$ $if(member.Spec.typecode)$type="nonBasic" nonBasicTypeName="$if(member.Spec.Scope)$$member.Spec.Scope$$else$$member.Spec.typecode.XmlTypename$"$endif$ $endif$$if(member.Spec.BitSize)$bit_bound="$member.Spec.BitSize$" $endif$/>
+    $else$
+    <bitfield $if(member.name)$name="$member.name$"$endif$ $if(member.Spec.typecode)$type="$member.Spec.typecode.XmlTypename$" $endif$$if(member.Spec.BitSize)$bit_bound="$member.Spec.BitSize$" $endif$/>
+    $endif$
+    $else$
+    <bitfield $if(member.name)$name="$member.name$"$endif$ $if(member.Spec.BitSize)$bit_bound="$member.Spec.BitSize$" $endif$/>
+    $endif$
+}; separator="\n"$
+$definitions; separator="\n"$
+</bitset>
+</type>
+>>
+
+public_bitfield_definition(member) ::= <<
+
+>>
+
+union_type(ctx, parent, union, extension, module_name) ::= <<
+$get_bounded_typedef(ctx=ctx, memberedtype=union)$
+
+<type>
+<union name="$if(module_name)$$module_name$::$endif$$union.name$">
+<discriminator type="$if(union.Discriminator.PrimitiveType)$$union.Discriminator.XmlTypename$$else$$union.Discriminator.Scopednamenormal$$endif$"/>
+$union.members : { member |
+    <case>
+$member.Values : { label |
+        <caseDiscriminator value="$label$"/>}; separator="\n"$
+        $get_xml_member(member=member)$
+    </case>
+}; separator="\n"$
+$definitions; separator="\n"$
+</union>
+</type>
+>>
+
+enum_type(ctx, parent, enum, extension, module_name) ::= <<
+<type>
+<enum name="$if(module_name)$$module_name$::$endif$$enum.name$">
+$enum.members : { member |
+    <enumerator name="$member.name$" $if(member.HasValue)$value="$member.Value$"$endif$/>
+}; separator="\n"$
+$definitions; separator="\n"$
+</enum>
+</type>
+>>
+
+bitmask_type(ctx, parent, bitmask, extension, module_name) ::= <<
+<type>
+<bitmask name="$if(module_name)$$module_name$::$endif$$bitmask.name$" bit_bound="$bitmask.BitBound$" $if(bitmask.Parent)$baseType="$bitmask.Parent$" $endif$>
+$bitmask.members : { member |
+    <bit_value name="$member.name$" position="$member.Position$"/>
+ }; separator="\n"$
+$definitions; separator="\n"$
+</bitmask>
+</type>
+>>
+
+public_bitset_inheritances(parent) ::= <<$parent.Scopednamenormal$>>
+
+annotation(ctx, annotation) ::= <<>>
+
+/*UTILS*/
+
+get_xml_member(member) ::= <<
+$if(member.typecode.IsType_10)$
+    <member name="$member.name$" type="nonBasic" nonBasicTypeName="$if(member.typecode.Scopednamenormal)$$member.typecode.Scopednamenormal$$else$$member.typecode.XmlTypename$$endif$"$if(member.KeyTrue)$ key="true"$endif$$get_member_annotation(member = member)$/>
+$elseif(member.typecode.Default)$
+    $if(member.typecode.LikeStruct)$
+    <member name="$member.name$" type="nonBasic" nonBasicTypeName="$if(member.typecode.Scopednamenormal)$$member.typecode.Scopednamenormal$$else$$member.typecode.XmlTypename$$endif$"$if(member.KeyTrue)$ key="true"$endif$$get_member_annotation(member = member)$/>
+    $else$
+    <member name="$member.name$" type="$member.typecode.XmlTypename$" $if(member.typecode.StringType)$$if(!member.typecode.Unbound)$stringMaxLength="$member.typecode.XMLMaxsize$"$endif$$endif$$if(member.KeyTrue)$ key="true"$endif$$get_member_annotation(member = member)$/>
+    $endif$
+$elseif(member.typecode.IsType_a)$
+    <member name="$member.name$" type="nonBasic" nonBasicTypeName="$if(member.typecode.Scopednamenormal)$$member.typecode.Scopednamenormal$$else$$member.typecode.XmlTypename$$endif$"$if(member.KeyTrue)$ key="true"$endif$$get_member_annotation(member = member)$/>
+$elseif(member.typecode.IsArrayType)$
+    $if(!member.typecode.ContentTypeCode.Default)$
+    <member name="$member.name$" type="nonBasic" nonBasicTypeName="$if(!member.XMLTypedeftype)$$if(member.typecode.ContentTypeCode.Scopednamenormal)$$member.typecode.ContentTypeCode.Scopednamenormal$$else$$member.typecode.ContentTypeCode.XmlTypename$$endif$$else$$member.typecode.ContentTypeCode.XmlTypename$$endif$$if(member.XMLTypedeftype)$_$member.typecode.ContentTypeCode.XMLMaxsize$_lvbs_TYPEDEF$endif$" arrayDimensions="$member.typecode.DimensionsInXml$"$if(member.KeyTrue)$ key="true"$endif$$get_member_annotation(member = member)$/>
+    $else$
+    $if(!member.typecode.ContentTypeCode.LikeStruct)$
+    <member name="$member.name$" type="$if(member.XMLTypedeftype)$nonBasic$else$$member.typecode.ContentTypeCode.XmlTypename$$endif$" $if(member.XMLTypedeftype)$nonBasicTypeName="$member.typecode.ContentTypeCode.XmlTypename$_$member.typecode.ContentTypeCode.XMLMaxsize$_lvbs_TYPEDEF"$endif$ arrayDimensions="$member.typecode.DimensionsInXml$" $if(member.KeyTrue)$ key="true"$endif$$get_member_annotation(member = member)$/>
+    $else$
+    <member name="$member.name$" type="nonBasic" nonBasicTypeName="$if(member.typecode.ContentTypeCode.Scopednamenormal)$$member.typecode.ContentTypeCode.Scopednamenormal$$else$$member.typecode.ContentTypeCode.XmlTypename$$endif$" arrayDimensions="$member.typecode.DimensionsInXml$"$if(member.KeyTrue)$ key="true"$endif$$get_member_annotation(member = member)$/>
+    $endif$
+    $endif$
+$elseif(member.typecode.IsMapType)$
+    $if(!member.typecode.ValueTypeCode.Default)$
+    <member name="$member.name$" type="nonBasic" nonBasicTypeName="$contain_key_type(containertypecode=member.typecode.ValueTypeCode)$" key_type="$contain_key_type(containertypecode=member.typecode.KeyTypeCode)$"$if(member.KeyTrue)$ key="true"$endif$ mapMaxLength="$if(!member.typecode.Unbound)$$member.typecode.XMLMaxsize$$else$0$endif$"$get_member_annotation(member = member)$/>
+    $else$
+    $if(!member.typecode.ValueTypeCode.LikeStruct)$
+    <member name="$member.name$" type=$contain_type(containertypecode=member.typecode.ValueTypeCode)$ key_type="$contain_key_type(containertypecode=member.typecode.KeyTypeCode)$"$if(member.KeyTrue)$ key="true"$endif$ mapMaxLength="$if(!member.typecode.Unbound)$$member.typecode.XMLMaxsize$$else$0$endif$"$get_member_annotation(member = member)$/>
+    $else$
+    <member name="$member.name$" type="nonBasic" nonBasicTypeName="$if(member.typecode.ValueTypeCode.Scopednamenormal)$$member.typecode.ValueTypeCode.Scopednamenormal$$else$$member.typecode.ValueTypeCode.XmlTypename$$endif$" key_type="$member.typecode.KeyTypeCode.XmlTypename$"$if(member.KeyTrue)$ key="true"$endif$ mapMaxLength="$member.typecode.XMLMaxsize$"$get_member_annotation(member = member)$/>
+    $endif$
+    $endif$
+$elseif(member.typecode.isType_e)$
+    $if(!member.typecode.ContentTypeCode.Default)$
+    <member name="$member.name$" type="nonBasic" sequenceMaxLength="$if(!member.typecode.Unbound)$$member.typecode.XMLMaxsize$$else$0$endif$" nonBasicTypeName="$if(!member.XMLTypedeftype)$$if(member.typecode.ContentTypeCode.Scopednamenormal)$$member.typecode.ContentTypeCode.Scopednamenormal$$else$$member.typecode.ContentTypeCode.XmlTypename$$endif$$else$$member.typecode.ContentTypeCode.XmlTypename$$endif$$if(member.XMLTypedeftype)$_$member.typecode.ContentTypeCode.XMLMaxsize$_lvbs_TYPEDEF$endif$"$if(member.KeyTrue)$ key="true"$endif$$get_member_annotation(member = member)$/>
+    $else$
+    $if(!member.typecode.ContentTypeCode.LikeStruct)$
+    <member name="$member.name$" type="$if(member.XMLTypedeftype)$nonBasic$else$$member.typecode.ContentTypeCode.XmlTypename$$endif$" $if(member.XMLTypedeftype)$nonBasicTypeName="$member.typecode.ContentTypeCode.XmlTypename$_$member.typecode.ContentTypeCode.XMLMaxsize$_lvbs_TYPEDEF"$endif$ sequenceMaxLength="$if(!member.typecode.Unbound)$$member.typecode.XMLMaxsize$$else$0$endif$" $if(member.KeyTrue)$ key="true"$endif$$get_member_annotation(member = member)$/>
+    $else$
+    <member name="$member.name$" type="nonBasic" sequenceMaxLength="$if(!member.typecode.Unbound)$$member.typecode.XMLMaxsize$$else$0$endif$" nonBasicTypeName="$if(member.typecode.ContentTypeCode.Scopednamenormal)$$member.typecode.ContentTypeCode.Scopednamenormal$$else$$member.typecode.ContentTypeCode.XmlTypename$$endif$"$if(member.KeyTrue)$ key="true"$endif$$get_member_annotation(member = member)$/>
+    $endif$
+    $endif$
+$else$
+    <member name="$member.name$" type="nonBasic" nonBasicTypeName="$if(member.typecode.Scopednamenormal)$$member.typecode.Scopednamenormal$$else$$member.typecode.XmlTypename$$endif$"$if(member.KeyTrue)$ key="true"$endif$$get_member_annotation(member = member)$/>
+$endif$
+>>
+
+get_bounded_typedef(ctx, memberedtype) ::= <<
+$memberedtype.SwapedContainerTypedef : { inner_typecode |
+    <type>
+    $if(inner_typecode.StringType)$
+        <typedef name="$inner_typecode.XmlTypename$_$inner_typecode.XMLMaxsize$_lvbs_TYPEDEF" type="$if(inner_typecode.XmlTypename)$$inner_typecode.XmlTypename$$endif$" stringMaxLength="$inner_typecode.XMLMaxsize$"/>
+    $elseif(inner_typecode.IsArrayType)$
+        $if(!inner_typecode.ContentTypeCode.Default)$
+            <typedef name="$inner_typecode.XmlTypename$_$inner_typecode.XMLMaxsize$_lvbs_TYPEDEF" type="nonBasic" nonBasicTypeName="$if(inner_typecode.ContentTypeCode.XmlTypename)$$inner_typecode.ContentTypeCode.XmlTypename$_$endif$$inner_typecode.ContentTypeCode.XMLMaxsize$_lvbs_TYPEDEF" arrayDimensions="$inner_typecode.DimensionsInXml$"/>
+        $else$
+            <typedef name="$inner_typecode.XmlTypename$_$inner_typecode.XMLMaxsize$_lvbs_TYPEDEF" type="nonBasic" nonBasicTypeName="$if(inner_typecode.ContentTypeCode.XmlTypename)$$inner_typecode.ContentTypeCode.XmlTypename$_$endif$$inner_typecode.ContentTypeCode.XMLMaxsize$_lvbs_TYPEDEF" arrayDimensions="$inner_typecode.DimensionsInXml$"/>
+        $endif$
+    $elseif(inner_typecode.IsMapType)$
+        $if(!inner_typecode.ValueTypeCode.Default)$
+            <typedef name="$inner_typecode.KeyTypeCode.XmlTypename$_$inner_typecode.ValueTypeCode.XmlTypename$_$inner_typecode.XMLMaxsize$_lvbs_TYPEDEF" type="nonBasic" nonBasicTypeName="$contain_key_type(containertypecode=inner_typecode.ValueTypeCode)$" key_type="$contain_key_type(containertypecode=inner_typecode.KeyTypeCode)$" mapMaxLength="$if(!inner_typecode.Unbound)$$inner_typecode.XMLMaxsize$$else$0$endif$"/>
+        $else$
+            <typedef name="$inner_typecode.KeyTypeCode.XmlTypename$_$inner_typecode.ValueTypeCode.XmlTypename$_$inner_typecode.XMLMaxsize$_lvbs_TYPEDEF" type=$contain_type(containertypecode=inner_typecode.ValueTypeCode)$ key_type="$contain_key_type(containertypecode=inner_typecode.KeyTypeCode)$" mapMaxLength="$if(!inner_typecode.Unbound)$$inner_typecode.XMLMaxsize$$else$0$endif$"/>
+        $endif$
+    $elseif(inner_typecode.isType_e)$
+        $if(!inner_typecode.ContentTypeCode.Default)$
+            <typedef name="$inner_typecode.XmlTypename$_$inner_typecode.XMLMaxsize$_lvbs_TYPEDEF" type="nonBasic" nonBasicTypeName="$if(inner_typecode.ContentTypeCode.XmlTypename)$$inner_typecode.ContentTypeCode.XmlTypename$_$endif$$inner_typecode.ContentTypeCode.XMLMaxsize$_lvbs_TYPEDEF" sequenceMaxLength="$if(!inner_typecode.Unbound)$$inner_typecode.XMLMaxsize$$else$0$endif$"/>
+        $else$
+            <typedef name="$inner_typecode.XmlTypename$_$inner_typecode.XMLMaxsize$_lvbs_TYPEDEF" type="nonBasic" nonBasicTypeName="$if(inner_typecode.ContentTypeCode.XmlTypename)$$inner_typecode.ContentTypeCode.XmlTypename$_$endif$$inner_typecode.ContentTypeCode.XMLMaxsize$_lvbs_TYPEDEF" sequenceMaxLength="$if(!inner_typecode.Unbound)$$inner_typecode.XMLMaxsize$$else$0$endif$"/>
+        $endif$
+    $endif$
+
+</type>
+}; separator="\n"$
+>>
+
+get_container_typedef_pre_name(typecode) ::= <<$if(typecode.IsArrayType)$array_$elseif(typecode.IsMapType)$map_$elseif(typecode.isType_e)$seq_$endif$>>
+
+contain_type(containertypecode) ::= <<$if(containertypecode.BoundedStringType)$"nonBasic" nonBasicTypeName="$if(containertypecode.XmlTypename)$$containertypecode.XmlTypename$_$endif$$containertypecode.XMLMaxsize$_lvbs_TYPEDEF"$else$"$containertypecode.XmlTypename$"$endif$>>
+contain_key_type(containertypecode) ::= <<$if(containertypecode.ContainerTypeCode)$$if(containertypecode.HasInnerBoundedString)$$if(containertypecode.XmlTypename)$$containertypecode.XmlTypename$_$endif$$containertypecode.XMLMaxsize$_lvbs_TYPEDEF$else$$if(containertypecode.AliasOrStruct)$$containertypecode.Scopednamenormal$$else$$containertypecode.XmlTypename$$endif$$endif$$else$$if(containertypecode.BoundedStringType)$$if(containertypecode.XmlTypename)$$containertypecode.XmlTypename$_$endif$$containertypecode.XMLMaxsize$_lvbs_TYPEDEF$else$$if(containertypecode.AliasOrStruct)$$containertypecode.Scopednamenormal$$else$$containertypecode.XmlTypename$$endif$$endif$$endif$>>
+get_extensibility_annotation(typecode) ::= <<$if(typecode.AnnotationMutable)$mutable$elseif(typecode.AnnotationFinal)$final$elseif(typecode.AnnotationAppendable)$appendable$endif$>>
+
+get_member_annotation(member) ::= << $if(member.AnnotationId)$ id="$member.AnnotationIdValue$"$endif$$if(member.annotationDefault)$ default="$member.AnnotationDefaultValueForXML$"$endif$$if(member.AnnotationOptional)$ optional="true"$endif$>>

@@ -1,0 +1,148 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group RPCJNIClientSource;
+
+main(ctx, definitions, package, module_name, interfacename) ::= <<
+#include "$ctx.PackageUnder$$ctx.filename$_$if(module_name)$$module_name$_$endif$$interfacename$_RpcClient.$if(ctx.GenHpp)$hpp$else$h$endif$"
+#include "$ctx.filename$Client.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+using namespace vbs::rpc;
+
+$definitions; separator="\n"$
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list, module_name) ::= <<
+$if(module_name)$
+using namespace $if(module_name)$$module_name$$endif$;
+$endif$
+
+/*
+ * Class:     $ctx.PackageUnder$$ctx.JniFilename$_$if(module_name)$$module_name$_$endif$$interface.name$_RpcClient
+ * Method:    native_deinit
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_$ctx.PackageUnder$$ctx.JniFilename$_1$if(interface.HasScope)$$interface.UnderlineScope$_1$endif$$interface.UnderlineName$_1RpcClient_native_1deinit
+        (JNIEnv *env, jobject obj, jlong ptr)
+{
+    $interface.name$Client *client = reinterpret_cast<$interface.name$Client*>(ptr);
+    if (client != nullptr) {
+        //client->release_client();
+        client->del_client();
+        if(client->get_client_num() == 0) {
+            delete client;
+        }
+    }
+    return;
+}
+
+/*
+ * Class:     $ctx.PackageUnder$$ctx.JniFilename$_$if(module_name)$$module_name$_$endif$$interface.name$_RpcClient
+ * Method:    native_get_RpcServerObj
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_$ctx.PackageUnder$$ctx.JniFilename$_1$if(interface.HasScope)$$interface.UnderlineScope$_1$endif$$interface.UnderlineName$_1RpcClient_native_1get_1RpcServerObj
+        (JNIEnv *env, jobject obj, jlong ptr)
+{
+     long ret = 0;
+     $interface.name$Client *client = reinterpret_cast<$interface.name$Client*>(ptr);
+     if (client == nullptr) {
+            return ret;
+     }
+
+     $interface.name$ServerObj *serverObj = client->get_serverobj();
+     if (serverObj != nullptr) {
+        ret = reinterpret_cast<long>(serverObj);
+     }
+
+     return ret;
+}
+
+>>
+
+export_list(exports) ::= <<>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct) ::= <<>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+bitset_type(ctx, parent, bitset) ::= <<>>
+
+insertMember(ctx, parent, member) ::= <<>>
+
+//StringMember
+insertStringMember(ctx, parent, member) ::= <<>>
+
+//SequenceMember
+insertSequenceMember(ctx, parent, member) ::= <<>>
+
+//ArrayMember
+insertArrayMember(ctx, parent, member) ::= <<>>
+
+//StructMember
+insertStructMember(ctx, parent, member) ::= <<>>
+
+//MapMember
+insertMapMember(ctx, parent, member) ::= <<>>
+
+insertMemberType(ctx, parent, member) ::= <<>>
+
+//PrimitiveMember
+PrimitiveMember(ctx, parent, member) ::= <<
+$if(member.Typecode.IsType_9)$
+if ($member.name$ < 0 || $member.name$ > 255) {
+    return -1;
+}
+
+$elseif(member.Typecode.IsType_3)$
+if ($member.name$ < 0 || $member.name$ > 65535) {
+    return -1;
+}
+
+$elseif(member.Typecode.IsType_4)$
+if ($member.name$ < 0 || $member.name$ > 4294967295) {
+    return -1;
+}
+
+$endif$
+$member.Typecode.CppTypename$ cpp_$member.name$ = static_cast<$member.Typecode.CppTypename$>($member.name$);
+>>

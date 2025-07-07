@@ -1,0 +1,234 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group JNIImplSource;
+
+main(ctx, definitions) ::= <<
+$fileHeader(file=[ctx.filename, ".h"], description=["This header file contains the declaration of the described types in the IDL file."])$
+
+$if(ctx.NotUseVbsFramework)$
+#include <erpc/server/RpcServer.h>
+$else$
+#include <vbs/RpcHeader.hpp>
+$endif$
+
+#include "RpcServerJNIImpl.$if(ctx.GenHpp)$hpp$else$h$endif$"
+#include <iostream>
+
+using namespace vbs::rpc;
+using namespace ::server;
+
+$definitions; separator="\n"$
+
+>>
+
+// TODO name -> module
+module(ctx, parent, module, definition_list) ::= <<
+namespace $module.name$
+{
+    $definition_list$
+}
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list) ::= <<
+void $interface.name$_Impl::unregister_java_instance()
+{
+	bool JVMAttached = false;
+	JNIEnv *env = nullptr;
+
+	vm_->GetEnv(reinterpret_cast<void **>(&env), version_);
+	if (env == nullptr)
+	{
+		JVMAttached = true;
+#ifdef ANDROID
+		if (vm_->AttachCurrentThread(&env, nullptr) != JNI_OK)
+#else
+		if (vm_->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr) != JNI_OK)
+#endif
+		{
+			return;
+		}
+	}
+	if (java_ImplObj_ != NULL)
+	{
+		env->DeleteGlobalRef(java_ImplObj_);
+	}
+
+	if (JVMAttached)
+		vm_->DetachCurrentThread();
+}
+
+void $interface.name$_Impl::register_java_instance(JavaVM *vm, jint version, jobject obj)
+{
+	bool JVMAttached = false;
+	JNIEnv *env = nullptr;
+	vm_ = vm;
+	version_ = version;
+	java_ImplObj_ = obj;
+	jclass tempClass;
+
+	vm_->GetEnv(reinterpret_cast<void **>(&env), version_);
+	if (env == nullptr)
+	{
+		JVMAttached = true;
+#ifdef ANDROID
+		if (vm_->AttachCurrentThread(&env, nullptr) != JNI_OK)
+#else
+		if (vm_->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr) != JNI_OK)
+#endif
+		{
+			return;
+		}
+	}
+
+$interface.AllOperationsStruct : {structname|
+        tempClass = env->FindClass("$ctx.PackageDir$$ctx.filename$_$structname$");
+        java_$structname$Class_ = (jclass)env->NewGlobalRef(tempClass);
+}; separator="\n"$
+
+        jclass Java_$interface.name$_Impl_class = env->GetObjectClass(java_ImplObj_);
+
+$interface.all_operations : {operation|
+        java_$operation.name$_MethodID = env->GetMethodID(Java_$interface.name$_Impl_class, "$operation.name$", "(JI$operation.Parameters : {param |$if(param.Typecode.IsType_a)$$if(param.typecode.IsType_10)$$param.typecode.ContentTypeCode.JNISign$$ctx.filename$_$param.typecode.ContentTypeCode.CScopednamenormal$$else$$param.typecode.JNISign$$ctx.filename$_$param.typecode.CScopednamenormal$$endif$;$else$$param.Typecode.RetJNISignNormal$$endif$}; separator=""$)V");
+}; separator="\n"$
+
+        if (JVMAttached)
+                vm_->DetachCurrentThread();
+}
+
+$interface.all_operations : {operation|
+void $interface.name$_Impl::$operation.name$(uint32_t conn_id, vbs::rpc::RequestMode req_mode, RpcMessageType *$operation.Inputparam : {param |$param.name$}; separator=", "$, RpcMessageType *$operation.Outputparam : {param |$param.name$}; separator=", "$)
+{
+
+$operation.Parameters : {param |
+	$param.Typecode.Scopednamenormal$ *tmp_$param.name$ = dynamic_cast<$param.Typecode.Scopednamenormal$ *>($param.name$);
+}; separator="\n"$
+
+	bool JVMAttached = false;
+	JNIEnv *env = nullptr;
+	jmethodID constructor;
+
+	vm_->GetEnv(reinterpret_cast<void **>(&env), version_);
+	if (env == nullptr)
+	{
+		JVMAttached = true;
+#ifdef ANDROID
+		if (vm_->AttachCurrentThread(&env, nullptr) != JNI_OK)
+#else
+		if (vm_->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr) != JNI_OK)
+#endif
+		{
+			return;
+		}
+	}
+
+	jlong ConnID = static_cast<jlong>(conn_id);
+	jint TransportType = (req_mode == vbs::rpc::RequestMode::SYNC) ? 0 : 1;
+
+$operation.Parameters : {param|
+$if(param.Typecode.IsType_10)$
+	constructor = env->GetMethodID(java_$param.Typecode.ContentTypeCode.CScopednamenormal$Class_, "<init>", "(JZ)V");
+	jobject $param.Typecode.ContentTypeCode.CScopednamenormal$$if(param.Input)$_in_$else$_out_$endif$Obj = env->NewObject(java_$param.Typecode.ContentTypeCode.CScopednamenormal$Class_, constructor, reinterpret_cast<long>(tmp_$param.name$), false);
+$else$
+	constructor = env->GetMethodID(java_$param.Typecode.CScopednamenormal$Class_, "<init>", "(JZ)V");
+	jobject $param.Typecode.CScopednamenormal$$if(param.Input)$_in_$else$_out_$endif$Obj = env->NewObject(java_$param.Typecode.CScopednamenormal$Class_, constructor, reinterpret_cast<long>(tmp_$param.name$), false);
+$endif$
+}; separator="\n"$
+
+    env->CallVoidMethod(java_ImplObj_, java_$operation.name$_MethodID, ConnID, TransportType$operation.Parameters : {param |, $if(param.Typecode.IsType_10)$$param.Typecode.ContentTypeCode.CScopednamenormal$$else$$param.Typecode.CScopednamenormal$$endif$$if(param.Input)$_in_$else$_out_$endif$Obj}; separator=""$);
+
+$operation.OutputparamStructName : {outparamname|
+    jmethodID dataTransportID = env->GetMethodID(java_$outparamname$Class_, "copy_data_to_cpp", "()V");
+	env->CallVoidMethod($outparamname$_out_Obj, dataTransportID);
+}; separator="\n"$
+
+$operation.AllStruct : {structname|
+    env->DeleteLocalRef($structname$Obj);
+}; separator="\n"$
+
+        if (JVMAttached)
+                vm_->DetachCurrentThread();
+}
+}; separator="\n"$
+
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+struct_type(ctx, parent, struct, extensions) ::= <<>>
+
+union_type(ctx, parent, union, extensions) ::= <<>>
+
+bitset_type(ctx, parent, bitset, extensions) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+/***** Utils *****/
+
+public_struct_inheritances(parent) ::= <<>>
+
+public_bitset_inheritances(parent) ::= <<>>
+
+public_member_declaration(ctx, member) ::= <<>>
+
+public_member_primitive_declaration(ctx, member) ::= <<>>
+
+public_member_cstring_declaration(ctx, member) ::= <<>>
+
+public_bitfield_declaration(member) ::= <<>>
+
+private_member_declaration(member) ::= <<>>
+
+public_unionmember_declaration(ctx, member) ::= <<>>
+
+public_unionmember_primitive_declaration(ctx, member) ::= <<>>
+
+public_unionmember_cstring_declaration(ctx, member) ::= <<>>
+
+private_declaration(typecode, name) ::= <<>>
+
+size_functions(type) ::= <<>>
+
+serialization_functions(type) ::= <<>>
+
+sequences_definition(typecode) ::= <<>>
+
+sequences_definition_impl(typecode, typename) ::= <<>>
+
+/*UTILS*/
+ecdr_namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$vbsutil::ecdr::$else$vbs::$endif$>>

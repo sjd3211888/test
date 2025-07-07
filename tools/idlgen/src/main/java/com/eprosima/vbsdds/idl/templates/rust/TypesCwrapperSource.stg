@@ -1,0 +1,1026 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group TypesCwrapperSource;
+main(ctx, definitions) ::= <<
+$fileHeader(file=[ctx.filename, "wrapper.cpp"], description=["This source file contains the wrapper of the definition of the described types in the IDL file."])$
+
+#include <string>
+#include <locale>
+#include <codecvt>
+
+extern "C" {
+$ctx.FileNames : {include | #include "$include$Wrapper.h"}; separator="\n"$
+    #include "$ctx.filename$Wrapper.h"
+}
+#include "$ctx.filename$$if(ctx.RtiIdl)$Base$else$$endif$.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+$if(ctx.Rpc)$
+#include <erpc/utils/Utilities.h>
+#include <erpc/server/RpcServerFactory.h>
+#include <erpc/server/RpcServerImpl.h>
+$else$
+#include "$ctx.filename$$if(ctx.RtiIdl)$$else$PubSubTypes$endif$.$if(ctx.GenHpp)$hpp$else$h$endif$"
+$endif$
+
+$definitions; separator="\n"$
+
+>>
+
+// TODO name -> module
+module(ctx, parent, module, definition_list) ::= <<
+
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list) ::= <<
+#include "$ctx.filename$Client.$if(ctx.GenHpp)$hpp$else$h$endif$"
+#include "$ctx.filename$ClientFactory.$if(ctx.GenHpp)$hpp$else$h$endif$"
+    class $interface.CScopedname$_Impl : public vbs::rpc::server::RpcServerImpl
+{
+public:
+    $interface.CScopedname$_RpcServerListenerC *c_listener_;
+    $interface.CScopedname$_Impl(std::string profile_name) : RpcServerImpl(profile_name)
+    {
+        this->exception_func = std::bind(&$interface.CScopedname$_Impl::on_exception_detected, this, std::placeholders::_1, std::placeholders::_2);
+$interface.all_operations : {operation|
+    this->IDL_table["$operation.name$"] = new vbs::rpc::server::IDL_information(std::bind(&$interface.CScopedname$_Impl::$operation.name$, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3$if(!operation.HasMethod)$, std::placeholders::_4$endif$),
+                            $operation.ParametersTypeWithNullptr : {param |$param$}; separator=", "$);
+}; separator="\n"$
+    }
+    virtual ~$interface.CScopedname$_Impl() {}
+
+void on_exception_detected(int32_t error_number, uint32_t conn_id)
+{
+    (void)conn_id;
+
+    if (error_number == vbs::rpc::ReturnMessage::CONNECTION_CLOSE)
+    {
+        std::cout << "$interface.CScopedname$::Exception: CONNECTION_CLOSE\n";
+    }
+}
+$interface.all_operations : {operation|
+void $operation.name$($if(!operation.HasMethod)$uint32_t conn_id, vbs::rpc::RequestMode req_mode$else$vbs::rpc::ServerContext* context$endif$, vbs::rpc::RpcMessageType *$operation.Inputparam : {param |$param.name$}; separator=", "$, vbs::rpc::RpcMessageType *$operation.Outputparam : {param |$param.name$}; separator=", "$)
+{
+    $if(!operation.HasMethod)$(void)conn_id;$else$(void)context;$endif$
+
+    if (c_listener_ && c_listener_->on_$operation.name$)
+    {
+        c_listener_->on_$operation.name$(c_listener_->user_data, $if(operation.HasMethod)$context->$endif$conn_id$if(operation.HasMethod)$, context->req_id$endif$, static_cast<int>($if(operation.HasMethod)$context->$endif$req_mode), $operation.Inputparam : {param |$param.name$}; separator=", "$, $operation.Outputparam : {param |$param.name$}; separator=", "$);
+    }
+    else
+    {
+        std::cerr << "No on_$interface.CScopedname$ callback set." << std::endl;
+        return;
+    }
+}
+
+void $operation.name$_send_async_response(uint32_t conn_id$if(operation.HasMethod)$, uint32_t req_id$endif$$operation.Outputparam : {param |, $param.Typecode.cppTypename$* cpp_res}; separator=""$)
+{
+    this->srv->send_async(conn_id$if(operation.HasMethod)$, req_id$endif$, "$operation.name$"$operation.Outputparam : {param |, cpp_res}; separator=""$, vbs::rpc::StreamStatus::COMPLETE);
+}
+}; separator="\n"$
+    void set_listener($interface.CScopedname$_RpcServerListenerC *listener_)
+    {
+        c_listener_ = listener_;
+    }
+};
+
+void destroy_$interface.CScopedname$_impl(RpcServerImplWrapper* impl_wrapper)
+{
+    if (impl_wrapper && impl_wrapper->serverimpl_)
+    {
+        delete static_cast<$interface.CScopedname$_Impl*>(impl_wrapper->serverimpl_);
+        free(impl_wrapper);
+    }
+}
+RpcServerImplWrapper *create_$interface.CScopedname$_impl(const char *profile_name, $interface.CScopedname$_RpcServerListenerC *listener)
+{
+    RpcServerImplWrapper *wrapper = (RpcServerImplWrapper *)malloc(sizeof(RpcServerImplWrapper));
+    auto cpp_serveriml_ = new $interface.CScopedname$_Impl(std::string(profile_name));
+    cpp_serveriml_->set_listener(listener);
+    wrapper->serverimpl_ = static_cast<void *>(cpp_serveriml_);
+    return wrapper;
+}
+
+$interface.CScopedname$FactoryWrapper* create_$interface.CScopedname$_factory()
+{
+    $interface.CScopedname$FactoryWrapper *wrapper = new $interface.CScopedname$FactoryWrapper();
+    wrapper->factory_ = new $ctx.filename$Factory();
+    return wrapper;
+}
+
+void destroy_$interface.CScopedname$_factory($interface.CScopedname$FactoryWrapper* factory)
+{
+    if (factory)
+    {
+        delete static_cast<$ctx.filename$Factory *>(factory->factory_);
+        delete factory;
+    }
+}
+
+$interface.CScopedname$ClientWrapper* $interface.CScopedname$Client_create($interface.CScopedname$FactoryWrapper* factory,const char *profile_file_name, const char *profile_name)
+{
+    if (!factory || !profile_file_name || !profile_name)
+    {
+        return nullptr;
+    }
+
+    $ctx.filename$Factory *cpp_factory = static_cast<$ctx.filename$Factory *>(factory->factory_);
+    $interface.Scopedname$Client *cpp_client = static_cast<$interface.Scopedname$Client *>(cpp_factory->CreateRpcClient(profile_file_name, profile_name));
+
+    if (!cpp_client)
+    {
+        return nullptr;
+    }
+
+    $interface.CScopedname$ClientWrapper *client_wrapper = new $interface.CScopedname$ClientWrapper();
+    client_wrapper->client_ = cpp_client;
+    return client_wrapper;
+}
+
+void $interface.CScopedname$Client_destroy($interface.CScopedname$ClientWrapper* client_wrapper)
+{
+    if (client_wrapper && client_wrapper->client_)
+    {
+        $ctx.filename$Factory factory;
+        vbs::rpc::RpcClient *client = static_cast<vbs::rpc::RpcClient *>(client_wrapper->client_);
+        factory.DestroyRpcClient(client);
+        free(client_wrapper);
+    }
+}
+
+$interface.CScopedname$ServerObjWrapper* $interface.CScopedname$ServerObj_create(void* transport, const char *interface_name)
+{
+    $interface.CScopedname$ServerObjWrapper *wrapper = ($interface.CScopedname$ServerObjWrapper *)malloc(sizeof($interface.CScopedname$ServerObjWrapper));
+    if (wrapper == NULL)
+    {
+        return NULL;
+    }
+    wrapper->server_obj_ = static_cast<void *>(new $interface.Scopedname$ServerObj(
+        *reinterpret_cast<vbs::rpc::transport::ProxyTransport *>(transport),
+        std::string(interface_name)));
+    return wrapper;
+}
+void $interface.CScopedname$ServerObj_destroy($interface.CScopedname$ServerObjWrapper* server_obj)
+{
+    if (server_obj)
+    {
+        delete server_obj->server_obj_;
+        free(server_obj);
+    }
+}
+
+$interface.all_operations : {operation|
+void $interface.CScopedname$Impl_$operation.name$_send_async_response(void* wrapper, uint32_t conn_id$if(operation.HasMethod)$, uint32_t req_id$endif$$operation.Outputparam : {param |, void* $param.name$}; separator=""$)
+{
+    auto impl_wrapper = static_cast<RpcServerImplWrapper*>(wrapper);
+    if (!impl_wrapper || !impl_wrapper->serverimpl_) return;
+
+    auto impl = static_cast<$interface.CScopedname$_Impl*>(impl_wrapper->serverimpl_);
+    $operation.Outputparam : {param |$param.Typecode.cppTypename$* cpp_res =
+    static_cast<$param.Typecode.cppTypename$ *>($param.Typecode.CScopedname$Wrapper_to_TopicData(static_cast<$param.Typecode.CScopedname$Wrapper *>($param.name$)));
+
+    if (!cpp_res) return;}; separator="\n"$
+
+    impl->$operation.name$_send_async_response(conn_id$if(operation.HasMethod)$, req_id$endif$$operation.Outputparam : {param |, cpp_res}; separator=""$);
+
+    delete cpp_res;
+}
+int $interface.CScopedname$Client_$operation.name$_sync_send($interface.CScopedname$ClientWrapper* client, $operation.Parameters : {param |/*$param.comment$*/void* $param.name$, }; separator=""$int expire)
+{
+    if (!client || !client->client_)
+    {
+        return -1;
+    }
+    auto cpp_client = static_cast<$interface.Scopedname$Client *>(client->client_);
+    $operation.Inputparam : {param |auto cpp_req_type = static_cast<$param.Typecode.cppTypename$ *>($param.Typecode.CScopedname$Wrapper_to_TopicData(static_cast<$param.Typecode.CScopedname$Wrapper *>($param.name$)));
+    if (!cpp_req_type) {
+        return -1;
+    }
+    }; separator="\n"$
+
+    $operation.Outputparam : {param |auto cpp_res_type = static_cast<$param.Typecode.cppTypename$ *>($param.Typecode.CScopedname$Wrapper_to_TopicData(static_cast<$param.Typecode.CScopedname$Wrapper *>($param.name$)));
+    if (!cpp_res_type) {
+        free(cpp_req_type);
+        return -1;
+    }
+    }; separator="\n"$
+    int result = cpp_client->get_serverobj()->$operation.name$($operation.Inputparam : {param |cpp_req_type, }; separator=""$$operation.Outputparam : {param |cpp_res_type, }; separator=""$expire);
+    $operation.Outputparam : {param |TopicData_to_$param.Typecode.CScopedname$Wrapper(cpp_res_type, static_cast<$param.Typecode.CScopedname$Wrapper *>(}; separator=""$$operation.Outputparam : {param |$param.name$));}; separator=""$
+
+    $operation.Inputparam : {param |delete cpp_req_type;}; separator="\n"$
+    $operation.Outputparam : {param |delete cpp_res_type;}; separator="\n"$
+
+    return result;
+}
+
+int $interface.CScopedname$Client_$operation.name$_async_send($interface.CScopedname$ClientWrapper* client, $operation.Inputparam : {param |/*$param.comment$*/void* $param.name$, }; separator=""$on_async_send_complete_t callback,void *user_data, int expire)
+{
+    if (!client || !client->client_)
+    {
+        return -1;
+    }
+    auto demo_client = static_cast<$interface.Scopedname$Client *>(client->client_);
+    $operation.Inputparam : {param |auto cpp_req_type = static_cast<$param.Typecode.cppTypename$ *>($param.Typecode.CScopedname$Wrapper_to_TopicData(static_cast<$param.Typecode.CScopedname$Wrapper *>($param.name$)));}; separator="\n"$
+    if (!cpp_req_type) {
+        return -1;
+    }
+
+    return demo_client->get_serverobj()->$operation.name$(cpp_req_type, [callback, user_data](int32_t status, vbs::rpc::RpcMessageType* response) {
+        RpcMessageTypeWrapper c_response = {static_cast<void*>(response)};
+        callback(user_data, status, &c_response);
+    }, expire);
+}
+}; separator="\n"$
+
+void $interface.CScopedname$Impl_on_exception_detected(RpcServerImplWrapper* wrapper, int32_t error_number, uint32_t conn_id)
+{
+}
+$interface.CScopedname$_RpcServerListenerC *create_$interface.CScopedname$_rpc_server_listener()
+{
+    $interface.CScopedname$_RpcServerListenerC *listener = ($interface.CScopedname$_RpcServerListenerC *)malloc(sizeof($interface.CScopedname$_RpcServerListenerC));
+    $interface.all_operations : {operation|listener->on_$operation.name$ = nullptr;}; separator="\n"$
+    listener->user_data = nullptr;
+    return listener;
+}
+
+void destroy_$interface.CScopedname$_rpc_server_listener($interface.CScopedname$_RpcServerListenerC *listener)
+{
+    free(listener);
+}
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+struct_type(ctx, parent, struct, extensions) ::= <<
+$if(!ctx.Rpc)$
+TopicDataTypeWrapper *create_$struct.CScopedname$PubSubType()
+{
+    TopicDataTypeWrapper *type = new TopicDataTypeWrapper();
+    type->type_ = new $struct.scopedname$PubSubType();
+    return type;
+}
+$endif$
+
+//to c
+void *$struct.CScopedname$Wrapper_to_TopicData($struct.CScopedname$Wrapper *data)
+{
+    if (!data) return nullptr;
+
+    $struct.Scopedname$ *topic_data = new $struct.Scopedname$();
+
+    $struct.members:{ member |$member_to_c(ctx=ctx, member=member)$}; separator="\n"$
+
+    return (void *)topic_data;
+}
+//to c
+void $struct.CScopedname$Wrapper_to_TopicData2($struct.CScopedname$Wrapper *data, void *data_cpp)
+{
+    if (!data) return;
+
+    $struct.Scopedname$ *topic_data = static_cast<$struct.Scopedname$ *>(data_cpp);
+
+    $struct.members:{ member |$member_to_c(ctx=ctx, member=member)$}; separator="\n"$
+}
+
+//to cpp
+void TopicData_to_$struct.CScopedname$Wrapper(void *data, $struct.CScopedname$Wrapper *c_data)
+{
+    if (!data) return;
+
+    $struct.Scopedname$ *topic_data = static_cast<$struct.Scopedname$ *>(data);
+$struct.members:{ member |$member_to_cpp(ctx=ctx, member=member)$}; separator="\n"$
+}
+
+void $struct.CScopedname$Wrapper_free_members($struct.CScopedname$Wrapper *data)
+{
+    if (data != NULL) {
+    $struct.members:{ member |$member_free(ctx=ctx, member=member)$}; separator="\n"$
+    }
+}
+
+void $struct.CScopedname$Wrapper_free(void *data)
+{
+    if (data != NULL) {
+        // $struct.CScopedname$Wrapper_free_members(static_cast<$struct.CScopedname$Wrapper*>(data));
+        auto *p = static_cast<$struct.CScopedname$Wrapper*>(data);
+        $struct.CScopedname$Wrapper_free_members(p);
+        free(p);
+    }
+}
+
+void *$struct.CScopedname$Wrapper_default()
+{
+    return new $struct.scopedname$();
+}
+>>
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+union_type(ctx, parent, union, extensions) ::= <<
+
+void *$union.CScopedname$Wrapper_to_TopicData($union.CScopedname$Wrapper *data)
+{
+    if (!data) return nullptr;
+
+    $union.Scopedname$ *topic_data = new $union.Scopedname$();
+    switch(data->discriminator$if(union.Discriminator.IsType_c)$.value$endif$)
+    {
+    $union.members:{ member |$unionmember_conv_to_c(ctx=ctx, member=member)$}; separator="\n"$
+    }
+    topic_data->_d(data->discriminator$if(union.Discriminator.IsType_c)$.value$endif$);
+    return (void *)topic_data;
+}
+
+void TopicData_to_$union.CScopedname$Wrapper(void *data,$union.CScopedname$Wrapper *c_data)
+{
+    if (!data) return;
+    $union.Scopedname$ *topic_data = static_cast<$union.Scopedname$ *>(data);
+    switch(topic_data->_d()$if(union.Discriminator.IsType_c)$.underlying()$endif$)
+    {
+    $union.members:{ member |$unionmember_to_cpp(ctx=ctx, member=member)$}; separator="\n"$
+    }
+    c_data->discriminator$if(union.Discriminator.IsType_c)$.value$endif$ = topic_data->_d()$if(union.Discriminator.IsType_c)$.underlying()$endif$;
+}
+
+void $union.CScopedname$Wrapper_free_members($union.CScopedname$Wrapper *data)
+{
+    (void)data;
+    if (data != NULL) {
+    $union.members:{ member |$member_free(ctx=ctx, member=member)$}; separator="\n"$
+    }
+
+}
+
+void $union.CScopedname$Wrapper_free(void *data)
+{
+    if (data != NULL) {
+        $union.CScopedname$Wrapper_free_members(static_cast<$union.CScopedname$Wrapper*>(data));
+        free(data);
+    }
+}
+void *$union.CScopedname$Wrapper_default()
+{
+    return new $union.scopedname$();
+}
+>>
+
+bitset_type(ctx, parent, bitset, extensions) ::= <<
+void *$bitset.CScopedname$Wrapper_to_TopicData($bitset.CScopedname$Wrapper *data)
+{
+    if (data == NULL) {
+        return NULL;
+    }
+
+    $bitset.Scopedname$ *topic_data = new $bitset.Scopedname$();
+    std::bitset<$bitset.bitSize$> bitset_data;
+    for (size_t i = 0; i < data->bitset_size; ++i) {
+        if (data->bits[i / 32] & (1 << (i % 32))) {
+            bitset_data.set(i);
+        }
+    }
+    topic_data->bitset(bitset_data);
+
+    return static_cast<void*>(topic_data);
+
+}
+
+void $bitset.CScopedname$Wrapper_to_TopicData2($bitset.CScopedname$Wrapper *data, void *data_cpp)
+{
+    if (data == NULL) {
+        return;
+    }
+    $bitset.Scopedname$ *topic_data = static_cast<$bitset.Scopedname$ *>(data_cpp);
+    std::bitset<$bitset.bitSize$> bitset_data;
+    for (size_t i = 0; i < data->bitset_size; ++i) {
+        if (data->bits[i / 32] & (1 << (i % 32))) {
+            bitset_data.set(i);
+        }
+    }
+    topic_data->bitset(bitset_data);
+}
+
+void TopicData_to_$bitset.CScopedname$Wrapper(void *data, $bitset.CScopedname$Wrapper *c_data)
+{
+     if (data == NULL || c_data == NULL) {
+        return;
+    }
+
+    $bitset.Scopedname$ *cpp_data = static_cast<$bitset.Scopedname$*>(data);
+    std::bitset<$bitset.bitSize$> bitset_data = cpp_data->get_bitset();
+
+    if (c_data->bits != NULL) {
+        free(c_data->bits);
+    }
+
+    c_data->bits = (uint32_t*)malloc($bitset.rustsize$ * sizeof(uint32_t));
+    if (c_data->bits == NULL) {
+        return;
+    }
+
+    memset(c_data->bits, 0, $bitset.rustsize$ * sizeof(uint32_t));
+    for (size_t i = 0; i < c_data->bitset_size; ++i) {
+        if (bitset_data.test(i)) {
+            c_data->bits[i / 32] |= (1 << (i % 32));
+        }
+    }
+}
+
+void $bitset.CScopedname$Wrapper_free_members($bitset.CScopedname$Wrapper *data)
+{
+    (void)data;
+    if (data != NULL) {
+        free(data->bits);
+        data->bits = NULL;
+    }
+}
+void $bitset.CScopedname$Wrapper_free(void *data)
+{
+    if (data != NULL) {
+        $bitset.CScopedname$Wrapper_free_members(static_cast<$bitset.CScopedname$Wrapper*>(data));
+        free(data);
+    }
+}
+
+void *$bitset.CScopedname$Wrapper_default()
+{
+     return new $bitset.scopedname$();
+}
+>>
+
+enum_type(ctx, parent, enum) ::= <<
+void *$enum.CScopedname$Wrapper_to_TopicData($enum.CScopedname$Wrapper *data)
+{
+    if (!data) return nullptr;
+
+    $enum.cppTypename$ *topic_data = new $enum.cppTypename$(data->value);
+    return (void *)topic_data;
+}
+
+void $enum.CScopedname$Wrapper_to_TopicData2($enum.CScopedname$Wrapper *data, void *data_cpp)
+{
+    if (!data) return;
+    $enum.Scopedname$ *topic_data = static_cast<$enum.Scopedname$ *>(data_cpp);
+    *topic_data =  static_cast<$enum.cppTypename$>(data->value);
+}
+
+void TopicData_to_$enum.CScopedname$Wrapper(void *data,$enum.CScopedname$Wrapper *c_data)
+{
+    if (!data) return;
+
+    $enum.cppTypename$ *topic_data = static_cast<$enum.cppTypename$ *>(data);
+    c_data->value = topic_data->underlying();
+}
+
+void $enum.CScopedname$Wrapper_free_members($enum.CScopedname$Wrapper *data)
+{
+    (void)data;
+}
+
+void $enum.CScopedname$Wrapper_free(void *data)
+{
+    delete ($enum.Scopedname$ *)data;
+}
+
+void *$enum.CScopedname$Wrapper_default()
+{
+    return new $enum.cppTypename$($enum.cppTypename$::get_default());
+}
+>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<
+void *$bitmask.CScopedname$Wrapper_to_TopicData($bitmask.CScopedname$Wrapper *data)
+{
+    if (!data) return nullptr;
+    return static_cast<void*>(&(data->value));
+}
+
+void $bitmask.CScopedname$Wrapper_to_TopicData2($bitmask.CScopedname$Wrapper *data, void *data_cpp)
+{
+    if (!data || !data_cpp) return;
+    $bitmask.Scopedname$ *topic_data = static_cast<$bitmask.Scopedname$ *>(data_cpp);
+    *topic_data =  static_cast<$bitmask.Scopedname$>(data->value);
+}
+
+void TopicData_to_$bitmask.CScopedname$Wrapper(void *data, $bitmask.CScopedname$Wrapper *c_data)
+{
+    if (!data || !c_data) return;
+    $bitmask.Scopedname$ *topic_data = static_cast<$bitmask.Scopedname$ *>(data);
+    c_data->value = static_cast<$bitmask.CastingType$>(*topic_data);
+}
+
+void $bitmask.CScopedname$Wrapper_free_members($bitmask.CScopedname$Wrapper *data)
+{
+    (void)data;
+     // No dynamic members to free
+}
+
+void $bitmask.CScopedname$Wrapper_free(void *data)
+{
+    (void)data;
+    // No dynamic members to free
+}
+
+void *$bitmask.CScopedname$Wrapper_default()
+{
+    return new $bitmask.cppTypename$($bitmask.cppTypename$::$first(bitmask.members).name$);
+}
+>>
+
+/***** Utils *****/
+
+public_struct_inheritances(parent) ::= <<>>
+
+public_bitset_inheritances(parent) ::= <<>>
+
+public_c_member_declaration(ctx, member) ::= <<>>
+
+public_member_primitive_declaration(ctx, member) ::= <<>>
+
+public_member_cstring_declaration(ctx, member) ::= <<>>
+
+public_bitfield_declaration(member) ::= <<>>
+
+public_unionc_member_declaration(ctx, member) ::= <<>>
+
+public_unionmember_primitive_declaration(ctx, member) ::= <<>>
+
+public_unionmember_cstring_declaration(ctx, member) ::= <<>>
+
+unionmember_to_c(ctx, member) ::= <<
+$if(member.typecode.IsType_10)$
+    $unionmember_conv_to_c(ctx=ctx, typecode=member.typecode.TrueContentTypeCode, member=member)$
+$else$
+    $unionmember_conv_to_c(ctx=ctx, typecode=member.typecode, member=member)$
+$endif$
+>>
+unionmember_conv_to_c(ctx, typecode, member) ::= <<
+$if(member.labels)$
+$member.labels:{case $it$:}; separator="\n"$
+{
+topic_data->$member.name$(data->$member.name$);
+}
+break;
+$endif$
+>>
+member_to_c(ctx, member) ::= <<
+$if(member.typecode.IsType_10)$
+    $member_conv_to_c(ctx=ctx, typecode=member.typecode.TrueContentTypeCode, member=member)$
+$else$
+    $member_conv_to_c(ctx=ctx, typecode=member.typecode, member=member)$
+$endif$
+>>
+member_conv_to_c(ctx, typecode, member) ::= <<
+$if(typecode.IsType_a)$
+$typecode.cppTypename$ *_$member.name$ = ($typecode.cppTypename$ *)$typecode.cTypename$Wrapper_to_TopicData(&data->$member.name$);
+topic_data->$member.name$(*_$member.name$);
+delete _$member.name$;
+$elseif(typecode.IsBitsetType)$
+$typecode.cppTypename$ *_$member.name$ = ($typecode.cppTypename$ *)$typecode.cTypename$Wrapper_to_TopicData(&data->$member.name$);
+topic_data->$member.name$(*_$member.name$);
+$elseif(typecode.IsBitmaskType)$
+$typecode.cppTypename$ *_$member.name$ = ($typecode.cppTypename$ *)$typecode.cTypename$Wrapper_to_TopicData(&data->$member.name$);
+topic_data->$member.name$(*_$member.name$);
+$elseif(typecode.IsType_e)$
+$sequence_assign(ctx=ctx, member=member, loopvar=ctx.newLoopVarName)$
+$elseif(typecode.IsType_f)$
+//array
+$typecode.cppTypename$ $member.name$_array;
+$array_assign(ctx=ctx, member=member, name=member.name, dimensions=typecode.DimensionsWithAlias, loopvar=ctx.newLoopVarName)$
+topic_data->$member.name$($member.name$_array);
+$elseif(typecode.IsType_c)$
+//enum
+$typecode.cppTypename$ *_$member.name$ = ($typecode.cppTypename$ *)$typecode.cTypename$Wrapper_to_TopicData(&data->$member.name$);
+topic_data->$member.name$(*_$member.name$);
+delete _$member.name$;
+$elseif(typecode.isStringType)$
+topic_data->$member.name$(std::string(data->$member.name$, data->$member.name$_len));
+$elseif(typecode.IsUnionType)$
+//union
+$typecode.cppTypename$ *_$member.name$ = ($typecode.cppTypename$ *)$typecode.cTypename$Wrapper_to_TopicData(&data->$member.name$);
+topic_data->$member.name$(*_$member.name$);
+delete _$member.name$;
+$elseif(typecode.IsWStringType)$
+std::wstring_convert<std::codecvt_utf8<wchar_t\>\> $member.name$_converter;
+topic_data->$member.name$($member.name$_converter.from_bytes(data->$member.name$, data->$member.name$ + strlen(data->$member.name$) - 1));
+
+$elseif(typecode.IsMapType)$
+$map_assign(ctx=ctx, member=member, loopvar=ctx.newLoopVarName)$
+topic_data->$member.name$(_$member.name$map);
+$elseif(typecode.primitive)$
+topic_data->$member.name$(data->$member.name$);
+$else$
+topic_data->$member.name$(data->$member.name$);
+$endif$
+>>
+unionmember_to_cpp(ctx, member) ::= <<
+$if(member.typecode.IsType_10)$
+    $unionmember_conv_to_cpp(ctx=ctx, typecode=member.typecode.TrueContentTypeCode, member=member)$
+$else$
+    $unionmember_conv_to_cpp(ctx=ctx, typecode=member.typecode, member=member)$
+$endif$
+>>
+member_to_cpp(ctx, member) ::= <<
+$if(member.typecode.IsType_10)$
+    $member_conv_to_cpp(ctx=ctx, typecode=member.typecode.TrueContentTypeCode, member=member)$
+$else$
+    $member_conv_to_cpp(ctx=ctx, typecode=member.typecode, member=member)$
+$endif$
+>>
+unionmember_conv_to_cpp(ctx, typecode, member) ::= <<
+$if(member.labels)$
+$member.labels:{case $it$:}; separator="\n"$
+c_data->$member.name$ = topic_data->$member.name$();
+break;
+$endif$
+>>
+member_conv_to_cpp(ctx, typecode, member) ::= <<
+$if(typecode.IsType_a)$
+//STRUCT
+TopicData_to_$typecode.cTypename$Wrapper(&topic_data->$member.name$(), &c_data->$member.name$);
+$elseif(typecode.IsBitsetType)$
+TopicData_to_$typecode.cTypename$Wrapper(&topic_data->$member.name$(), &c_data->$member.name$);
+$elseif(typecode.IsBitmaskType)$
+TopicData_to_$typecode.cTypename$Wrapper(&topic_data->$member.name$(), &c_data->$member.name$);
+$elseif(typecode.IsType_e)$
+auto $member.name$_vec = topic_data->$member.name$();
+c_data->$member.name$_len = (int)$member.name$_vec.size();
+$if(typecode.contentTypeCode.IsType_d)$
+c_data->$member.name$ = ($typecode.CwrapperTypename$)malloc(sizeof($typecode.CTypename$*) * c_data->$member.name$_len);
+if (c_data->$member.name$ == nullptr) {
+    return;
+}
+for (size_t $member.name$_idx = 0; $member.name$_idx < c_data->$member.name$_len; $member.name$_idx++){
+    c_data->$member.name$[$member.name$_idx] =($typecode.CTypename$*) malloc($member.name$_vec[$member.name$_idx].size()+1);
+    if(!c_data->$member.name$[$member.name$_idx]){
+    for(size_t j=0;j<$member.name$_idx;++j){
+    free(c_data->$member.name$[j]);}
+    free(c_data->$member.name$);return;}
+    memcpy(c_data->$member.name$[$member.name$_idx], $member.name$_vec[$member.name$_idx].c_str(), $member.name$_vec[$member.name$_idx].size());
+    c_data->$member.name$[$member.name$_idx][$member.name$_vec[$member.name$_idx].size()]='\0';
+}
+$elseif(typecode.contentTypeCode.IsType_c)$
+c_data->$member.name$ = ($typecode.CwrapperTypename$)malloc(sizeof($typecode.cTypename$Wrapper) * c_data->$member.name$_len);
+if (c_data->$member.name$ == nullptr) {
+    return;
+}
+for (size_t $member.name$_idx = 0; $member.name$_idx < c_data->$member.name$_len; $member.name$_idx++){
+    TopicData_to_$typecode.cTypename$Wrapper(&$member.name$_vec[$member.name$_idx], &c_data->$member.name$[$member.name$_idx]);
+}
+$elseif(typecode.contentTypeCode.IsBitmaskType)$
+c_data->$member.name$ = ($typecode.CwrapperTypename$)malloc(sizeof($typecode.cTypename$Wrapper) * c_data->$member.name$_len);
+if (c_data->$member.name$ == nullptr) {
+    return;
+}
+for (size_t $member.name$_idx = 0; $member.name$_idx < c_data->$member.name$_len; $member.name$_idx++){
+    TopicData_to_$typecode.cTypename$Wrapper(&$member.name$_vec[$member.name$_idx], &c_data->$member.name$[$member.name$_idx]);
+}
+$elseif(typecode.contentTypeCode.primitive)$
+c_data->$member.name$ = ($typecode.cTypename$ *)malloc(sizeof($typecode.cTypename$) * c_data->$member.name$_len);
+if (c_data->$member.name$ == nullptr) {
+    return;
+}
+for (size_t $member.name$_idx = 0; $member.name$_idx < c_data->$member.name$_len; $member.name$_idx++)
+    c_data->$member.name$[$member.name$_idx] = $member.name$_vec[$member.name$_idx];
+$else$
+c_data->$member.name$ = ($typecode.CwrapperTypename$)malloc(sizeof($typecode.cTypename$Wrapper) * c_data->$member.name$_len);
+for (size_t $member.name$_idx = 0; $member.name$_idx < c_data->$member.name$_len; $member.name$_idx++) {
+    TopicData_to_$typecode.cTypename$Wrapper(&$member.name$_vec[$member.name$_idx], &c_data->$member.name$[$member.name$_idx]);
+}
+        $endif$
+$elseif(typecode.IsType_f)$
+auto $member.name$_array = topic_data->$member.name$();
+$array_assign_c(member=member, name=member.name, dimensions=typecode.DimensionsWithAlias, loopvar=ctx.newLoopVarName)$
+$elseif(typecode.IsType_c)$
+TopicData_to_$typecode.cTypename$Wrapper(&topic_data->$member.name$(), &c_data->$member.name$);
+$elseif(typecode.isStringType)$
+c_data->$member.name$_len = topic_data->$member.name$().size();
+$if(typecode.isBounded)$
+memcpy((void*)c_data->$member.name$, topic_data->$member.name$().c_str(), c_data->$member.name$_len);
+$else$
+c_data->$member.name$ = (char*)malloc(c_data->$member.name$_len);
+memcpy((void*)c_data->$member.name$, topic_data->$member.name$().data(), c_data->$member.name$_len);
+$endif$
+$elseif(typecode.IsUnionType)$
+TopicData_to_$typecode.cTypename$Wrapper(&topic_data->$member.name$(), &c_data->$member.name$);
+$elseif(typecode.IsWStringType)$
+std::wstring_convert<std::codecvt_utf8<wchar_t\>\> _$member.name$converter;
+c_data->$member.name$ = strdup(_$member.name$converter.to_bytes(topic_data->$member.name$()).c_str());
+
+$elseif(typecode.IsMapType)$
+auto& $member.name$_map = topic_data->$member.name$();
+c_data->$member.name$_len = (int)$member.name$_map.size();
+if (c_data->$member.name$_len > 0) {
+        $if(typecode.keyTypeCode.primitive)$
+c_data->$member.name$_key = ($typecode.keyTypeCode.cTypename$ *)malloc(sizeof($typecode.keyTypeCode.cTypename$) * c_data->$member.name$_len);
+        $elseif(typecode.keyTypeCode.IsType_d)$
+c_data->$member.name$_key = (const char**)malloc(sizeof(const char*) * c_data->$member.name$_len);
+        $else$
+c_data->$member.name$_key = ($typecode.keyTypeCode.cTypename$Wrapper *)malloc(sizeof($typecode.keyTypeCode.cTypename$Wrapper) * c_data->$member.name$_len);
+        $endif$
+
+        $if(typecode.valueTypeCode.primitive)$
+c_data->$member.name$_value = ($typecode.valueTypeCode.cTypename$ *)malloc(sizeof($typecode.valueTypeCode.cTypename$) * c_data->$member.name$_len);
+        $elseif(typecode.valueTypeCode.IsType_d)$
+c_data->$member.name$_value = (const char**)malloc(sizeof(const char*) * c_data->$member.name$_len);
+        $else$
+c_data->$member.name$_value = ($typecode.valueTypeCode.cTypename$Wrapper *)malloc(sizeof($typecode.valueTypeCode.cTypename$Wrapper) * c_data->$member.name$_len);
+        $endif$
+size_t _$member.name$_idx = 0;
+for (const auto& _$member.name$_par : $member.name$_map) {
+        $if(typecode.keyTypeCode.primitive)$
+    c_data->$member.name$_key[_$member.name$_idx] = _$member.name$_par.first;
+    $elseif(typecode.keyTypeCode.IsType_d)$
+    c_data->$member.name$_key[_$member.name$_idx] = strdup(_$member.name$_par.first.c_str());
+        $else$
+    TopicData_to_$typecode.keyTypeCode.cTypename$Wrapper((void *)&_$member.name$_par.first, &c_data->$member.name$_value[_$member.name$_idx]);
+        $endif$
+
+        $if(typecode.valueTypeCode.primitive)$
+    c_data->$member.name$_value[_$member.name$_idx] = _$member.name$_par.second;
+        $elseif(typecode.valueTypeCode.IsType_d)$
+    c_data->$member.name$_value[_$member.name$_idx] = strdup(_$member.name$_par.second.c_str());
+        $else$
+        TopicData_to_$typecode.keyTypeCode.cTypename$Wrapper((void *)&_$member.name$_par.second, &c_data->$member.name$_value[_$member.name$_idx]);
+        $endif$
+
+    _$member.name$_idx++;
+}
+} else {
+        c_data->$member.name$_key = nullptr;
+        c_data->$member.name$_value = nullptr;
+    }
+$elseif(typecode.primitive)$
+c_data->$member.name$ = topic_data->$member.name$();
+$else$
+c_data->$member.name$ = topic_data->$member.name$();
+$endif$
+>>
+sequence_assign(ctx, member, loopvar) ::= <<
+std::vector<$member.typecode.contentTypeCode.cppTypename$> _$member.name$vec;
+for (size_t $loopvar$ = 0; $loopvar$ < data->$member.name$_len; ++$loopvar$) {
+$if(member.typecode.contentTypeCode.isType_d)$
+if(data->$member.name$[$loopvar$] != nullptr){
+    _$member.name$vec.push_back(std::string(data->$member.name$[$loopvar$]));}
+$elseif(member.typecode.contentTypeCode.IsType_c)$
+    auto *_$member.name$_value_ptr = ($member.typecode.contentTypeCode.cppTypename$ *)$member.typecode.contentTypeCode.cTypename$Wrapper_to_TopicData(&data->$member.name$[$loopvar$]);
+    _$member.name$vec.push_back(*_$member.name$_value_ptr);
+$elseif(member.typecode.contentTypeCode.IsBitmaskType)$
+    auto *_$member.name$_value_ptr = ($member.typecode.contentTypeCode.cppTypename$ *)$member.typecode.contentTypeCode.cTypename$Wrapper_to_TopicData(&data->$member.name$[$loopvar$]);
+    _$member.name$vec.push_back(*_$member.name$_value_ptr);
+$elseif(member.typecode.contentTypeCode.IsBitsetType)$
+    auto *_$member.name$_value_ptr = ($member.typecode.contentTypeCode.cppTypename$ *)$member.typecode.contentTypeCode.cTypename$Wrapper_to_TopicData(&data->$member.name$[$loopvar$]);
+    _$member.name$vec.push_back(*_$member.name$_value_ptr);
+$elseif(member.typecode.contentTypeCode.primitive)$
+    _$member.name$vec.push_back(data->$member.name$[$loopvar$]);
+$else$
+    $member.typecode.contentTypeCode.cppTypename$ *_$member.name$_value_ptr = ($member.typecode.contentTypeCode.cppTypename$ *)$member.typecode.contentTypeCode.cTypename$Wrapper_to_TopicData(&data->$member.name$[$loopvar$]);
+    _$member.name$vec.push_back(*_$member.name$_value_ptr);
+$endif$
+
+}
+topic_data->$member.name$(_$member.name$vec);
+>>
+arrayCValName(dimensions, loopvar) ::= <<
+$if(rest(dimensions))$[$loopvar$]$arrayCValName(dimensions=rest(dimensions), loopvar=ctx.nextLoopVarName)$$else$[$loopvar$]$endif$
+>>
+
+array_assign_c(member, name, dimensions, loopvar) ::= <<
+$if(rest(dimensions))$
+for (size_t $loopvar$ = 0; $loopvar$ < $first(dimensions)$; ++$loopvar$) {
+    $array_assign_c(member=member, name=name, dimensions=rest(dimensions), loopvar=ctx.nextLoopVarName)$
+}$else$for(size_t $loopvar$ = 0; $loopvar$ < $first(dimensions)$; ++$loopvar$) {
+    $if(member.typecode.ContentTypeCode.isType_c)$
+    $wrapper_convert(member=member, dimensions=member.typecode.DimensionsWithAlias, loopvar=ctx.newLoopVarName)$
+    $elseif(member.typecode.ContentTypeCode.isType_a)$
+    $wrapper_convert(member=member,dimensions=member.typecode.DimensionsWithAlias, loopvar=ctx.newLoopVarName)$
+    $else$
+    c_data->$member.name$$arrayCValName(dimensions=member.typecode.DimensionsWithAlias, loopvar=ctx.newLoopVarName)$ = $member.name$_array$arrayCValName(dimensions=member.typecode.DimensionsWithAlias, loopvar=ctx.newLoopVarName)$;
+    $endif$
+}$endif$
+>>
+array_assign(ctx,member, name, dimensions, loopvar) ::= <<
+$if(rest(dimensions))$
+for (size_t $loopvar$ = 0; $loopvar$ < $first(dimensions)$; ++$loopvar$) {
+    $array_assign(ctx=ctx, member=member, name=name, dimensions=rest(dimensions), loopvar=ctx.nextLoopVarName)$
+}
+$else$
+$if(member.typecode.ContentTypeCode.isType_a)$
+for(size_t $loopvar$ = 0; $loopvar$ < $first(dimensions)$; ++$loopvar$)
+{
+    auto *p = static_cast<$member.typecode.ContentTypeCode.Scopedname$*>($member.typecode.ContentTypeCode.CScopedname$Wrapper_to_TopicData(&data->$member.name$$arrayCValName(dimensions=member.typecode.DimensionsWithAlias, loopvar=ctx.newLoopVarName)$));
+    $member.name$_array$arrayCValName(dimensions=member.typecode.DimensionsWithAlias, loopvar=ctx.newLoopVarName)$ = *p;
+    $member.typecode.ContentTypeCode.CScopedname$Wrapper_free(p);
+}
+$else$
+for(size_t $loopvar$ = 0; $loopvar$ < $first(dimensions)$; ++$loopvar$)
+{
+    $member.name$_array$arrayCValName(dimensions=member.typecode.DimensionsWithAlias, loopvar=ctx.newLoopVarName)$ = $wrapper_get(member=member)$data->$member.name$$arrayCValName(dimensions=member.typecode.DimensionsWithAlias, loopvar=ctx.newLoopVarName)$$right_bracket_get(typecode=member.typecode.contentTypeCode)$;
+}
+$endif$
+$endif$
+>>
+
+map_assign(ctx, member, loopvar) ::= <<
+std::map<$member.typecode.keyTypeCode.cppTypename$, $member.typecode.valueTypeCode.cppTypename$> _$member.name$map;
+for (size_t $loopvar$ = 0; $loopvar$ < data->$member.name$_len; ++$loopvar$) {
+$if(member.typecode.keyTypeCode.primitive)$
+    $member.typecode.keyTypeCode.cTypename$ _$member.name$_key = data->$member.name$_key[$loopvar$];
+    $if(member.typecode.valueTypeCode.primitive)$
+    $member.typecode.valueTypeCode.cTypename$ _$member.name$_value = data->$member.name$_value[$loopvar$];
+    $else$
+    $member.typecode.valueTypeCode.cTypename$ *_$member.name$_value_ptr = ($member.typecode.valueTypeCode.cTypename$ *)$member.typecode.valueTypeCode.cTypename$Wrapper_to_TopicData(&data->$member.name$_value[$loopvar$]);
+    $member.typecode.valueTypeCode.cTypename$ _$member.name$_value = *_$member.name$_value_ptr;
+    $endif$
+$elseif(member.typecode.keyTypeCode.isType_d)$
+    std::string _$member.name$_key = data->$member.name$_key[$loopvar$] ? data->$member.name$_key[$loopvar$] : "";
+
+    $if(member.typecode.valueTypeCode.primitive)$
+    $elseif(member.typecode.valueTypeCode.isType_d)$
+    std::string _$member.name$_value = data->$member.name$_value[$loopvar$] ? data->$member.name$_value[$loopvar$] : "";
+    $endif$
+
+$else$
+    $member.typecode.keyTypeCode.cTypename$ *_$member.name$_key_ptr = ($member.typecode.keyTypeCode.cTypename$ *)$member.typecode.keyTypeCode.cTypename$Wrapper_to_TopicData(&data->$member.name$_key[$loopvar$]);
+    $member.typecode.keyTypeCode.cTypename$ _$member.name$_key = *_$member.name$_key_ptr;
+    $if(member.typecode.valueTypeCode.primitive)$
+    $member.typecode.valueTypeCode.cTypename$ _$member.name$_value = data->$member.name$_value[$loopvar$];
+    $else$
+    $member.typecode.valueTypeCode.cTypename$ *_$member.name$_value_ptr = ($member.typecode.valueTypeCode.cTypename$ *)$member.typecode.valueTypeCode.cTypename$Wrapper_to_TopicData(&data->$member.name$_value[$loopvar$]);
+    $member.typecode.valueTypeCode.cTypename$ _$member.name$_value = *_$member.name$_value_ptr;
+    $endif$
+$endif$
+
+    _$member.name$map[_$member.name$_key] = _$member.name$_value;
+}
+>>
+indexName(name, loopvar) ::= <<$name$[$loopvar$]>>
+member_free_c(ctx, typecode, member) ::= <<
+    $if(typecode.isType_a)$
+    // 结构体成员递归释放
+    $typecode.CScopedname$Wrapper_free_members(&data->$member.name$);
+    $elseif(typecode.isType_e)$
+    // 序列类型成员释放
+    $if(typecode.contentTypeCode.isStringType)$
+    if(data->$member.name$!= nullptr){
+        for (size_t $member.name$_idx = 0; $member.name$_idx < data->$member.name$_len; $member.name$_idx++){
+            if(data->$member.name$[$member.name$_idx]!= nullptr){
+                free(data->$member.name$[$member.name$_idx]);
+            }
+        }
+        free(data->$member.name$);
+        data->$member.name$ = nullptr;
+    }
+    data->$member.name$_len = 0;
+    $elseif(typecode.contentTypeCode.IsType_e)$
+    // 嵌套序列类型递归释放
+    if(data->$member.name$!= nullptr){
+        for (size_t $member.name$_idx = 0; $member.name$_idx < data->$member.name$_len; $member.name$_idx++){
+            if(data->$member.name$[$member.name$_idx]!= nullptr){
+                // 递归释放嵌套元素
+                $typecode.contentTypeCode.CScopedname$Wrapper_free_members(&data->$member.name$[$member.name$_idx]);
+            }
+        }
+        free(data->$member.name$);
+        data->$member.name$ = nullptr;
+    }
+    data->$member.name$_len = 0;
+    $elseif(typecode.contentTypeCode.IsType_a)$
+    // 序列元素为struct类型递归释放
+    if(data->$member.name$!= nullptr){
+        for (size_t $member.name$_idx = 0; $member.name$_idx < data->$member.name$_len; $member.name$_idx++){
+            $typecode.contentTypeCode.CScopedname$Wrapper_free_members(&data->$member.name$[$member.name$_idx]);
+        }
+        free(data->$member.name$);
+        data->$member.name$ = nullptr;
+    }
+    data->$member.name$_len = 0;
+    $elseif(typecode.contentTypeCode.primitive)$
+    // 基本类型序列直接释放
+    if(data->$member.name$!= nullptr){
+        free(data->$member.name$);
+        data->$member.name$ = nullptr;
+    }
+    data->$member.name$_len = 0;
+    $else$
+    // 其他类型序列递归释放
+    if(data->$member.name$!= nullptr){
+        for (size_t $member.name$_idx = 0; $member.name$_idx < data->$member.name$_len; $member.name$_idx++){
+            $typecode.contentTypeCode.CScopedname$Wrapper_free_members(&data->$member.name$[$member.name$_idx]);
+        }
+        free(data->$member.name$);
+        data->$member.name$ = nullptr;
+    }
+    data->$member.name$_len = 0;
+    $endif$
+    $elseif(typecode.isStringType)$
+    // 字符串类型释放
+    if (data->$member.name$ != NULL) {
+        free(const_cast<char*>(data->$member.name$));
+        data->$member.name$ = NULL;
+    }
+    $elseif(typecode.IsWStringType)$
+    // 宽字符串类型释放
+    if (data->$member.name$ != NULL) {
+        free((void*)data->$member.name$);
+        data->$member.name$ = NULL;
+    }
+    $elseif(typecode.IsMapType)$
+    // map类型成员释放
+    if (data->$member.name$_key != nullptr) {
+        for (size_t $member.name$_idx = 0; $member.name$_idx < data->$member.name$_len; $member.name$_idx++) {
+            $if(typecode.keyTypeCode.isStringType)$
+            if(data->$member.name$_key[$member.name$_idx] != nullptr) {
+                free((void*)data->$member.name$_key[$member.name$_idx]);
+            }
+            $elseif(typecode.keyTypeCode.IsType_a)$
+            $typecode.keyTypeCode.CScopedname$Wrapper_free_members(&data->$member.name$_key[$member.name$_idx]);
+            $endif$
+        }
+        free(data->$member.name$_key);
+        data->$member.name$_key = nullptr;
+    }
+    if (data->$member.name$_value != nullptr) {
+        for (size_t $member.name$_idx = 0; $member.name$_idx < data->$member.name$_len; $member.name$_idx++) {
+            $if(typecode.valueTypeCode.isStringType)$
+            if(data->$member.name$_value[$member.name$_idx] != nullptr) {
+                free((void*)data->$member.name$_value[$member.name$_idx]);
+            }
+            $elseif(typecode.valueTypeCode.IsType_a)$
+            $typecode.valueTypeCode.CScopedname$Wrapper_free_members(&data->$member.name$_value[$member.name$_idx]);
+            $endif$
+        }
+        free(data->$member.name$_value);
+        data->$member.name$_value = nullptr;
+    }
+    data->$member.name$_len = 0;
+    $elseif(typecode.isType_f)$
+    $if(typecode.ContentTypeCode.isType_a)$
+    // 多维数组struct类型递归释放
+    $array_free(member=member, dimensions=typecode.DimensionsWithAlias, loopvar=ctx.newLoopVarName)$
+    $endif$
+    $endif$
+>>
+member_free(ctx, member) ::= <<
+$if(member.typecode.IsType_10)$
+    $member_free_c(ctx=ctx, typecode=member.typecode.TrueContentTypeCode, member=member)$
+$else$
+    $member_free_c(ctx=ctx, typecode=member.typecode, member=member)$
+$endif$
+>>
+right_bracket_get(typecode) ::= <<$if(typecode.isType_c)$))$elseif(typecode.isType_a)$))$else$$endif$>>
+size_functions(type) ::= << >>
+wrapper_get(member) ::= <<$if(member.typecode.ContentTypeCode.isType_c)$ *static_cast<$member.typecode.ContentTypeCode.Scopedname$*>($member.typecode.ContentTypeCode.CScopedname$Wrapper_to_TopicData(&$elseif(member.typecode.ContentTypeCode.isType_a)$*static_cast<$member.typecode.ContentTypeCode.Scopedname$*>($member.typecode.ContentTypeCode.CScopedname$Wrapper_to_TopicData(&$else$$endif$>>
+
+wrapper_convert(member, dimensions, loopvar) ::= <<TopicData_to_$member.typecode.ContentTypeCode.CScopedname$Wrapper(&$member.name$_array$arrayCValName(dimensions=dimensions, loopvar=loopvar)$, &c_data->$member.name$$arrayCValName(dimensions=dimensions, loopvar=loopvar)$);
+>>
+serialization_functions(type) ::= << >>
+
+sequences_definition(typecode) ::= <<>>
+array_free(member, dimensions, loopvar) ::= <<
+$if(rest(dimensions))$
+for (size_t $loopvar$ = 0; $loopvar$ < $first(dimensions)$; ++$loopvar$) {
+    $array_free(member=member, dimensions=rest(dimensions), loopvar=ctx.nextLoopVarName)$
+}
+$else$
+for(size_t $loopvar$ = 0; $loopvar$ < $first(dimensions)$; ++$loopvar$)
+{
+    $member.typecode.ContentTypeCode.CScopedname$Wrapper_free_members(&data->$member.name$$arrayCValName(dimensions=member.typecode.DimensionsWithAlias, loopvar=ctx.newLoopVarName)$);
+}
+$endif$
+>>
+
+left_brackets() ::= <<{>>
+
+right_brackets() ::= <<}>>

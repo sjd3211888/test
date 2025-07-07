@@ -1,0 +1,150 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group RPCJNIClientFactorySource;
+
+main(ctx, definitions, package, module_name, interfacename) ::= <<
+
+#include <iostream>
+#include <memory>
+#include "$ctx.PackageUnder$$ctx.filename$_$if(module_name)$$module_name$_$endif$RpcClientFactory.$if(ctx.GenHpp)$hpp$else$h$endif$"
+#include "$ctx.filename$Client.$if(ctx.GenHpp)$hpp$else$h$endif$"
+#include "$ctx.filename$ClientFactory.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+using namespace vbs::rpc;
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_$ctx.PackageUnder$$ctx.JniFilename$_1RpcClientFactory_native_1init(JNIEnv *env, jobject obj)
+{
+    long ret = 0;
+    $ctx.filename$Factory *factory = new $ctx.filename$Factory();
+    ret = reinterpret_cast<long>(factory);
+    return ret;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_$ctx.PackageUnder$$ctx.JniFilename$_1RpcClientFactory_native_1deinit(JNIEnv *env, jobject obj, jlong ptr)
+{
+    $ctx.filename$Factory *factory = reinterpret_cast<$ctx.filename$Factory*>(ptr);
+    if (factory != nullptr) {
+        delete factory;
+    }
+    return;
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_$ctx.PackageUnder$$ctx.JniFilename$_1RpcClientFactory_native_1create_1RpcClient(
+    JNIEnv *env, jobject obj, jlong ptr, jstring xml_path, jstring profile_name)
+{
+    long ret = 0;
+    RpcClient *client = nullptr;
+    $ctx.filename$Factory *factory = reinterpret_cast<$ctx.filename$Factory*>(ptr);
+    if (factory == nullptr) {
+        return ret;
+    }
+
+    const char *str = env->GetStringUTFChars(xml_path, NULL);
+    std::string XMLPath(str);
+    env->ReleaseStringUTFChars(xml_path, str);
+
+    const char *pstr = env->GetStringUTFChars(profile_name, NULL);
+    std::string Profile(pstr);
+    env->ReleaseStringUTFChars(profile_name, pstr);
+
+    client = factory->CreateRpcClient(XMLPath, Profile);
+    ret = reinterpret_cast<long>(client);
+
+    return ret;
+}
+
+$definitions; separator="\n"$
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list, module_name) ::= <<>>
+
+export_list(exports) ::= <<>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct) ::= <<>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+bitset_type(ctx, parent, bitset) ::= <<>>
+
+insertMember(ctx, parent, member) ::= <<>>
+
+//StringMember
+insertStringMember(ctx, parent, member) ::= <<>>
+
+//SequenceMember
+insertSequenceMember(ctx, parent, member) ::= <<>>
+
+//ArrayMember
+insertArrayMember(ctx, parent, member) ::= <<>>
+
+//StructMember
+insertStructMember(ctx, parent, member) ::= <<>>
+
+//MapMember
+insertMapMember(ctx, parent, member) ::= <<>>
+
+insertMemberType(ctx, parent, member) ::= <<>>
+
+//PrimitiveMember
+PrimitiveMember(ctx, parent, member) ::= <<
+$if(member.Typecode.IsType_9)$
+if ($member.name$ < 0 || $member.name$ > 255) {
+    return -1;
+}
+
+$elseif(member.Typecode.IsType_3)$
+if ($member.name$ < 0 || $member.name$ > 65535) {
+    return -1;
+}
+
+$elseif(member.Typecode.IsType_4)$
+if ($member.name$ < 0 || $member.name$ > 4294967295) {
+    return -1;
+}
+
+$endif$
+$member.Typecode.CppTypename$ cpp_$member.name$ = static_cast<$member.Typecode.CppTypename$>($member.name$);
+>>

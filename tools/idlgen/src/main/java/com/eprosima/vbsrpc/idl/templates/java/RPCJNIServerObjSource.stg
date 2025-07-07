@@ -1,0 +1,246 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group RPCJNIServerObjSource;
+
+main(ctx, definitions, package, module_name, interfacename) ::= <<
+
+#include "$ctx.PackageUnder$$ctx.filename$_$if(module_name)$$module_name$_$endif$$interfacename$_RpcServerObj.$if(ctx.GenHpp)$hpp$else$h$endif$"
+#include "$ctx.filename$Client.$if(ctx.GenHpp)$hpp$else$h$endif$"
+
+using namespace vbs::rpc;
+
+$definitions; separator="\n"$
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list, module_name) ::= <<
+$if(module_name)$
+using namespace $if(module_name)$$module_name$$endif$;
+$endif$
+
+extern "C" JNIEXPORT void JNICALL
+Java_$ctx.PackageUnder$$ctx.JniFilename$_1$if(interface.HasScope)$$interface.UnderlineScope$_1$endif$$interface.UnderlineName$_1RpcServerObj_native_1register_1parameter_1type(
+    JNIEnv *env, jobject obj, jlong ptr$interface.AllOperationsStruct : {structname|, jobject $structname$}; separator=""$)
+{
+    JavaVM* jvm;
+    $interface.name$ServerObj *ServerObj = reinterpret_cast<$interface.name$ServerObj*>(ptr);
+    if (ServerObj == nullptr) {
+        return;
+    }
+
+    if(env->GetJavaVM(&jvm) != 0)
+    {
+        return;
+    }
+    ServerObj->vm_ = jvm;
+    jint version = env->GetVersion();
+    ServerObj->version_ = version;
+
+$interface.AllOperationsStruct : {structname|
+    jclass $structname$Clazz = env->GetObjectClass($structname$);
+    ServerObj->java_$structname$Class_ = static_cast<jclass>(env->NewGlobalRef($structname$Clazz));
+}; separator="\n"$
+
+    return;
+}
+
+$interface.all_operations : {operation|
+
+JNIEXPORT jint JNICALL Java_$ctx.PackageUnder$$ctx.JniFilename$_1$if(interface.HasScope)$$interface.UnderlineScope$_1$endif$$interface.UnderlineName$_1RpcServerObj_native_1sync_1$operation.UnderlineName$
+    (JNIEnv *env, jobject obj, jlong ptr$operation.Parameters : {param |, jlong $param.name$_ptr}; separator=""$, jint expire)
+{
+    int ret = 0;
+    $interface.name$ServerObj *ServerObj = reinterpret_cast<$interface.name$ServerObj*>(ptr);
+    if (ServerObj == nullptr) {
+        return -EINVAL;
+    }
+
+$operation.Parameters : {param |
+    $param.Typecode.Scopednamenormal$ *$param.name$_tmp_ptr = reinterpret_cast<$param.Typecode.Scopednamenormal$*>($param.name$_ptr);
+}; separator="\n"$
+
+$if(!operation.Empty)$
+    if ($operation.Parameters : {param |$param.name$_tmp_ptr == nullptr}; separator=" || "$) {
+        return -EINVAL;
+    }
+$endif$
+
+    ret = ServerObj->$operation.name$($operation.Parameters : {param |$param.name$_tmp_ptr, }; separator=""$expire);
+
+    return ret;
+}
+
+JNIEXPORT jint JNICALL Java_$ctx.PackageUnder$$ctx.JniFilename$_1$if(interface.HasScope)$$interface.UnderlineScope$_1$endif$$interface.UnderlineName$_1RpcServerObj_native_1async_1$operation.UnderlineName$
+    (JNIEnv *env, jobject obj, jlong ptr$operation.Inputparam : {param |, jlong $param.name$_ptr}; separator=""$, jobject callback, jint expire)
+{
+    int ret = 0;
+    $interface.name$ServerObj *ServerObj = reinterpret_cast<$interface.name$ServerObj*>(ptr);
+    if (ServerObj == nullptr) {
+        return -EINVAL;
+    }
+
+$operation.Inputparam : {param |
+    $param.Typecode.Scopednamenormal$ *$param.name$_tmp_ptr = reinterpret_cast<$param.Typecode.Scopednamenormal$*>($param.name$_ptr);
+    if ($param.name$_tmp_ptr == nullptr) {
+        return -EINVAL;
+    }
+}; separator=""$
+
+    JavaVM *g_vm = NULL;
+    if(env->GetJavaVM(&g_vm) != 0)
+    {
+        return -EINVAL;
+    }
+    jint JVMVersion = env->GetVersion();
+
+    jobject gCallbackObj = env->NewGlobalRef(callback);
+    if (gCallbackObj == nullptr) {
+        return -EINVAL;
+    }
+    jclass callbackClass = env->GetObjectClass(gCallbackObj);
+    jmethodID funcID = env->GetMethodID(callbackClass, "execute", "(ILVBSFramework/RPC/utils/RpcMessageType;)V");
+
+$if(operation.HasOutput)$
+$operation.Outputparam : {param |
+$if(param.Typecode.IsType_10)$
+    jclass gresClazz = ServerObj->java_$param.Typecode.ContentTypeCode.CScopednamenormal$Class_;
+$else$
+    jclass gresClazz = ServerObj->java_$param.Typecode.CScopednamenormal$Class_;
+$endif$
+
+}; separator=""$
+$else$
+    jclass gresClazz = NULL;
+$endif$
+
+    auto lambda_function = [g_vm, JVMVersion, gCallbackObj, funcID, gresClazz] (int status, RpcMessageType *response) {
+        JNIEnv* env = nullptr;
+        bool JVMAttached = false;
+        int getEnvStat = g_vm->GetEnv(reinterpret_cast<void**>(&env), JVMVersion);
+
+        if (env == nullptr) {
+            JVMAttached = true;
+#ifdef ANDROID
+            if (g_vm->AttachCurrentThread(&env, nullptr) != JNI_OK)
+#else
+            if (g_vm->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) != JNI_OK)
+#endif
+            {
+                return;
+            }
+        }
+
+$if(operation.HasOutput)$
+        jlong res_ptr = (jlong)(reinterpret_cast<long>(response));
+
+        jmethodID constructor = env->GetMethodID(gresClazz, "<init>", "(JZ)V");
+
+        jobject responseObj = env->NewObject(gresClazz, constructor, res_ptr, false);
+        jmethodID CopyDataID = env->GetMethodID(gresClazz, "copy_data_from_cpp", "()V");
+        env->CallVoidMethod(responseObj, CopyDataID);
+        env->CallVoidMethod(gCallbackObj, funcID, status, responseObj);
+$else$
+        env->CallVoidMethod(gCallbackObj, funcID, status, NULL);
+$endif$
+
+$if(operation.HasOutput)$
+        env->DeleteLocalRef(responseObj);
+$endif$
+
+        if (JVMAttached)
+            g_vm->DetachCurrentThread();
+    };
+
+    ret = ServerObj->$operation.name$($operation.Inputparam : {param |$param.name$_tmp_ptr, }; separator=""$lambda_function, expire);
+
+    return ret;
+}
+}; separator="\n"$
+>>
+
+export_list(exports) ::= <<>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct) ::= <<>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+bitset_type(ctx, parent, bitset) ::= <<>>
+
+insertMember(ctx, parent, member) ::= <<>>
+
+//StringMember
+insertStringMember(ctx, parent, member) ::= <<>>
+
+//SequenceMember
+insertSequenceMember(ctx, parent, member) ::= <<>>
+
+//ArrayMember
+insertArrayMember(ctx, parent, member) ::= <<>>
+
+//StructMember
+insertStructMember(ctx, parent, member) ::= <<>>
+
+//MapMember
+insertMapMember(ctx, parent, member) ::= <<>>
+
+insertMemberType(ctx, parent, member) ::= <<>>
+
+//PrimitiveMember
+PrimitiveMember(ctx, parent, member) ::= <<
+$if(member.Typecode.IsType_9)$
+if ($member.name$ < 0 || $member.name$ > 255) {
+    return -1;
+}
+
+$elseif(member.Typecode.IsType_3)$
+if ($member.name$ < 0 || $member.name$ > 65535) {
+    return -1;
+}
+
+$elseif(member.Typecode.IsType_4)$
+if ($member.name$ < 0 || $member.name$ > 4294967295) {
+    return -1;
+}
+
+$endif$
+$member.Typecode.CppTypename$ cpp_$member.name$ = static_cast<$member.Typecode.CppTypename$>($member.name$);
+>>

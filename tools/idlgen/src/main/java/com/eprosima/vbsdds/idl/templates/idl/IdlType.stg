@@ -1,0 +1,194 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group IdlType;
+
+main(ctx, definitions, module_name) ::= <<
+$definitions; separator="\n"$
+
+>>
+
+interface(ctx, parent, interface, exports, extension, module_name) ::= <<
+public class $interface.name$
+{
+    $extension$
+
+    $exports$
+}
+>>
+
+typedef_decl(ctx, parent, typedefs, module_name) ::= <<
+$if(typedefs.ScopednameList)$
+$typedefs.ScopednameList : { namespace |
+module $namespace$ \{
+}; separator="\n"$
+$endif$
+
+typedef $typedefs.OneLevelContentTypeCodeName$ $typedefs.name$$if(typedefs.IsArrayType)$$typedefs.TypedefContentTypeCode.DimensionsTrueValue : { size |[$size$]}; separator=""$$endif$;
+
+$if(typedefs.ScopednameList)$
+$typedefs.ScopednameList : { namespace |
+\};
+}; separator="\n"$
+$endif$
+>>
+
+struct_type(ctx, parent, struct, extension, module_name) ::= <<
+$if(struct.ScopednameList)$
+$struct.ScopednameList : { namespace |
+module $namespace$ \{
+}; separator="\n"$
+$endif$
+
+$if(struct.annotationList)$
+$struct.annotationList:{ ann |
+@$ann.name$$if(ann.Value)$($ann.Value$)$endif$
+};separator="\n"$
+$endif$
+struct $struct.name$$if(struct.inheritances)$: $struct.inheritances : {parent | $if(parent.name)$$parent.name$$endif$}; separator=", "$ $endif$ {
+
+$struct.members : { member |
+    $get_each_member(member=member)$
+}; separator="\n"$
+$definitions; separator=""$
+};
+$if(struct.ScopednameList)$
+$struct.ScopednameList : { namespace |
+\};
+}; separator="\n"$
+$endif$
+>>
+
+bitset_type(ctx, parent, bitset, module_name) ::= <<
+$if(bitset.ScopednameList)$
+$bitset.ScopednameList : { namespace |
+module $namespace$ \{
+}; separator="\n"$
+$endif$
+
+bitset $bitset.name$ $if(bitset.parents)$ : $bitset.parents : {$it.scopednamenormal$}; separator=", "$ $endif$ {
+$bitset.Bitfields : { member |
+    bitfield<$member.Spec.BitSize$$if(member.Spec.typecode)$, $member.Spec.typecode.IdlTypename$$endif$> $if(member.name)$ $member.name$$endif$;
+}; separator="\n"$
+};
+
+$if(bitset.ScopednameList)$
+$bitset.ScopednameList : { namespace |
+\};
+}; separator="\n"$
+$endif$
+>>
+
+public_bitfield_definition(member) ::= <<
+
+>>
+
+union_type(ctx, parent, union, extension, module_name) ::= <<
+$if(union.ScopednameList)$
+$union.ScopednameList : { namespace |
+module $namespace$ \{
+}; separator="\n"$
+$endif$
+
+union $union.name$ switch ($if(union.Discriminator.PrimitiveType)$$union.Discriminator.XmlTypename$$else$$union.Discriminator.Scopednamenormal$$endif$) {
+$union.members : { member |
+$member.InternalLabels : { label |
+    case $label$:}; separator="\n"$
+    $get_each_member(member=member)$
+}; separator="\n"$
+};
+$if(union.ScopednameList)$
+$union.ScopednameList : { namespace |
+\};
+}; separator="\n"$
+$endif$
+>>
+
+enum_type(ctx, parent, enum, extension, module_name) ::= <<
+$if(enum.ScopednameList)$
+$enum.ScopednameList : { namespace |
+module $namespace$ \{
+}; separator="\n"$
+$endif$
+
+enum $enum.name$ {
+$enum.members : { member |
+    $member.name$$if(member.HasValue)$ = $member.Value$$endif$}; separator=",\n"$
+};
+
+$if(enum.ScopednameList)$
+$enum.ScopednameList : { namespace |
+\};
+}; separator="\n"$
+$endif$
+>>
+
+const_decl(ctx, parent, const) ::= <<
+
+$if(const.ScopednameList)$
+$const.ScopednameList : { namespace |
+module $namespace$ \{
+}; separator="\n"$
+$endif$
+
+const $const.TypeCode.IdlFileTypename$ $const.name$ = $const.Value$;
+
+$if(const.ScopednameList)$
+$const.ScopednameList : { namespace |
+\};
+}; separator="\n"$
+$endif$
+>>
+
+bitmask_type(ctx, parent, bitmask, extension, module_name) ::= <<
+$if(bitmask.ScopednameList)$
+$bitmask.ScopednameList : { namespace |
+module $namespace$ \{
+}; separator="\n"$
+$endif$
+@bit_bound($bitmask.BitBound$)
+bitmask $bitmask.name$ {
+$bitmask.members : { member |
+    @position($member.Position$) $member.name$}; separator=",\n"$
+};
+
+$if(bitmask.ScopednameList)$
+$bitmask.ScopednameList : { namespace |
+\};
+}; separator="\n"$
+$endif$
+>>
+
+public_bitset_inheritances(parent) ::= <<$parent.Scopednamenormal$>>
+
+/*UTILS*/
+
+get_each_member(member) ::= <<
+$if(member.annotationList)$
+$member.annotationList:{ ann |
+@$ann.name$$if(ann.Value)$($ann.Value$)$endif$
+};separator="\n"$
+$endif$
+$member.typecode.IdlFileTypename$ $member.name$$if(member.typecode.IsArrayType)$$member.typecode.DimensionsWithAlias : { size |[$size$]}; separator=""$$endif$;
+>>
+
+get_container_typedef_pre_name(typecode) ::= <<$if(typecode.IsArrayType)$array_$elseif(typecode.IsMapType)$map_$elseif(typecode.isType_e)$seq_$endif$>>
+
+contain_type(containertypecode) ::= <<$if(containertypecode.BoundedStringType)$"nonBasic" nonBasicTypeName="$if(containertypecode.XmlTypename)$$containertypecode.XmlTypename$_$endif$$containertypecode.XMLMaxsize$_lvbs_TYPEDEF"$else$"$containertypecode.XmlTypename$"$endif$>>
+contain_key_type(containertypecode) ::= <<$if(containertypecode.ContainerTypeCode)$$if(containertypecode.HasInnerBoundedString)$$if(containertypecode.XmlTypename)$$containertypecode.XmlTypename$_$endif$$containertypecode.XMLMaxsize$_lvbs_TYPEDEF$else$$if(containertypecode.AliasOrStruct)$$containertypecode.Scopednamenormal$$else$$containertypecode.XmlTypename$$endif$$endif$$else$$if(containertypecode.BoundedStringType)$$if(containertypecode.XmlTypename)$$containertypecode.XmlTypename$_$endif$$containertypecode.XMLMaxsize$_lvbs_TYPEDEF$else$$if(containertypecode.AliasOrStruct)$$containertypecode.Scopednamenormal$$else$$containertypecode.XmlTypename$$endif$$endif$$endif$>>
+get_extensibility_annotation(typecode) ::= <<$if(typecode.AnnotationMutable)$mutable$elseif(typecode.AnnotationFinal)$final$elseif(typecode.AnnotationAppendable)$appendable$endif$>>
+
+get_member_annotation(member) ::= << $if(member.AnnotationId)$ id="$member.AnnotationIdValue$"$endif$$if(member.annotationDefault)$ default="$member.AnnotationDefaultValueForXML$"$endif$$if(member.AnnotationOptional)$ optional="true"$endif$>>

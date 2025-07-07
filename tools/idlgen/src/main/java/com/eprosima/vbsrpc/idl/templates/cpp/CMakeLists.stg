@@ -1,0 +1,117 @@
+// Copyright 2016 Proyectos y Sistemas de Mantenimiento SL (eProsima).
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ------------------------------------------------------------------
+// Modification history:
+// 2023-08 ~ 2025-05: idlgen optimization: code detection, multi-platform compilation support, header file updates, super large heap support, open source content refinement, etc.
+// ------------------------------------------------------------------
+
+group CMakeLists;
+
+CMakeListsxx(solution) ::= <<
+cmake_minimum_required(VERSION 3.16.3)
+
+project(Rpcmyexample VERSION 1 LANGUAGES CXX)
+
+set(RPC_INCLUDE \$ENV{ROOT_PATH}/include)
+set(RPC_LIBDIR \$ENV{ROOT_PATH}/lib)
+
+find_library(lib_livbs
+    NAMES livbs
+    HINTS \${THIRD_LIB_PATH}
+    PATHS \${THIRD_LIB_PATH}
+    REQUIRED)
+
+find_library(lib_ecdr
+    NAMES ecdr
+    HINTS \${THIRD_LIB_PATH}
+    PATHS \${THIRD_LIB_PATH}
+    REQUIRED)
+
+# find_library(lib_elog
+#     NAMES elog
+#     HINTS \${LIB_PATH}
+#     PATHS \${LIB_PATH}
+#     REQUIRED)
+#
+# find_library(lib_erpc
+#     NAMES erpc
+#     HINTS \${LIB_PATH}
+#     PATHS \${LIB_PATH}
+#     REQUIRED)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(CMAKE_EXE_LINKER_FLAGS "-ldl -lm -lpthread -lrt")#-static-libgcc -static-libstdc++ -static -lnsl
+
+add_compile_options(-c -g -Wall -std=c++17)
+$solution.projects:{
+message(STATUS "Configuring Rpcmyexample example...")
+
+set(RPC_CLIENT $it.name$Client)
+set(CLIENT_SOURCE
+# $if(!solution.RmPrintHelper)$    ContainerPrintHelpers.cpp$endif$
+    $it.name$.cxx
+    $it.dependencies : {$it$.cxx}; separator=" "$
+    $it.name$ClientExample.cxx
+    )
+
+set(RPC_SERVER $it.name$Server)
+set(SERVER_SOURCE
+# $if(!solution.RmPrintHelper)$    ContainerPrintHelpers.cpp$endif$
+    $it.name$.cxx
+    $it.dependencies : {$it$.cxx}; separator=" "$
+    $it.name$ServerImplExample.cxx
+    $it.name$ServerExample.cxx
+    )
+}; separator="\n"$
+
+$if(!solution.RmPrintHelper)$
+# Create templates library
+# #add_library(templates_lib $if(solution.GenSharedLib)$SHARED $endif$ContainerPrintHelpers.cpp)
+# #target_link_libraries(templates_lib \${lib_ecdr} \${lib_elog})
+$endif$
+
+add_executable(\${RPC_CLIENT} \${CLIENT_SOURCE})
+target_include_directories(\${RPC_CLIENT} PRIVATE \${RPC_INCLUDE})
+target_link_directories(\${RPC_CLIENT} PRIVATE \${RPC_LIBDIR})
+$if(solution.IsCj)$
+target_link_libraries(\${RPC_CLIENT} erpc_NDK ecdr_NDK)
+$else$
+# target_link_libraries(\${RPC_CLIENT} \${lib_erpc} \${lib_ecdr} \${lib_elog})
+target_link_libraries(\${RPC_CLIENT} \${lib_livbs} \${lib_ecdr})
+$endif$
+
+target_compile_options(\${RPC_CLIENT} PRIVATE -O3)
+
+add_executable(\${RPC_SERVER} \${SERVER_SOURCE})
+target_include_directories(\${RPC_SERVER} PRIVATE \${RPC_INCLUDE})
+target_link_directories(\${RPC_SERVER} PRIVATE \${RPC_LIBDIR})
+$if(solution.IsCj)$
+target_link_libraries(\${RPC_SERVER} erpc_NDK ecdr_NDK)
+$else$
+target_link_libraries(\${RPC_SERVER} \${lib_livbs} \${lib_ecdr})
+$endif$
+
+target_compile_options(\${RPC_SERVER} PRIVATE -O3)
+
+$if(solution.TestExample)$
+configure_file("\${CMAKE_CURRENT_SOURCE_DIR}/RpcIDLProfile.xml" "\${CMAKE_CURRENT_BINARY_DIR}/RpcIDLProfile.xml" COPYONLY)
+
+configure_file(\${PROJECT_SOURCE_DIR}/start.sh
+\${PROJECT_SOURCE_DIR}/build/start.sh
+COPYONLY)
+$endif$
+>>

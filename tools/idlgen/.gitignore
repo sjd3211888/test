@@ -1,0 +1,39 @@
+# Backup GVim files.
+*~
+# Temporaly GVim files.
+*.swp
+# Build directory
+build/
+.gradle/
+# Visual Studio user configuration files.
+.vscode
+*.vcxproj.user
+*.sdf
+*.opensdf
+*.suo
+*.o
+*.Po
+# Visual Studio build directories.
+Debug*/
+Release*/
+ipch/
+objs/
+bin/
+# Lib directory
+# Tags info
+tags
+cscope.out
+# Compiled python objects
+*.pyc
+# Installers
+*.tar.gz
+#ignore test tmp file
+thirdparty/.gradle/
+thirdparty/build/
+#Don't ignore this files
+#.vscode/
+#build/
+#output/
+#lib/
+
+gradle/wrapper/gradle-wrapper.properties

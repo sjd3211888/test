@@ -1,0 +1,122 @@
+/*
+ * Copyright (c) 2025 Li Auto Inc. and its affiliates
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+group PubDynamicProfileXML;
+
+main(ctx, definitions) ::= <<
+<dds xmlns="http://www.evbs.com/XMLSchemas/vbsRTPS_Profiles">
+    <log>
+    <level>$if(ctx.UseDebugLog)$Debug$else$Info$endif$</level>
+    </log>
+    <profiles>
+        <!-- Begin: Using loopback for DDS -->
+        <transport_descriptors>
+            <transport_descriptor>
+                <transport_id>Udp4LoTransport</transport_id>
+                <type>UDPv4</type>
+                <interfaceWhiteList>
+                    <address>lo</address>
+                    <address>10.248.25.13</address>
+                </interfaceWhiteList>
+            </transport_descriptor>
+        </transport_descriptors>
+        <!-- End: Using loopback for DDS -->
+
+        <participant profile_name="test_xml_pub.xml_profile">
+            <domainId>0</domainId>
+            <rtps>
+                <transport_type>$if(ctx.UseUDP)$UDP$else$SHM$endif$</transport_type>
+                <useBuiltinTransports>false</useBuiltinTransports>
+                <!-- Begin: Using loopback for DDS -->
+                <userTransports>
+                    <transport_id>Udp4LoTransport</transport_id>
+                </userTransports>
+                <!-- End: Using loopback for DDS -->
+            </rtps>
+        </participant>
+        <topic profile_name="$ctx.OnlyFileName$Topic" is_default_profile="true">
+        </topic>
+        <data_writer profile_name="test_writer_prof" is_default_profile="true">
+        <propertiesPolicy>
+                <properties>
+                <property>
+                    <name>dsf.mbuf.pool_size</name>
+                    <value>1200204</value>
+                </property>
+                </properties>
+            </propertiesPolicy>
+        <reliability> <kind>RELIABLE</kind></reliability>
+        </data_writer>
+        <data_writer profile_name="test_writer_prof2" is_default_profile="true">
+        <propertiesPolicy>
+                <properties>
+                <property>
+                    <name>dsf.mbuf.pool_size</name>
+                    <value>1200204</value>
+                </property>
+                </properties>
+            </propertiesPolicy>
+        <reliability> <kind>RELIABLE</kind></reliability>
+        </data_writer>
+    </profiles>
+</dds>
+
+>>
+
+module(ctx, parent, module, definition_list) ::= <<
+$definition_list$
+>>
+
+definition_list(definitions) ::= <<
+$definitions; separator="\n"$
+
+>>
+
+annotation(ctx, annotation) ::= <<>>
+
+interface(ctx, parent, interface, export_list) ::= <<
+$export_list$
+>>
+
+export_list(exports) ::= <<
+$exports; separator="\n"$
+
+>>
+
+exception(ctx, parent, exception) ::= <<>>
+
+operation(ctx, parent, operation, param_list) ::= <<>>
+
+param_list(parameters) ::= <<>>
+
+param(parameter) ::= <<>>
+
+const_decl(ctx, parent, const) ::= <<>>
+
+typedef_decl(ctx, parent, typedefs) ::= <<>>
+
+struct_type(ctx, parent, struct) ::= <<>>
+
+union_type(ctx, parent, union) ::= <<>>
+
+enum_type(ctx, parent, enum) ::= <<>>
+
+bitmask_type(ctx, parent, bitmask) ::= <<>>
+
+bitset_type(ctx, parent, bitset) ::= <<>>
+
+/*UTILS*/
+namespace_get(ctx) ::= <<$if(ctx.NotUseVbsFramework)$evbs::edds::dds::$else$vbs::$endif$>>
